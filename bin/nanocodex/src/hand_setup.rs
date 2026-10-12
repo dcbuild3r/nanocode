@@ -45,6 +45,15 @@ pub(crate) enum HandCommand {
         /// Prepare a dormant local Hand service before account sign-in.
         #[arg(long, conflicts_with_all = ["target", "port", "account_file", "artifacts", "if_missing"])]
         prepare: bool,
+        /// Linux: run the Hand service as this existing non-root account, for
+        /// example the desktop owner whose Wayland session it should capture.
+        /// Retained for later repairs.
+        #[arg(long, value_name = "USER", conflicts_with_all = ["if_missing", "prepare"])]
+        service_user: Option<String>,
+        /// Linux: serve this existing directory as the Hand workspace, keeping
+        /// the machine identity. Retained for later repairs.
+        #[arg(long, value_name = "PATH", conflicts_with_all = ["if_missing", "prepare"])]
+        workspace: Option<String>,
     },
     /// Connect the local Hand using the exact login saved by account sign-in.
     Connect {
@@ -197,7 +206,14 @@ pub(crate) async fn connect_saved_login(
     if cfg!(target_os = "linux") {
         let (origin, key) =
             nanocodex_cli_auth::saved_enrollment_credentials(&account_file, &managed_url)?;
-        install_linux_with_login(Destination::Local, None, origin, key.as_str()).await?;
+        install_linux_with_login(
+            Destination::Local,
+            None,
+            origin,
+            key.as_str(),
+            LinuxPlacement::default(),
+        )
+        .await?;
         return Ok(true);
     }
     if !cfg!(target_os = "macos") {
@@ -221,7 +237,22 @@ pub(crate) async fn install_default(
     executable: Option<PathBuf>,
     account_file: Option<PathBuf>,
 ) -> Result<bool> {
-    install_with(target, port, executable, account_file, None).await
+    install_with(
+        target,
+        port,
+        executable,
+        account_file,
+        None,
+        LinuxPlacement::default(),
+    )
+    .await
+}
+
+/// Explicit Linux service account and workspace; empty keeps retained choices.
+#[derive(Default)]
+struct LinuxPlacement {
+    service_user: Option<String>,
+    workspace: Option<String>,
 }
 
 async fn install_with(
@@ -230,6 +261,7 @@ async fn install_with(
     executable: Option<PathBuf>,
     account_file: Option<PathBuf>,
     artifacts: Option<PathBuf>,
+    placement: LinuxPlacement,
 ) -> Result<bool> {
     if target.is_none() && cfg!(target_os = "macos") {
         if artifacts.is_some() {
@@ -274,7 +306,7 @@ async fn install_with(
         },
         None => Destination::Local,
     };
-    install_linux(destination, artifacts).await?;
+    install_linux(destination, artifacts, placement).await?;
     Ok(true)
 }
 
@@ -341,7 +373,10 @@ impl Destination {
         } else {
             SudoFailure::Rejected
         };
-        bail!("{}", sudo_failure_message(self, failure, &launcher()))
+        bail!(
+            "{}",
+            sudo_failure_message(self, failure, &launcher(), root_one_shot().as_deref())
+        )
     }
 
     async fn upload(&self, local: &std::path::Path, remote: &str) -> Result<()> {
@@ -407,7 +442,28 @@ fn launcher() -> String {
 
 /// Stage, cause, resulting state and safe retry commands for a sudo failure.
 /// Never suggests weakening sudo policy.
-fn sudo_failure_message(destination: &Destination, failure: SudoFailure, cli: &str) -> String {
+/// The supported unattended route on this machine: root reuses this user's
+/// saved login (never printed) and keeps the service under this user.
+fn root_one_shot() -> Option<String> {
+    let user = nix::unistd::User::from_uid(nix::unistd::geteuid()).ok()??;
+    if user.uid.is_root() {
+        return None;
+    }
+    let account = nanocodex_cli_auth::saved_enrollment_account_file().ok()?;
+    Some(format!(
+        "env NANOCODEX_ACCOUNT_FILE={} {} hand install --service-user {}",
+        account.display(),
+        launcher(),
+        user.name
+    ))
+}
+
+fn sudo_failure_message(
+    destination: &Destination,
+    failure: SudoFailure,
+    cli: &str,
+    root_one_shot: Option<&str>,
+) -> String {
     let local_host = || {
         fs::read_to_string("/proc/sys/kernel/hostname")
             .ok()
@@ -464,7 +520,12 @@ fn sudo_failure_message(destination: &Destination, failure: SudoFailure, cli: &s
             (
                 "administrator access",
                 "sudo needs a password, but this session has no terminal to ask for it (non-interactive shell, pipe, or ssh without -t)".to_owned(),
-                format!("  - in an interactive terminal on this machine: {cli} setup\n  - over SSH with a terminal: ssh -t {host} {cli} setup\n  - from another signed-in machine with root SSH here: nanocodex hand install --target root@{host}"),
+                format!(
+                    "  - in an interactive terminal on this machine: {cli} setup\n  - over SSH with a terminal: ssh -t {host} {cli} setup\n{}  - from another signed-in machine with root SSH here: nanocodex hand install --target root@{host}",
+                    root_one_shot.map_or_else(String::new, |command| format!(
+                        "  - as root on this machine, reusing this account's saved login: ssh root@{host} {command}\n"
+                    ))
+                ),
             )
         }
         (Destination::Local, _) => (
@@ -482,9 +543,13 @@ fn sudo_failure_message(destination: &Destination, failure: SudoFailure, cli: &s
     )
 }
 
-async fn install_linux(destination: Destination, artifacts: Option<PathBuf>) -> Result<()> {
+async fn install_linux(
+    destination: Destination,
+    artifacts: Option<PathBuf>,
+    placement: LinuxPlacement,
+) -> Result<()> {
     let (origin, key) = nanocodex_cli_auth::enrollment_credentials(None)?;
-    install_linux_with_login(destination, artifacts, origin, key.as_str()).await
+    install_linux_with_login(destination, artifacts, origin, key.as_str(), placement).await
 }
 
 async fn install_linux_with_login(
@@ -492,6 +557,7 @@ async fn install_linux_with_login(
     artifacts: Option<PathBuf>,
     origin: String,
     key: &str,
+    placement: LinuxPlacement,
 ) -> Result<()> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -509,7 +575,13 @@ async fn install_linux_with_login(
         .as_str()
         .ok_or_else(|| eyre::eyre!("Invalid account identity"))?;
 
-    let request = json!({"origin": origin, "credential": key, "owner": owner});
+    let mut request = json!({"origin": origin, "credential": key, "owner": owner});
+    if let Some(user) = placement.service_user {
+        request["service_user"] = json!(user);
+    }
+    if let Some(workspace) = placement.workspace {
+        request["workspace"] = json!(workspace);
+    }
     run_linux_installer(destination, artifacts, None, request).await
 }
 
@@ -648,15 +720,27 @@ impl Hand {
                 artifacts,
                 if_missing,
                 prepare,
+                service_user,
+                workspace,
             } => {
                 if prepare {
                     prepare_default(executable).await
                 } else if if_missing {
                     install_missing_user_service(executable).await
                 } else {
-                    install_with(target, port, executable, account_file, artifacts)
-                        .await
-                        .map(drop)
+                    install_with(
+                        target,
+                        port,
+                        executable,
+                        account_file,
+                        artifacts,
+                        LinuxPlacement {
+                            service_user,
+                            workspace,
+                        },
+                    )
+                    .await
+                    .map(drop)
                 }
             }
             HandCommand::Connect {
@@ -1257,7 +1341,14 @@ mod tests {
     #[test]
     fn sudo_failures_name_stage_state_and_safe_retries() {
         let cli = "/home/u/.nanocodex/bin/nanocodex";
-        let local = sudo_failure_message(&Destination::Local, SudoFailure::NoTerminal, cli);
+        let local = sudo_failure_message(
+            &Destination::Local,
+            SudoFailure::NoTerminal,
+            cli,
+            Some(
+                "env NANOCODEX_ACCOUNT_FILE=/home/u/.codex/nanocodex-account.json /home/u/.nanocodex/bin/nanocodex hand install --service-user u",
+            ),
+        );
         assert!(
             local.starts_with("Hand setup stopped at stage administrator access on this device:")
         );
@@ -1269,7 +1360,8 @@ mod tests {
         )));
         assert!(local.contains(&format!("{cli} setup\n")) || local.contains(" setup\n"));
         assert!(local.contains("hand install --target root@"));
-        let rejected = sudo_failure_message(&Destination::Local, SudoFailure::Rejected, cli);
+        assert!(local.contains(" env NANOCODEX_ACCOUNT_FILE=/home/u/.codex/nanocodex-account.json /home/u/.nanocodex/bin/nanocodex hand install --service-user u\n"));
+        let rejected = sudo_failure_message(&Destination::Local, SudoFailure::Rejected, cli, None);
         assert!(rejected.contains("sudo authentication failed"));
         let ssh = |target: &str, port| Destination::Ssh {
             target: target.into(),
@@ -1279,14 +1371,19 @@ mod tests {
             &ssh("gakonst@omarchy", Some(2222)),
             SudoFailure::NeedsPassword,
             cli,
+            None,
         );
         assert!(remote.contains("gakonst@omarchy requires a sudo password"));
         assert!(remote.contains(&format!(
             "{cli} hand install --target root@omarchy --port 2222"
         )));
         assert!(remote.contains("in an interactive terminal on omarchy: nanocodex setup"));
-        let root =
-            sudo_failure_message(&ssh("root@omarchy", None), SudoFailure::NeedsPassword, cli);
+        let root = sudo_failure_message(
+            &ssh("root@omarchy", None),
+            SudoFailure::NeedsPassword,
+            cli,
+            None,
+        );
         assert!(
             !root.contains("over SSH as root"),
             "no circular root advice: {root}"
@@ -1295,11 +1392,16 @@ mod tests {
             &ssh("root@omarchy", Some(2222)),
             SudoFailure::SshUnavailable,
             cli,
+            None,
         );
         assert!(unreachable.contains("stage SSH connection"));
         assert!(unreachable.contains("ssh -p 2222 root@omarchy true"));
-        let missing =
-            sudo_failure_message(&ssh("root@omarchy", None), SudoFailure::SudoMissing, cli);
+        let missing = sudo_failure_message(
+            &ssh("root@omarchy", None),
+            SudoFailure::SudoMissing,
+            cli,
+            None,
+        );
         assert!(missing.contains("has no sudo command"));
         for message in [local, rejected, remote, root, unreachable, missing] {
             assert!(!message.to_lowercase().contains("sudoers"), "{message}");

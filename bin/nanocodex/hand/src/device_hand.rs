@@ -58,8 +58,24 @@ pub(crate) struct DeviceHand {
 }
 
 fn open(directory: &Path) -> Result<NativeState, ManagedError> {
-    let workspace = home()?.join("Nanocodex");
-    fs::create_dir_all(&workspace).map_err(error)?;
+    // A system installation may select an existing workspace explicitly; the
+    // machine identity follows it rather than minting another computer.
+    let workspace =
+        match std::env::var_os("NANOCODEX_HAND_WORKSPACE").filter(|path| !path.is_empty()) {
+            Some(path) => {
+                let path = PathBuf::from(path);
+                if !path.is_absolute() {
+                    return Err(error("NANOCODEX_HAND_WORKSPACE must be an absolute path"));
+                }
+                super::native_hand::rebind_identity_workspace(directory, &path)?;
+                path
+            }
+            None => {
+                let path = home()?.join("Nanocodex");
+                fs::create_dir_all(&path).map_err(error)?;
+                path
+            }
+        };
     NativeState::open(
         &workspace,
         directory,

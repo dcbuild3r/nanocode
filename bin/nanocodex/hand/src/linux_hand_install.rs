@@ -47,7 +47,16 @@ struct Request {
     credential: String,
     #[serde(default)]
     owner: String,
+    /// Explicit non-root OS account for the service, e.g. the desktop owner
+    /// whose Wayland session the Hand should capture.
+    #[serde(default)]
+    service_user: String,
+    /// Explicit existing workspace directory; retained across repairs.
+    #[serde(default)]
+    workspace: String,
 }
+
+const DEFAULT_WORKSPACE: &str = "/srv/nanocodex/Nanocodex";
 
 pub(super) async fn run() -> Result<(), nanocodex_managed::ManagedError> {
     install()
@@ -150,8 +159,10 @@ async fn install() -> Result<()> {
         }
     }
 
-    let service_user = service_user(previous.as_ref()).await?;
-    prepare_state(&service_user).await?;
+    let service_user = service_user(previous.as_ref(), &request.service_user).await?;
+    let workspace = selected_workspace(&request, previous.as_ref());
+    transfer_state_owner(&service_user).await?;
+    prepare_state(&service_user, &workspace).await?;
     for child in ["cache", "releases"] {
         safe_directory(&root.join(child))?;
     }
@@ -183,7 +194,7 @@ async fn install() -> Result<()> {
     let link_changed = activate(root, &release)?;
     let unit_changed = atomic_write(
         Path::new("/etc/systemd/system").join(SERVICE).as_path(),
-        service_unit(&service_user).as_bytes(),
+        service_unit(&service_user, &workspace).as_bytes(),
         0o644,
     )?;
     atomic_write(
@@ -201,6 +212,8 @@ async fn install() -> Result<()> {
         "mode": "native",
         "native_only": true,
         "revision": revision,
+        "service_user": service_user.name,
+        "workspace": workspace,
     });
     atomic_write(
         &record_path,
@@ -244,8 +257,15 @@ async fn install() -> Result<()> {
     )
     .await?;
 
-    let machine = describe_machine(&request, &service_user).await?;
+    let machine = describe_machine(&request, &service_user, &workspace).await?;
     wait_ready(&request, &machine).await?;
+    let mut ready_record = public.clone();
+    ready_record["machine_id"] = Value::String(machine.clone());
+    atomic_write(
+        &record_path,
+        format!("{}\n", serde_json::to_string_pretty(&ready_record)?).as_bytes(),
+        0o644,
+    )?;
     println!(
         "{}",
         serde_json::to_string(&json!({
@@ -253,12 +273,20 @@ async fn install() -> Result<()> {
             "machine_id": machine,
             "mode": "native",
             "revision": revision,
+            "service_user": service_user.name,
+            "workspace": workspace,
         }))?
     );
     Ok(())
 }
 
 fn validate_request(request: &Request) -> Result<()> {
+    if !request.service_user.is_empty() && !valid_user_name(&request.service_user) {
+        bail!("invalid service user name");
+    }
+    if !request.workspace.is_empty() && !valid_workspace(&request.workspace) {
+        bail!("workspace must be an absolute path without whitespace, quotes, %, or .. components");
+    }
     if request.prepare || request.prepare_components {
         if request.prepare && request.prepare_components {
             bail!("select one preparation phase");
@@ -300,6 +328,28 @@ fn validate_request(request: &Request) -> Result<()> {
         bail!("invalid account owner");
     }
     Ok(())
+}
+
+fn valid_user_name(name: &str) -> bool {
+    name != "root"
+        && name.len() <= 32
+        && name
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_lowercase() || byte == b'_')
+        && name.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
+        })
+}
+
+/// The path is written verbatim into a systemd unit; keep it unambiguous.
+fn valid_workspace(path: &str) -> bool {
+    path.starts_with('/')
+        && path.len() <= 1024
+        && !path.split('/').any(|part| part == "..")
+        && !path.chars().any(|c| {
+            c.is_whitespace() || c.is_control() || matches!(c, '"' | '\'' | '\\' | '%' | '$')
+        })
 }
 
 fn validate_linux_binary(binary: &[u8]) -> Result<()> {
@@ -618,43 +668,153 @@ async fn ensure_user() -> Result<()> {
     Ok(())
 }
 
-// Retained installations keep their OS owner. A new sudo install belongs to
-// the invoking login, so its CLI can share private IPC without widening access.
-async fn service_user(previous: Option<&Value>) -> Result<nix::unistd::User> {
+// An explicitly requested account wins (for example the desktop owner).
+// Otherwise retained installations keep their OS owner, and a new sudo install
+// belongs to the invoking login so its CLI can share private IPC.
+async fn service_user(previous: Option<&Value>, requested: &str) -> Result<nix::unistd::User> {
     use std::os::unix::fs::MetadataExt;
-    let uid = if previous.is_some() {
-        nix::unistd::Uid::from_raw(fs::metadata(STATE)?.uid())
-    } else if let Some(uid) = std::env::var("SUDO_UID")
+    if !requested.is_empty() {
+        let user = nix::unistd::User::from_name(requested)?
+            .with_context(|| format!("service user {requested} does not exist"))?;
+        if user.uid.is_root() {
+            bail!("the Hand service must run as a non-root user");
+        }
+        return Ok(user);
+    }
+    let state_owner = fs::metadata(STATE).ok().map(|metadata| metadata.uid());
+    let recorded = previous
+        .and_then(|record| record["service_uid"].as_u64())
+        .and_then(|uid| u32::try_from(uid).ok());
+    let sudo = std::env::var("SUDO_UID")
         .ok()
         .and_then(|value| value.parse::<u32>().ok())
-        .filter(|uid| *uid != 0)
-    {
-        nix::unistd::Uid::from_raw(uid)
-    } else {
-        ensure_user().await?;
-        return nix::unistd::User::from_name("nanocodex")?.context("missing service user");
+        .filter(|uid| *uid != 0);
+    let uid = match (previous, recorded, sudo, state_owner) {
+        (Some(_), Some(uid), _, _) => uid,
+        (Some(_), None, _, Some(owner)) => owner,
+        (None, _, Some(uid), _) => uid,
+        // Retained state without an installation record keeps its owner.
+        (None, _, None, Some(owner)) if owner != 0 => owner,
+        _ => {
+            ensure_user().await?;
+            return nix::unistd::User::from_name("nanocodex")?.context("missing service user");
+        }
     };
+    let uid = nix::unistd::Uid::from_raw(uid);
     if uid.is_root() {
         bail!("retained Hand state has no non-root service owner; repair ownership explicitly");
     }
     nix::unistd::User::from_uid(uid)?.context("Hand service owner no longer exists")
 }
 
-async fn prepare_state(user: &nix::unistd::User) -> Result<()> {
-    for path in [
+/// Request, then the retained record, then the directory the Hand serves by default.
+fn selected_workspace(request: &Request, previous: Option<&Value>) -> String {
+    if !request.workspace.is_empty() {
+        return request.workspace.clone();
+    }
+    previous
+        .and_then(|record| record["workspace"].as_str())
+        .filter(|path| valid_workspace(path))
+        .unwrap_or(DEFAULT_WORKSPACE)
+        .to_owned()
+}
+
+/// Hand-private state that moves with the service owner. Selected project
+/// workspaces are never re-owned.
+const OWNED_STATE: [&str; 4] = [".nanocodex", "desktop", "cache", "Nanocodex"];
+
+/// Changing the service owner of retained state: stop the old owner and hand
+/// the Hand's private state (identity, VM factory state, desktop recipe,
+/// default workspace) to the new account.
+async fn transfer_state_owner(user: &nix::unistd::User) -> Result<()> {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(metadata) = fs::metadata(STATE) else {
+        return Ok(());
+    };
+    if metadata.uid() == user.uid.as_raw() {
+        return Ok(());
+    }
+    if Path::new("/etc/systemd/system").join(SERVICE).is_file() {
+        checked(
+            Command::new("systemctl").args(["stop", SERVICE]),
+            "stop the Hand before changing its owner",
+        )
+        .await?;
+    }
+    let owner = format!("{}:{}", user.uid, user.gid);
+    for name in OWNED_STATE {
+        let path = Path::new(STATE).join(name);
+        if fs::symlink_metadata(&path).is_ok_and(|metadata| metadata.is_dir()) {
+            checked(
+                Command::new("chown").args([
+                    "-R",
+                    "--no-dereference",
+                    &format!("--from={}", metadata.uid()),
+                    &owner,
+                    &path.to_string_lossy(),
+                ]),
+                "transfer Hand state ownership",
+            )
+            .await?;
+        }
+    }
+    checked(
+        Command::new("chown").args([&owner, STATE]),
+        "transfer Hand state ownership",
+    )
+    .await?;
+    eprintln!(
+        "Hand service owner changed from uid {} to {}; transferred that uid's files in {} under {STATE}. Other files and selected workspaces keep their owners.",
+        metadata.uid(),
+        user.name,
+        OWNED_STATE.join(", ")
+    );
+    Ok(())
+}
+
+async fn prepare_state(user: &nix::unistd::User, workspace: &str) -> Result<()> {
+    use std::os::unix::fs::{DirBuilderExt as _, MetadataExt as _};
+    let mut private = vec![
         PathBuf::from(STATE),
-        Path::new(STATE).join("workspace"),
         Path::new(STATE).join("desktop"),
         Path::new(STATE).join("cache"),
-    ] {
+    ];
+    if workspace == DEFAULT_WORKSPACE {
+        private.push(PathBuf::from(DEFAULT_WORKSPACE));
+    }
+    for path in private {
+        // Existing directories keep their mode and ACLs (a chmod would rewrite
+        // an ACL mask and can lock users out of retained data).
+        let created = match fs::symlink_metadata(&path) {
+            Ok(_) => false,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                fs::DirBuilder::new().mode(0o700).create(&path)?;
+                true
+            }
+            Err(error) => return Err(error.into()),
+        };
         safe_directory(&path)?;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o700))?;
+        if created || fs::metadata(&path)?.uid() != user.uid.as_raw() {
+            checked(
+                Command::new("chown").args([
+                    &format!("{}:{}", user.uid, user.gid),
+                    path.to_string_lossy().as_ref(),
+                ]),
+                "set Hand state ownership",
+            )
+            .await?;
+        }
+    }
+    if workspace != DEFAULT_WORKSPACE {
+        // An explicitly selected workspace keeps its owner and permissions.
+        if !Path::new(workspace).is_dir() {
+            bail!("workspace {workspace} is not an existing directory");
+        }
         checked(
-            Command::new("chown").args([
-                &format!("{}:{}", user.uid, user.gid),
-                path.to_string_lossy().as_ref(),
+            Command::new("runuser").args([
+                "-u", &user.name, "--", "test", "-w", workspace, "-a", "-x", workspace,
             ]),
-            "set Hand state ownership",
+            &format!("verify {} can use workspace {workspace}", user.name),
         )
         .await?;
     }
@@ -711,7 +871,7 @@ fn activate(root: &Path, release: &Path) -> Result<bool> {
     Ok(true)
 }
 
-fn service_unit(user: &nix::unistd::User) -> String {
+fn service_unit(user: &nix::unistd::User, workspace: &str) -> String {
     r#"[Unit]
 Description=Nanocodex host Hand
 Wants=network-online.target
@@ -724,11 +884,11 @@ StartLimitIntervalSec=0
 Type=simple
 User=nanocodex
 Group=nanocodex
-WorkingDirectory=/srv/nanocodex/workspace
+WorkingDirectory=WORKSPACE
 EnvironmentFile=/opt/nanocodex/account.env
 Environment=HOME=/srv/nanocodex
 Environment=NANOCODEX_DESKTOP_DATA=/srv/nanocodex/desktop
-Environment=PATH=/usr/local/bin:/usr/bin:/bin
+WORKSPACE_ENVIRONMENTEnvironment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart=/opt/nanocodex/current/nanocodex2 hand
 Restart=on-failure
 RestartSec=5
@@ -742,6 +902,18 @@ WantedBy=multi-user.target
 "#
     .replace("User=nanocodex", &format!("User={}", user.uid))
     .replace("Group=nanocodex", &format!("Group={}", user.gid))
+    .replace(
+        "WorkingDirectory=WORKSPACE",
+        &format!("WorkingDirectory={workspace}"),
+    )
+    .replace(
+        "WORKSPACE_ENVIRONMENT",
+        &if workspace == DEFAULT_WORKSPACE {
+            String::new()
+        } else {
+            format!("Environment=NANOCODEX_HAND_WORKSPACE={workspace}\n")
+        },
+    )
 }
 
 fn components_unit() -> &'static str {
@@ -772,7 +944,11 @@ async fn checked(command: &mut Command, operation: &str) -> Result<()> {
     Ok(())
 }
 
-async fn describe_machine(request: &Request, user: &nix::unistd::User) -> Result<String> {
+async fn describe_machine(
+    request: &Request,
+    user: &nix::unistd::User,
+    workspace: &str,
+) -> Result<String> {
     let output = Command::new("runuser")
         .args([
             "-u",
@@ -783,6 +959,7 @@ async fn describe_machine(request: &Request, user: &nix::unistd::User) -> Result
             "--describe",
         ])
         .env("HOME", STATE)
+        .env("NANOCODEX_HAND_WORKSPACE", workspace)
         .env("NANOCODEX_API_KEY", &request.credential)
         .env("NANOCODEX_MANAGED_URL", &request.origin)
         .output()
@@ -871,6 +1048,8 @@ mod tests {
             origin: "https://api.nanocodex.dev".into(),
             credential: "ncx_live_fixture-123".into(),
             owner: "user_fixture-123".into(),
+            service_user: String::new(),
+            workspace: String::new(),
         };
         assert!(validate_request(&valid).is_ok());
         for origin in [
@@ -884,6 +1063,8 @@ mod tests {
                 origin: origin.into(),
                 credential: valid.credential.clone(),
                 owner: valid.owner.clone(),
+                service_user: String::new(),
+                workspace: String::new(),
             };
             assert!(validate_request(&invalid).is_err(), "{origin}");
         }
@@ -1169,11 +1350,62 @@ mod tests {
     }
 
     #[test]
+    fn service_user_and_workspace_requests_are_validated_and_retained() {
+        for name in ["gakonst", "_svc", "a-b_9"] {
+            assert!(valid_user_name(name), "{name}");
+        }
+        for name in ["root", "", "Bad", "9x", "a b", "a;b", &"x".repeat(33)] {
+            assert!(!valid_user_name(name), "{name}");
+        }
+        assert!(valid_workspace("/srv/nanocodex/workspace"));
+        for path in [
+            "relative", "/a/../b", "/a b", "/a%b", "/a\nb", "/a\"b", "/a$b",
+        ] {
+            assert!(!valid_workspace(path), "{path}");
+        }
+        let request = |workspace: &str| Request {
+            prepare: false,
+            prepare_components: false,
+            origin: String::new(),
+            credential: String::new(),
+            owner: String::new(),
+            service_user: String::new(),
+            workspace: workspace.into(),
+        };
+        let previous = json!({"workspace": "/srv/nanocodex/workspace"});
+        assert_eq!(selected_workspace(&request(""), None), DEFAULT_WORKSPACE);
+        assert_eq!(
+            selected_workspace(&request(""), Some(&previous)),
+            "/srv/nanocodex/workspace"
+        );
+        assert_eq!(
+            selected_workspace(&request("/data"), Some(&previous)),
+            "/data"
+        );
+        let unsafe_record = json!({"workspace": "/a b"});
+        assert_eq!(
+            selected_workspace(&request(""), Some(&unsafe_record)),
+            DEFAULT_WORKSPACE
+        );
+        assert!(
+            !OWNED_STATE.contains(&"workspace"),
+            "selected project trees are never re-owned"
+        );
+    }
+
+    #[test]
     fn service_runs_only_the_activated_native_binary() {
         let user = nix::unistd::User::from_uid(nix::unistd::geteuid())
             .unwrap()
             .unwrap();
-        let unit = service_unit(&user);
+        let unit = service_unit(&user, DEFAULT_WORKSPACE);
+        assert!(unit.contains("WorkingDirectory=/srv/nanocodex/Nanocodex\n"));
+        assert!(!unit.contains("NANOCODEX_HAND_WORKSPACE"));
+        let selected = service_unit(&user, "/srv/nanocodex/workspace");
+        assert!(selected.contains("WorkingDirectory=/srv/nanocodex/workspace\n"));
+        assert!(selected.contains(
+            "Environment=NANOCODEX_HAND_WORKSPACE=/srv/nanocodex/workspace\nEnvironment=PATH="
+        ));
         assert!(unit.contains("ExecStart=/opt/nanocodex/current/nanocodex2 hand"));
         assert!(!unit.contains("python"));
         assert!(!unit.contains("bash"));
