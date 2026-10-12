@@ -4,7 +4,12 @@
     "projection": {
       "cards": [
         {
-          "badges": [],
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
           "depth": 0,
           "id": "turn:3b72a0f2-a68e-8737-b618-9cdeadbafb12",
           "kind": "turn",
@@ -19,8 +24,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 1,
@@ -42,8 +47,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,
@@ -66,16 +71,26 @@
           "tone": "ok"
         },
         {
-          "badges": [],
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
           "depth": 1,
           "id": "agent:1",
           "kind": "agent",
-          "lines": [],
+          "lines": [
+            {
+              "text": "role: Surface child",
+              "tone": "muted"
+            }
+          ],
           "pinned": false,
           "state": "running",
           "state_label": "running 0s",
           "subject": "A directed message from the root agent was delivered by the sub-agent runtime.",
-          "title": "Agent 1",
+          "title": "Surface child",
           "tone": "live"
         },
         {
@@ -135,8 +150,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,
@@ -158,8 +173,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 3,
@@ -185,8 +200,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,
@@ -208,8 +223,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 3,
@@ -234,14 +249,71 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "outcome unknown",
+              "tone": "warn"
             }
           ],
           "depth": 1,
           "id": "tool:root:surface-wait",
           "kind": "tool_call",
           "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "text(await tools.wait_agent({agent_ids:[1],timeout_ms:20000}));",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:surface-wait/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "wait_agent",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Wait for agent",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:surface-wait#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "attempt 2: re-dispatched under the same call id",
+              "tone": "error"
+            },
             {
               "text": "exec",
               "tone": "muted"
@@ -266,7 +338,7 @@
             }
           ],
           "depth": 2,
-          "id": "tool:root:surface-wait/code-1",
+          "id": "tool:root:surface-wait/code-1#2",
           "kind": "tool_call",
           "lines": [
             {
@@ -286,9 +358,9 @@
         }
       ],
       "liveness": {
-        "cursor": 31,
+        "cursor": 32,
         "epoch": 1,
-        "label": "epoch 1 · cursor 31 · 1 open · last event 0s ago · 1 restart(s)",
+        "label": "epoch 1 · cursor 32 · 1 open · last event 0s ago · 1 restart(s)",
         "open": 1,
         "regressions_ignored": 1,
         "replays_ignored": 0,

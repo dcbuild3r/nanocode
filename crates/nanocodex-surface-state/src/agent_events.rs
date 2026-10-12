@@ -98,6 +98,10 @@ pub struct AgentEventAdapter {
     entities: HashMap<String, Entity>,
     /// First prompt line per card id (`turn:<managed id>` or `agent:<id>`).
     prompts: HashMap<String, String>,
+    /// Current card id and attempt number per tool call identity. The
+    /// runtime re-dispatches an interrupted call under the same call id, so a
+    /// call seen again after it ended (or in a newer epoch) is a new attempt.
+    attempts: HashMap<String, (String, u32)>,
 }
 
 fn friendly_tool(tool: &str) -> &str {
@@ -218,6 +222,13 @@ impl AgentEventAdapter {
             },
             |id| Some(format!("agent:{id}")),
         )
+    }
+
+    /// The card id of the latest attempt of tool call `base`.
+    fn tool_card(&self, base: &str) -> String {
+        self.attempts
+            .get(base)
+            .map_or_else(|| base.to_owned(), |(id, _)| id.clone())
     }
 
     fn subject_for(&self, id: &str) -> Option<String> {
@@ -464,9 +475,22 @@ impl AgentEventAdapter {
                 let owner = owner_key(scope.agent_id);
                 let parent_id = call_id
                     .rfind("/code-")
-                    .map(|index| format!("tool:{owner}:{}", &call_id[..index]))
+                    .map(|index| self.tool_card(&format!("tool:{owner}:{}", &call_id[..index])))
                     .filter(|parent| self.entities.contains_key(parent))
                     .or_else(|| self.scope_parent(scope));
+                let base = format!("tool:{owner}:{call_id}");
+                let (id, attempt) = match self.attempts.get(&base) {
+                    Some((current, attempt))
+                        if self.entities.get(current).is_some_and(|entity| {
+                            entity.state.is_terminal() || entity.epoch < self.epoch
+                        }) =>
+                    {
+                        (format!("{base}#{}", attempt + 1), attempt + 1)
+                    }
+                    Some((current, attempt)) => (current.clone(), *attempt),
+                    None => (base.clone(), 1),
+                };
+                self.attempts.insert(base, (id.clone(), attempt));
                 let args = arguments(payload);
                 let subject = args["cmd"]
                     .as_str()
@@ -479,13 +503,15 @@ impl AgentEventAdapter {
                     .or_else(|| args.as_str())
                     .map(|text| first_line(text, 120));
                 let entity = Entity {
-                    id: format!("tool:{owner}:{call_id}"),
+                    id,
                     parent_id,
                     epoch: self.epoch,
                     state: Lifecycle::Running,
                     title: friendly_tool(tool).to_owned(),
                     subject,
-                    reason: None,
+                    reason: (attempt > 1).then(|| {
+                        format!("attempt {attempt}: re-dispatched under the same call id")
+                    }),
                     started_at_ms: Some(at_ms),
                     updated_at_ms: at_ms,
                     provenance: None,
@@ -503,11 +529,24 @@ impl AgentEventAdapter {
                 let Some(call_id) = payload["call_id"].as_str() else {
                     return Vec::new();
                 };
-                let id = format!("tool:{}:{call_id}", owner_key(scope.agent_id));
+                let id = self.tool_card(&format!("tool:{}:{call_id}", owner_key(scope.agent_id)));
                 let Some(mut entity) = self.entities.get(&id).cloned() else {
                     return Vec::new();
                 };
                 let structured = &payload["structured_result"];
+                let mut events = Vec::new();
+                // The restart receipt names the epoch that settled the call;
+                // surfaces whose stream omits `runtime_epoch` learn it here.
+                if structured["reason"] == "runtime_restarted"
+                    && let Some(epoch) = structured["epoch"].as_u64()
+                {
+                    events.extend(self.observe(
+                        "runtime_epoch",
+                        &serde_json::json!({"epoch": epoch, "reason": "runtime_restarted"}),
+                        EventScope::default(),
+                        at_ms,
+                    ));
+                }
                 let unknown = payload["outcome_unknown"] == true
                     || structured["outcome_unknown"] == true
                     || structured["outcome"] == "unknown"
@@ -528,10 +567,10 @@ impl AgentEventAdapter {
                         "runtime reported the outcome as unknown".to_owned()
                     });
                 }
-                // A definitive tool.result is a runtime receipt for the call
-                // itself; an unknown-outcome receipt verifies nothing.
+                // A definitive tool.result is a receipt that the call returned;
+                // it verifies no claim. An unknown-outcome result is neither.
                 if !unknown {
-                    entity.provenance = Some(Provenance::Verified);
+                    entity.provenance = Some(Provenance::Receipt);
                 }
                 entity.updated_at_ms = at_ms;
                 if !unknown
@@ -547,7 +586,19 @@ impl AgentEventAdapter {
                         .or_else(|| payload["result"].as_str())
                         .map(|text| text.len() as u64);
                 }
-                vec![self.upsert(entity, at_ms)]
+                let spawned = (payload["tool"] == "spawn_agent" && !unknown)
+                    .then(|| {
+                        Some((
+                            structured["agent_id"].as_u64()?,
+                            structured["role"].as_str()?,
+                        ))
+                    })
+                    .flatten();
+                events.push(self.upsert(entity, at_ms));
+                if let Some((agent, role)) = spawned {
+                    events.extend(self.agent_role(agent, role, at_ms));
+                }
+                events
             }
             _ => Vec::new(),
         }
@@ -655,12 +706,12 @@ impl AgentEventAdapter {
         }
         for call in &snapshot.tool_calls {
             let owner = owner_key(call.agent_id);
-            let id = format!("tool:{owner}:{}", call.call_id);
+            let id = self.tool_card(&format!("tool:{owner}:{}", call.call_id));
             let previous = self.entities.get(&id);
             let parent_id = call
                 .parent_call_id
                 .as_ref()
-                .map(|parent| format!("tool:{owner}:{parent}"))
+                .map(|parent| self.tool_card(&format!("tool:{owner}:{parent}")))
                 .or_else(|| call.agent_id.map(|agent| format!("agent:{agent}")))
                 .or_else(|| turn_parent(call.turn_id.as_deref(), &entities))
                 .or_else(|| self.root_turn.clone());

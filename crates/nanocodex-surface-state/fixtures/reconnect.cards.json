@@ -54,9 +54,9 @@
         }
       ],
       "liveness": {
-        "cursor": 11,
+        "cursor": 10,
         "epoch": 1,
-        "label": "epoch 1 · cursor 11 · 3 open · last event 10s ago · heartbeat 1s ago",
+        "label": "epoch 1 · cursor 10 · 3 open · last event 10s ago · heartbeat 1s ago",
         "open": 3,
         "regressions_ignored": 0,
         "replays_ignored": 0,
@@ -136,9 +136,9 @@
         }
       ],
       "liveness": {
-        "cursor": 11,
+        "cursor": 10,
         "epoch": 1,
-        "label": "epoch 1 · cursor 11 · 3 open · last event 3m 10s ago · heartbeat 3m 1s ago",
+        "label": "epoch 1 · cursor 10 · 3 open · last event 3m 10s ago · heartbeat 3m 1s ago",
         "open": 3,
         "regressions_ignored": 0,
         "replays_ignored": 0,

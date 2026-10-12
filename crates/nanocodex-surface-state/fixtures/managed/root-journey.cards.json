@@ -71,7 +71,12 @@
     "projection": {
       "cards": [
         {
-          "badges": [],
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
           "depth": 0,
           "id": "turn:4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
           "kind": "turn",
@@ -156,7 +161,12 @@
     "projection": {
       "cards": [
         {
-          "badges": [],
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
           "depth": 0,
           "id": "turn:4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
           "kind": "turn",
@@ -171,14 +181,72 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "outcome unknown",
+              "tone": "warn"
             }
           ],
           "depth": 1,
           "id": "tool:root:surface-root-cell",
           "kind": "tool_call",
           "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "text(await tools.exec_command({cmd:\"curl -s -X POST https://effects.example/effect/S1\"}));",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:surface-root-cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "curl -s -X POST https://effects.example/effect/S1",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:surface-root-cell#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "attempt 2: re-dispatched under the same call id",
+              "tone": "error"
+            },
             {
               "text": "exec",
               "tone": "muted"
@@ -203,7 +271,7 @@
             }
           ],
           "depth": 2,
-          "id": "tool:root:surface-root-cell/code-1",
+          "id": "tool:root:surface-root-cell/code-1#2",
           "kind": "tool_call",
           "lines": [
             {

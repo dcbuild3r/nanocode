@@ -369,9 +369,9 @@
       ],
       "liveness": {
         "context_pct": 40,
-        "cursor": 8,
+        "cursor": 7,
         "epoch": 2,
-        "label": "epoch 2 · cursor 8 · 1 open · last event 20s ago · heartbeat 2s ago · context 40% · 1 restart(s)",
+        "label": "epoch 2 · cursor 7 · 1 open · last event 20s ago · heartbeat 2s ago · context 40% · 1 restart(s)",
         "open": 1,
         "regressions_ignored": 0,
         "replays_ignored": 0,

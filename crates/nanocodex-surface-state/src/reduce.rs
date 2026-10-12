@@ -146,6 +146,12 @@ impl SurfaceState {
         }
     }
 
+    /// Whether an earlier epoch was observed (explicitly, or implicitly by
+    /// applying its deltas). Only then is a newer epoch a restart.
+    const fn has_baseline(&self) -> bool {
+        self.epoch_known || self.cursor > 0
+    }
+
     const fn advance(&mut self, cursor: u64, at_ms: u64) {
         self.cursor = cursor;
         self.last_event_at_ms = Some(at_ms);
@@ -156,7 +162,7 @@ impl SurfaceState {
             self.replays_ignored += 1;
             return;
         }
-        if self.epoch_known && epoch > self.epoch {
+        if self.has_baseline() && epoch > self.epoch {
             self.settle_epoch(epoch, cursor, at_ms, "runtime restarted while disconnected");
         }
         let open: HashSet<&str> = entities.iter().map(|entity| entity.id.as_str()).collect();
@@ -289,7 +295,7 @@ impl SurfaceState {
                 settled += 1;
             }
         }
-        if self.epoch_known || settled > 0 {
+        if self.has_baseline() || settled > 0 {
             self.restarts.push(EpochMark {
                 epoch,
                 at_ms,

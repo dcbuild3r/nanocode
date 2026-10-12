@@ -141,7 +141,12 @@
           "tone": "warn"
         },
         {
-          "badges": [],
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
           "depth": 1,
           "id": "agent:1",
           "kind": "agent",
