@@ -1,0 +1,236 @@
+[
+  {
+    "label": "connected: cell and nested shell running",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "subject": "SURFACE_ROOT: apply S1 once.",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "tool:root:surface-root-cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Code Mode",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 2,
+          "id": "tool:root:surface-root-cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "subject": "curl -s -X POST https://effects.example/effect/S1",
+          "title": "Shell",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 3,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 3 · 3 open · last event 0s ago",
+        "open": 3,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791838772401
+    }
+  },
+  {
+    "label": "reconnect: surface snapshot at epoch 1",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 1s",
+          "subject": "SURFACE_ROOT: apply S1 once.",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:surface-root-cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:surface-root-cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "curl -s -X POST https://effects.example/effect/S1",
+          "title": "Shell",
+          "tone": "warn"
+        }
+      ],
+      "liveness": {
+        "cursor": 4,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 4 · 1 open · last event 0s ago · 1 restart(s)",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 1,
+        "tone": "ok"
+      },
+      "now_ms": 1791838773903
+    }
+  },
+  {
+    "label": "deltas after the snapshot cursor",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 2s",
+          "subject": "SURFACE_ROOT: apply S1 once.",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:surface-root-cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "358 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "title": "Code Mode",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:surface-root-cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime reported the outcome as unknown",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "curl -s -X POST https://effects.example/effect/S1",
+          "title": "Shell",
+          "tone": "warn"
+        }
+      ],
+      "liveness": {
+        "cursor": 10,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 10 · 0 open · last event 0s ago · 1 restart(s)",
+        "open": 0,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 1,
+        "tone": "ok"
+      },
+      "now_ms": 1791838774396
+    }
+  }
+]

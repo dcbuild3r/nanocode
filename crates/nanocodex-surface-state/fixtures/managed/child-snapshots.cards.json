@@ -1,0 +1,312 @@
+[
+  {
+    "label": "attach: snapshot during the swarm",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Surface child",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Surface child",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 2,
+          "id": "tool:1:surface-child-cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Code Mode",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 3,
+          "id": "tool:1:surface-child-cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Shell",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "tool:root:surface-wait",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Code Mode",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 2,
+          "id": "tool:root:surface-wait/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "wait_agent",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Wait for agent",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 1,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 1 · 6 open · last event 0s ago",
+        "open": 6,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791838774699
+    }
+  },
+  {
+    "label": "snapshot after restart: child moved on",
+    "projection": {
+      "cards": [
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 0,
+          "id": "turn:3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+          "kind": "turn",
+          "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Turn",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Surface child",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Surface child",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:1:surface-child-cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:1:surface-child-cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 2,
+          "id": "tool:1:surface-child-moved-on",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Code Mode",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 3,
+          "id": "tool:1:surface-child-moved-on/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "title": "Shell",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:surface-wait",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:surface-wait/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "wait_agent",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Wait for agent",
+          "tone": "warn"
+        }
+      ],
+      "liveness": {
+        "cursor": 2,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 2 · 3 open · last event 0s ago · 1 restart(s)",
+        "open": 3,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 1,
+        "tone": "ok"
+      },
+      "now_ms": 1791838776567
+    }
+  }
+]

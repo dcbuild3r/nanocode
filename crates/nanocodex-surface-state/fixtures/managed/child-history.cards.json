@@ -1,0 +1,296 @@
+[
+  {
+    "label": "full child history",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 2s",
+          "subject": "SURFACE_SPAWN: delegate S2 to one child.",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:surface-spawn",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:surface-spawn/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "66 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:1",
+          "kind": "agent",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 0s",
+          "subject": "A directed message from the root agent was delivered by the sub-agent runtime.",
+          "title": "Agent 1",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:1:surface-child-cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:1:surface-child-cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "curl -s -X POST https://effects.example/effect/S2",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:1:surface-child-moved-on",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:1:surface-child-moved-on/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0 · 18 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "curl -s -X POST https://effects.example/effect/S3",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:1:surface-child-submit",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:1:surface-child-submit/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "submit_result",
+              "tone": "muted"
+            },
+            {
+              "text": "52 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "submit_result",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:surface-wait",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "358 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "title": "Code Mode",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:surface-wait/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime reported the outcome as unknown",
+              "tone": "warn"
+            },
+            {
+              "text": "wait_agent",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "Wait for agent",
+          "tone": "warn"
+        }
+      ],
+      "liveness": {
+        "cursor": 31,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 31 · 1 open · last event 0s ago · 1 restart(s)",
+        "open": 1,
+        "regressions_ignored": 1,
+        "replays_ignored": 0,
+        "restarts": 1,
+        "tone": "ok"
+      },
+      "now_ms": 1791838776609
+    }
+  }
+]
