@@ -1421,7 +1421,12 @@ impl ManagedClient {
     pub async fn surface(&self, agent_id: &str) -> Result<crate::SurfaceSnapshot, ManagedError> {
         validate_id("agent", agent_id)?;
         let snapshot: crate::SurfaceSnapshot = self
-            .json(Method::GET, &format!("{}/surface", agent_path(agent_id)), None, None)
+            .json(
+                Method::GET,
+                &format!("{}/surface", agent_path(agent_id)),
+                None,
+                None,
+            )
             .await?;
         crate::sse::validate_numeric_cursor(&snapshot.cursor)
             .map_err(|_| ManagedError::InvalidResponse("surface snapshot cursor is invalid"))?;
