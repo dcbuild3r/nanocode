@@ -5,6 +5,7 @@
 //! ```text
 //! card_stream frames <fixture.json> [--width N] [--height N]
 //! card_stream live   <fixture.json>
+//! card_stream cards  <golden.cards.json> [--width N] [--height N]
 //! ```
 //!
 //! `frames` replays each fixture step through the shared reducer and prints
@@ -134,6 +135,34 @@ fn main() -> Result<(), Box<dyn Error>> {
         eprintln!("usage: card_stream <frames|live> <fixture.json> [--width N] [--height N]");
         std::process::exit(2);
     };
+    if mode == "cards" {
+        // A golden projection file: [{label, projection}, ...].
+        #[derive(Deserialize)]
+        struct Frame {
+            label: String,
+            projection: Projection,
+        }
+        let frames: Vec<Frame> = serde_json::from_str(&fs::read_to_string(path)?)?;
+        let (width, height) = (flag(&args, "--width", 100), flag(&args, "--height", 40));
+        let theme = Theme::default();
+        for (index, frame) in frames.iter().enumerate() {
+            let mut terminal = Terminal::new(TestBackend::new(width, height))?;
+            terminal
+                .draw(|f| f.render_widget(CardStream::new(&frame.projection, &theme), f.area()))?;
+            println!(
+                "=== {path} · frame {}: {} ({width}x{height})",
+                index + 1,
+                frame.label
+            );
+            let buffer = terminal.backend().buffer();
+            for y in 0..height {
+                let row: String = (0..width).map(|x| buffer[(x, y)].symbol()).collect();
+                println!("{}", row.trim_end());
+            }
+            println!();
+        }
+        return Ok(());
+    }
     let fixture: Fixture = serde_json::from_str(&fs::read_to_string(path)?)?;
     match mode.as_str() {
         "frames" => print_frames(

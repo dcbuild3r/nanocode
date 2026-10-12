@@ -6,11 +6,11 @@
 use crate::model::{Body, EntityKind, Lifecycle, Provenance, StatusSection};
 use crate::reduce::{SurfaceState, Tracked};
 use crate::{QUIET_MS, STALE_RESOURCES_MS};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 /// Semantic color shared by surfaces.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Tone {
     Text,
@@ -22,20 +22,20 @@ pub enum Tone {
     Error,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Badge {
     pub text: String,
     pub tone: Tone,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CardLine {
     pub text: String,
     pub tone: Tone,
 }
 
 /// One rendered card. Surfaces draw these fields verbatim.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Card {
     pub id: String,
     pub kind: EntityKind,
@@ -44,7 +44,7 @@ pub struct Card {
     /// Pinned Status cards stay at the top of the stream.
     pub pinned: bool,
     pub title: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
     pub state: Lifecycle,
     pub state_label: String,
@@ -54,7 +54,7 @@ pub struct Card {
 }
 
 /// Connection and runtime liveness, shown as a footer.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Liveness {
     pub epoch: u64,
     pub cursor: u64,
@@ -62,13 +62,13 @@ pub struct Liveness {
     pub restarts: usize,
     pub replays_ignored: u64,
     pub regressions_ignored: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_pct: Option<u32>,
     pub label: String,
     pub tone: Tone,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Projection {
     pub now_ms: u64,
     pub cards: Vec<Card>,

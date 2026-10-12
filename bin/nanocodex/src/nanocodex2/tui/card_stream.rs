@@ -132,8 +132,14 @@ impl CardStreamView {
         self.scroll = self.scroll.saturating_add_signed(rows);
     }
 
+    /// The shared projection at `now_ms`; any TUI renderer (card stream,
+    /// Mission Control) draws from this instead of keeping its own state.
+    pub(crate) fn projection(&self, now_ms: u64) -> nanocodex_surface_state::Projection {
+        self.state.project(now_ms)
+    }
+
     pub(crate) fn render(&self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
-        let projection = self.state.project(now_ms());
+        let projection = self.projection(now_ms());
         frame.render_widget(
             CardStream::new(&projection, theme).scroll(self.scroll),
             area,
