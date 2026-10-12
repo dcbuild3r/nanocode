@@ -1037,6 +1037,15 @@ pub struct SurfaceToolCall {
     pub started_cursor: String,
     /// Service timestamp of the tool.call event in Unix milliseconds (0 when unknown).
     pub started_at: u64,
+    /// Execution attempt: 1 first, then one more for each replay after a
+    /// runtime epoch settled the previous attempt as unknown. Events carry
+    /// it as payload.attempt (absent means 1).
+    #[serde(default = "first_attempt")]
+    pub attempt: u32,
+}
+
+const fn first_attempt() -> u32 {
+    1
 }
 
 /// One open run (root or child) in the surface-state projection.
@@ -1106,6 +1115,10 @@ pub struct SurfaceSnapshot {
     pub protocol: u32,
     /// Current runtime epoch (0 before the first restart with open work).
     pub epoch: u64,
+    /// Cold constructions of the session runtime, idle restarts included. A
+    /// change means retained processes and summaries belong to a lost runtime.
+    #[serde(default)]
+    pub runtime_generation: u64,
     /// Durable event cursor this snapshot is exact at.
     pub cursor: String,
     /// Service time of the snapshot in Unix milliseconds.
