@@ -416,7 +416,8 @@ where
                         receipt.validate()?;
                         true
                     }
-                    crate::agent::ExecutionStep::Execute => false,
+                    crate::agent::ExecutionStep::Execute
+                    | crate::agent::ExecutionStep::Interrupted => false,
                 }
             } else {
                 false
@@ -472,7 +473,8 @@ where
                     .begin::<_, RecordedCompactionOutcome>(&step_id, "compaction", &())
                     .await?
                 {
-                    crate::agent::ExecutionStep::Execute => None,
+                    crate::agent::ExecutionStep::Execute
+                    | crate::agent::ExecutionStep::Interrupted => None,
                     crate::agent::ExecutionStep::Replay(output) => Some(output),
                 }
             } else {

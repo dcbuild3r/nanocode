@@ -25,6 +25,9 @@ pub(super) struct ActiveNestedToolCall {
     pub(super) started_at: Instant,
 }
 
+/// Model-visible result of a tool call a lost runtime started and never settled.
+const INTERRUPTED_TOOL_CALL: &str = "The runtime restarted before a terminal result for this tool call, so its outcome is unknown. It was not run again. Inspect external state before retrying any effect.";
+
 impl ActiveNestedToolCall {
     pub(super) fn started_after_ns(&self, parent_started_at: Instant) -> u64 {
         u64::try_from(
@@ -336,6 +339,7 @@ where
                 async move {
                     let started_at = active.started_at;
                     let step_id = format!("tool-{call_index}-{}", call.call_id);
+                    let mut interrupted = false;
                     let recovered = if let Some(steps) = &execution_steps {
                         match steps
                             .begin::<_, CompletedToolCall>(&step_id, "tool_call", &call)
@@ -343,11 +347,20 @@ where
                         {
                             crate::agent::ExecutionStep::Execute => None,
                             crate::agent::ExecutionStep::Replay(output) => Some(output),
+                            crate::agent::ExecutionStep::Interrupted => {
+                                interrupted = true;
+                                None
+                            }
                         }
                     } else {
                         None
                     };
-                    let (result, persist_result) = if let Some(mut completed) = recovered {
+                    let (result, persist_result) = if interrupted {
+                        // A lost owner started this effect; repeating it could
+                        // duplicate an external side effect. Settle it durably
+                        // with an unknown outcome instead.
+                        (Ok(Self::interrupted_tool_call(&active)), true)
+                    } else if let Some(mut completed) = recovered {
                         // Legacy effect receipts bypass fresh tool execution. Prepare
                         // their media before those response items enter history too.
                         prepare_output_images(&mut completed.output).await;
@@ -596,6 +609,37 @@ where
             },
         )?;
         Ok(output)
+    }
+
+    /// Unknown-outcome result for a tool call whose execution a lost owner
+    /// started and never settled; it is never executed again.
+    pub(super) fn interrupted_tool_call(active: &ActiveToolCall) -> CompletedToolCall {
+        let output = ToolOutputBody::Text(INTERRUPTED_TOOL_CALL.to_owned());
+        let structured_result = serde_json::json!({
+            "code": "TOOL_CALL_INTERRUPTED",
+            "outcome": "unknown",
+            "reason": "runtime_restarted",
+            "error": INTERRUPTED_TOOL_CALL,
+        });
+        let duration_ns = elapsed_ns(active.started_at);
+        record_tool_span_terminal(&active.span, "failed", "ERROR", duration_ns, &output);
+        let response_item = match active.kind {
+            CodeCallKind::Custom => custom_tool_output(active.call_id.clone(), output.clone()),
+            CodeCallKind::Function => function_tool_output(active.call_id.clone(), output.clone()),
+            CodeCallKind::ToolSearch => tool_search_output(active.call_id.clone(), Vec::new()),
+        };
+        CompletedToolCall {
+            cell: None,
+            call_id: active.call_id.clone(),
+            tool: active.name.clone(),
+            success: false,
+            duration_ns,
+            work_duration_ns: 0,
+            output,
+            structured_result,
+            metadata: None,
+            response_items: vec![response_item],
+        }
     }
 
     pub(super) fn panicked_tool_call(

@@ -29,7 +29,7 @@ export type AgentCapabilities = Readonly<{
 }>;
 
 export type ServerMessage = (
-  | { type: "ready"; session_id: string; restored: boolean; active_turns: string[]; capabilities: AgentCapabilities; latest_event_cursor: string; settings: ManagedAgentSettings }
+  | { type: "ready"; session_id: string; restored: boolean; active_turns: string[]; capabilities: AgentCapabilities; latest_event_cursor: string; settings: ManagedAgentSettings; surface?: { epoch: number; runtime_generation: number } }
   | { type: "agent_created"; agent_id: string; capabilities: AgentCapabilities }
   | { type: "turn_accepted"; id: string; input: PromptInput; replayed: boolean }
   | { type: "turn_cancelling"; id: string; error?: string; retry_at?: number }

@@ -93,6 +93,7 @@ pub struct ManagedEventStream {
     agent_id: String,
     cursor: EventCursor,
     surface: bool,
+    heartbeat: Option<(Instant, String)>,
     reconnect_delay: Duration,
     response: Option<(Response, Instant)>,
     buffer: Vec<u8>,
@@ -169,11 +170,22 @@ impl ManagedEventStream {
             agent_id,
             cursor,
             surface: false,
+            heartbeat: None,
             reconnect_delay: DEFAULT_RECONNECT_DELAY,
             response: None,
             buffer: Vec::new(),
             search_from: 0,
         }
+    }
+
+    /// Time and exact JSON of the latest server heartbeat on a surface stream
+    /// (sent every few seconds even while idle). Its age shows whether the
+    /// connection is alive when no events arrive.
+    #[must_use]
+    pub fn last_heartbeat(&self) -> Option<(Instant, &str)> {
+        self.heartbeat
+            .as_ref()
+            .map(|(at, data)| (*at, data.as_str()))
     }
 
     /// Opts this stream into surface-state messages such as runtime epochs.
@@ -287,6 +299,14 @@ impl ManagedEventStream {
                     }
                     continue;
                 };
+                // Cursorless liveness frame on surface streams; not an event.
+                if self.surface
+                    && parsed.event.as_deref() == Some("heartbeat")
+                    && parsed.id.is_none()
+                {
+                    self.heartbeat = Some((Instant::now(), data));
+                    continue;
+                }
                 let event: ManagedEvent = serde_json::from_str(&data).map_err(|error| {
                     ManagedError::InvalidEvent(format!("event data is not typed JSON: {error}"))
                 })?;

@@ -62,6 +62,9 @@ pub enum ExecutionStepAdmission {
     Execute,
     /// Reuse the exact JSON output retained by a prior attempt.
     Replay(String),
+    /// A lost owner started this tool effect and never settled it; settle it
+    /// with an unknown outcome instead of executing it again.
+    Interrupted,
 }
 
 /// Current execution metadata and the active model context.
@@ -1107,6 +1110,8 @@ pub(crate) enum SteerDelivery {
 pub(crate) enum ExecutionStep<O> {
     Execute,
     Replay(O),
+    /// A lost owner started this tool effect; never execute it again.
+    Interrupted,
 }
 
 impl ExecutionSteps {
@@ -1176,6 +1181,7 @@ impl ExecutionSteps {
         {
             ExecutionStepAdmission::Execute => Ok(ExecutionStep::Execute),
             ExecutionStepAdmission::Replay(output) => Ok(ExecutionStep::Replay(decode(&output)?)),
+            ExecutionStepAdmission::Interrupted => Ok(ExecutionStep::Interrupted),
         }
     }
 

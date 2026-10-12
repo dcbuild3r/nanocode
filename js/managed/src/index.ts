@@ -1050,6 +1050,8 @@ type SessionSocketAttachment = Readonly<{
   sessionId: string;
   authorization: TurnAuthorization;
   replayAfter: string | null;
+  /** Opted into surface-state messages (runtime_epoch) with surface=1. */
+  surface?: boolean;
 }>;
 
 type HistoryProjectionOutboxRow = {
@@ -3515,12 +3517,14 @@ async function managedFetchRoute(
       const socketQuery = new URLSearchParams({ public_origin: url.origin });
       if (resource === "ws") {
         const keys = [...url.searchParams.keys()];
-        if (keys.some((key) => key !== "cursor")
-          || url.searchParams.getAll("cursor").length > 1) {
+        if (keys.some((key) => key !== "cursor" && key !== "surface")
+          || url.searchParams.getAll("cursor").length > 1
+          || (url.searchParams.has("surface") && (url.searchParams.getAll("surface").length > 1 || url.searchParams.get("surface") !== "1"))) {
           return json({ error: "invalid_request" }, { status: 400 });
         }
         const cursor = url.searchParams.get("cursor");
         if (cursor !== null) socketQuery.set("cursor", cursor);
+        if (url.searchParams.get("surface") === "1") socketQuery.set("surface", "1");
       }
       const sessionStarted = performance.now();
       try {
@@ -4895,6 +4899,7 @@ export class DurableAgentSession extends DurableComputerObject {
       this.ctx.storage.sql.exec("ALTER TABLE history_projection_outbox ADD COLUMN source_cursor TEXT NOT NULL DEFAULT '0'");
     }
     this.#surface = new SurfaceState(this.ctx.storage);
+    this.#surface.beginGeneration();
     this.#eventLog = new DurableEventLog<StreamMessage>(this.ctx.storage, event => {
       this.#operations.record(event, this.#sessionId());
       this.#surface.observe(event);
@@ -6112,7 +6117,7 @@ export class DurableAgentSession extends DurableComputerObject {
     }
     if (request.method === "GET" && url.pathname === "/socket")
       return this.#upgrade(turnAuthorization, url.searchParams.get("cursor"), callerContext(request.headers),
-        request.headers.get(CONVERSATION_PREPARE_HEADER) === CONVERSATION_PREPARE_VALUE);
+        request.headers.get(CONVERSATION_PREPARE_HEADER) === CONVERSATION_PREPARE_VALUE, url.searchParams.get("surface") === "1");
     if (request.method === "POST" && url.pathname === "/vm-host-revoke") {
       const routeId = request.headers.get("x-nanocodex-vm-route-id");
       if (!routeId || !VM_HOST_ATTACHMENT_ROUTE.test(routeId)) {
@@ -6232,7 +6237,10 @@ export class DurableAgentSession extends DurableComputerObject {
         this.#eventArchive.latestCursor(this.#eventLog),
         this.#eventArchive.pageReader(this.#eventLog),
         request.signal,
-        surface ? undefined : { project: event => (legacyVisible(event.message) ? event : null) },
+        surface
+          ? { heartbeat: () => ({ type: "heartbeat", at: Date.now(), epoch: this.#surface.epoch(),
+            runtime_generation: this.#surface.generation(), latest_cursor: this.#eventArchive.latestCursor(this.#eventLog) }) }
+          : { project: event => (legacyVisible(event.message) ? event : null) },
       );
     }
     if (request.method === "GET" && url.pathname === "/events/history") {
@@ -7503,7 +7511,7 @@ export class DurableAgentSession extends DurableComputerObject {
     return new Response(null, { status: 204 });
   }
 
-  #upgrade(authorization: TurnAuthorization, requestedCursor: string | null, caller: CallerContext = {}, prepare = false): Response {
+  #upgrade(authorization: TurnAuthorization, requestedCursor: string | null, caller: CallerContext = {}, prepare = false, surface = false): Response {
     if (this.#deleting) return new Response("Agent is being deleted", { status: 409 });
     if (this.#durabilityExported) {
       return new Response("Agent durability state was exported", { status: 409 });
@@ -7536,6 +7544,7 @@ export class DurableAgentSession extends DurableComputerObject {
       authorization,
       replayAfter: cursor === latestCursor ? null : cursor,
       caller,
+      ...(surface ? { surface: true } : {}),
     } satisfies SessionSocketAttachment);
     this.ctx.acceptWebSocket(server, ["client"]);
     this.#send(server, {
@@ -7546,6 +7555,7 @@ export class DurableAgentSession extends DurableComputerObject {
       capabilities: this.#capabilities(),
       latest_event_cursor: latestCursor,
       settings: this.#settings(),
+      ...(surface ? { surface: { epoch: this.#surface.epoch(), runtime_generation: this.#surface.generation() } } : {}),
     });
     if (cursor !== latestCursor) void this.#replayClientSocket(server, cursor);
     // Observers omit the opt-in; only admitted interactive sockets start the
@@ -7613,8 +7623,9 @@ export class DurableAgentSession extends DurableComputerObject {
     try {
       while (socket.readyState === WebSocket.OPEN) {
         const events = await page(cursor, MAX_HISTORY_PAGE_SIZE);
+        const surface = (socket.deserializeAttachment() as Partial<SessionSocketAttachment> | null)?.surface === true;
         for (const event of events) {
-          if (!legacyVisible(event.message)) {
+          if (!surface && !legacyVisible(event.message)) {
             cursor = event.cursor;
             continue;
           }
@@ -14069,6 +14080,7 @@ A direct subagent completed after the previous turn ended. Continue the current 
   ): void {
     if (this.#deleting || this.#streamError) return;
     try {
+      message = this.#surface.annotate(message);
       const delta = coalescableDelta(message, turnId);
       if (delta) {
         // Text deltas arriving in one provider chunk or JS task share one
@@ -14139,6 +14151,7 @@ A direct subagent completed after the previous turn ended. Continue the current 
     return {
       protocol: 1,
       epoch: this.#surface.epoch(),
+      runtime_generation: this.#surface.generation(),
       cursor: this.#eventArchive.latestCursor(this.#eventLog),
       generated_at: Date.now(),
       runtime_loaded: this.#agent !== undefined,
@@ -14304,14 +14317,16 @@ A direct subagent completed after the previous turn ended. Continue the current 
     }
     this.#eventLog.publish(event);
     if (this.#operations.nextAlarm() !== undefined) this.ctx.waitUntil(this.#scheduleNextAlarm());
-    // WebSocket clients decode only the legacy message set; surface-state
-    // readers receive runtime_epoch over SSE with surface=1 or in /surface.
-    if (legacyVisible(event.message)) this.#broadcast({
+    // Legacy sockets decode only the original message set; sockets opened
+    // with surface=1 also receive runtime_epoch.
+    const broadcast = {
       ...event.message,
       cursor: event.cursor,
       created_at: event.created_at,
       ...(event.turn_id === null ? {} : { turn_id: event.turn_id }),
-    });
+    } as ServerMessage;
+    if (legacyVisible(event.message)) this.#broadcast(broadcast);
+    else this.#broadcastEncoded(JSON.stringify(broadcast), true);
     if (this.#eventArchive.needsSeal(this.#eventLog)) {
       this.#maintainArchives();
     }
@@ -15328,10 +15343,11 @@ A direct subagent completed after the previous turn ended. Continue the current 
     this.#broadcastEncoded(JSON.stringify(message));
   }
 
-  #broadcastEncoded(encoded: string): void {
+  #broadcastEncoded(encoded: string, surfaceOnly = false): void {
     for (const socket of this.ctx.getWebSockets("client")) {
       const attachment = socket.deserializeAttachment() as Partial<SessionSocketAttachment> | null;
       if (attachment?.replayAfter !== undefined && attachment.replayAfter !== null) continue;
+      if (surfaceOnly && attachment?.surface !== true) continue;
       this.#sendEncoded(socket, encoded);
     }
   }

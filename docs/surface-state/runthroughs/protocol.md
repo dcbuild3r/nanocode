@@ -41,10 +41,10 @@ SIGKILL while S1 is held, restart, then durable history with `surface=1`
 12  event  tool.result   root  surface-root-cell/code-1  failed  TOOL_CALL_INTERRUPTED
 13  event  tool.result   root  surface-root-cell         failed  TOOL_CALL_INTERRUPTED
 15  event  run.started   root
-18  event  tool.call     root  surface-root-cell                       <- replayed attempt
-19  event  tool.call     root  surface-root-cell/code-1
-20  event  tool.result   root  surface-root-cell/code-1  failed  CODE_MODE_CALL_INTERRUPTED
-21  event  tool.result   root  surface-root-cell         failed
+18  event  tool.call     root  surface-root-cell                                     attempt=2
+19  event  tool.call     root  surface-root-cell/code-1                              attempt=2
+20  event  tool.result   root  surface-root-cell/code-1  failed  CODE_MODE_CALL_INTERRUPTED  attempt=2
+21  event  tool.result   root  surface-root-cell         failed                      attempt=2
 28  event  run.completed root
 29  turn_completed
 ```
@@ -53,7 +53,9 @@ The epoch and settlements are appended in the cold Session constructor, before
 recovery replays anything. Each settled result carries
 `outcome_unknown: true`, a `duration_ns`, and `structured_result`
 `{code:"TOOL_CALL_INTERRUPTED",outcome:"unknown",reason:"runtime_restarted",epoch:1}`.
-The effect S1 was dispatched exactly once.
+The effect S1 was dispatched exactly once. The replayed calls carry
+`payload.attempt: 2` (later run, same assertions), so a card keyed on
+`(agent_id, call_id, attempt)` keeps attempt 1 as unknown and shows attempt 2 separately.
 
 The epoch frame (as delivered to a `surface=1` reader):
 
@@ -73,8 +75,12 @@ The epoch frame (as delivered to a `surface=1` reader):
 * After the turn: `/surface` returns `{"epoch":1,"cursor":"29","turns":[],"runs":[],"tool_calls":[]}`;
   `/events/history?after=29&surface=1` is empty; after a follow-up turn, the delta
   from cursor 29 contains exactly the new turn.
+* WebSocket replay from cursor 0 (curl upgrade, raw frames): the legacy socket got 29 frames with
+  0 `runtime_epoch`; the `/ws?surface=1` socket got 30 frames with exactly one, and its
+  `ready` carried `surface: {epoch: 1, ...}`.
 * An idle SIGKILL/restart afterwards publishes nothing: epoch stays 1, one
-  `runtime_epoch` row in history.
+  `runtime_epoch` row in history, but `runtime_generation` goes 3 -> 4 so a client
+  can still tell the runtime was replaced.
 
 ## 4. Subagent swarm: child card stuck while the child moved on
 
@@ -118,3 +124,42 @@ origin/master worktree and in this branch.)
 report. A surface whose snapshot `epoch` is greater than an agent's
 `reported_epoch` is showing a status that predates the latest restart and must
 render it as stale (agent-reported, unverified) until a new report arrives.
+
+
+## 6. Loopback `nanocodex managed-server` (local dogfooding)
+
+I ran the reviewer's loopback harness in my own copy (`dogfood.sh`, `drive.sh`,
+`restart.sh` with the scripted Responses mock) through
+`output/protocol-loopback/proto-restart.sh`. Each run starts a real
+`nanocodex attach` TUI and starts `sleep 913` through `exec_command`, then
+SIGKILLs the server and restarts it after 3 s.
+
+| | master binary (960d866b0) | this branch |
+| --- | --- | --- |
+| `sleep 913` processes after restart | **2** (started 21:44:08 and 21:44:12: re-executed) | **1** (original, started 21:43:14) |
+| `GET /surface` | 404 | before: epoch 0, cell + nested `exec_command` open (attempt 1); after: epoch 1, runtime_generation 2, nothing open |
+| `runtime_epoch` in history | none | 1 for `surface=1` readers, 0 for legacy readers |
+| unknown results | none | cell and nested call `TOOL_CALL_INTERRUPTED` right after the epoch |
+| heartbeats on idle SSE | none | 3 in 12 s with `surface=1`, 0 without |
+
+Branch history (cursor, type, event, call, status, code):
+
+```
+15  event  tool.call    call_resp_mock_1_…
+16  event  tool.call    call_resp_mock_1_…/code-1
+17  runtime_epoch                                               epoch=1 calls=2
+18  event  tool.result  call_resp_mock_1_…/code-1  failed  TOOL_CALL_INTERRUPTED
+19  event  tool.result  call_resp_mock_1_…         failed  TOOL_CALL_INTERRUPTED
+41  event  run.completed
+42  turn_completed
+```
+
+The restored agent did not run the shell call again. Its durable tool step
+began as interrupted, so the model received "...outcome is unknown. It was not
+run again..." and finished the turn. The attached TUI after restart:
+
+```
+  ▶ ? Tools  1 call · 1 outcome unknown · 4.5s
+    └── ? Shell  $ echo starting long job; sleep 913; echo done · The session runtime restarted before a terminal result for this tool cal …
+◇ Turn completed · 4s
+```

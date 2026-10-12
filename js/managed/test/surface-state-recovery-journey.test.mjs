@@ -81,7 +81,8 @@ async function bundle(output, name, source, cwd) {
 function openCalls(rows) {
   const open = new Map(), violations = [];
   for (const row of rows) {
-    const key = (row.agent_id ?? 'root') + ':' + row.event?.payload?.call_id;
+    const attempt = row.event?.payload?.attempt ?? 1;
+    const key = (row.agent_id ?? 'root') + ':' + row.event?.payload?.call_id + (attempt > 1 ? '#' + attempt : '');
     if (row.event?.type === 'tool.call') open.set(key, row.cursor);
     if (row.event?.type === 'tool.result') {
       if (!open.has(key)) violations.push({ key, cursor: row.cursor, reason: 'result without an open attempt' });
@@ -245,6 +246,7 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
     const during = await snapshot('root-surface-during', rootRun.agent_id);
     summary.root_during = during;
     assert.equal(during.epoch, 0);
+    assert.ok(during.tool_calls.every(call => call.attempt === 1));
     assert.deepEqual(during.turns.map(turn => [turn.id, turn.state]), [[rootRun.turn_id, 'accepted']]);
     assert.deepEqual(during.runs.map(run => [run.agent_id, run.turn_id]), [[null, rootRun.turn_id]], 'the root run is open');
     const openDuring = during.tool_calls.map(call => call.call_id);
@@ -286,6 +288,13 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
       assert.equal(row.turn_id, rootRun.turn_id);
     }
     assert.deepEqual(openCalls(surfaceRows), [], 'no root call is left running after the restart');
+    // The replay after the epoch is attempt 2 of the same call ids, call and result alike.
+    const replayed = surfaceRows.slice(epochIndex + 1 + openDuring.length)
+      .filter(row => (row.event?.type === 'tool.call' || row.event?.type === 'tool.result') && openDuring.includes(row.event.payload.call_id));
+    summary.root_replayed = replayed.map(row => [row.cursor, row.event.type, row.event.payload.call_id, row.event.payload.attempt ?? 1]);
+    assert.ok(replayed.length >= 2, 'recovery replayed the interrupted cell');
+    assert.ok(replayed.every(row => row.event.payload.attempt === 2), JSON.stringify(summary.root_replayed));
+    assert.ok(settled.every(row => row.event.payload.attempt === undefined && row.event.payload.structured_result.attempt === 1));
     assert.ok(!legacyRows.some(row => row.type === 'runtime_epoch'), 'legacy readers never receive runtime_epoch');
     assert.equal(interruptedResults(legacyRows).length, openDuring.length, 'legacy readers still receive the terminal unknown results');
     assert.deepEqual(openCalls(legacyRows), []);
@@ -300,7 +309,47 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
     assert.equal(legacySse.frames.filter(frame => frame.type === 'runtime_epoch').length, 0);
     assert.equal(surfaceSse.frames.filter(frame => frame.type === 'runtime_epoch').length, 1);
     assert.equal(interruptedResults(legacySse.frames).length, openDuring.length);
+    // Live WebSocket transport: runtime_epoch only for a socket opened with
+    // surface=1. curl performs the upgrade; server frames are unmasked text.
+    const socketFrames = (label, surface) => new Promise((resolvePromise, reject) => {
+      const url = new URL('/v1/agents/' + rootRun.agent_id + '/ws?cursor=0' + (surface ? '&surface=1' : ''), base).href;
+      const child = spawn('curl', ['--silent', '--no-buffer', '--max-time', '20', '--config', '-', '-H', 'Connection: Upgrade', '-H', 'Upgrade: websocket',
+        '-H', 'Sec-WebSocket-Version: 13', '-H', 'Sec-WebSocket-Key: c3VyZmFjZS1zdGF0ZS1wcm9iZQ==', url], { stdio: ['pipe', 'pipe', 'pipe'] });
+      child.stdin.end('header = ' + JSON.stringify('Authorization: Bearer ' + token) + '\n');
+      let buffer = Buffer.alloc(0), done = false; const frames = [];
+      child.stdout.on('data', chunk => {
+        buffer = Buffer.concat([buffer, chunk]);
+        for (;;) {
+          if (buffer.length < 2) return;
+          let length = buffer[1] & 0x7f, offset = 2;
+          if (length === 126) { if (buffer.length < 4) return; length = buffer.readUInt16BE(2); offset = 4; }
+          else if (length === 127) { if (buffer.length < 10) return; length = Number(buffer.readBigUInt64BE(2)); offset = 10; }
+          if (buffer.length < offset + length) return;
+          const opcode = buffer[0] & 0x0f, payload = buffer.subarray(offset, offset + length);
+          buffer = buffer.subarray(offset + length);
+          if (opcode !== 1) continue;
+          const value = JSON.parse(payload.toString('utf8')); frames.push(value);
+          if (stop(value) && !done) { done = true; child.kill('SIGTERM'); }
+        }
+      });
+      child.on('close', () => { void appendFile(join(output, 'transcript.jsonl'), JSON.stringify({ name: label, command: ['curl', url], frames: frames.length, types: frames.map(frame => frame.type) }) + '\n');
+        done ? resolvePromise(frames) : reject(new Error(label + ' ended before the terminal frame: ' + JSON.stringify(frames.map(frame => frame.type)))); });
+    });
+    const legacySocket = await socketFrames('ws-legacy', false), surfaceSocket = await socketFrames('ws-surface', true);
+    await appendFile(join(output, 'websocket.jsonl'), JSON.stringify({ legacy: legacySocket, surface: surfaceSocket }) + '\n');
+    assert.equal(legacySocket[0].type, 'ready'); assert.equal(legacySocket[0].surface, undefined);
+    assert.deepEqual(surfaceSocket[0].surface?.epoch, 1, 'a surface socket learns the epoch in ready');
+    assert.equal(legacySocket.filter(frame => frame.type === 'runtime_epoch').length, 0);
+    assert.equal(surfaceSocket.filter(frame => frame.type === 'runtime_epoch').length, 1);
+    assert.equal(interruptedResults(legacySocket).length, openDuring.length);
 
+    // An idle surface stream proves liveness with cursorless heartbeat frames.
+    const idleSurface = await curl('root-sse-surface-heartbeat', '/v1/agents/' + rootRun.agent_id + '/events?cursor=latest&surface=1',
+      { headers: { Accept: 'text/event-stream' }, sse: value => value.type === 'heartbeat', maxTime: 25 });
+    const heartbeat = idleSurface.frames.find(frame => frame.type === 'heartbeat');
+    summary.heartbeat = heartbeat;
+    assert.ok(heartbeat && heartbeat.epoch === 1 && typeof heartbeat.runtime_generation === 'number' && typeof heartbeat.latest_cursor === 'string',
+      'surface streams carry heartbeats: ' + JSON.stringify(idleSurface.frames));
     const settledSnapshot = await snapshot('root-surface-settled', rootRun.agent_id);
     summary.root_settled = settledSnapshot;
     assert.deepEqual([settledSnapshot.epoch, settledSnapshot.turns, settledSnapshot.runs, settledSnapshot.tool_calls], [1, [], [], []]);
@@ -370,8 +419,13 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
     // 3. A restart with no open work (idle eviction) is not a visible epoch.
     await kill('idle owner loss');
     await start();
+    const beforeIdle = await snapshot('root-surface-before-idle-restart', rootRun.agent_id);
+    await kill('idle owner loss 2');
+    await start();
     const idle = await snapshot('root-surface-after-idle-restart', rootRun.agent_id);
+    summary.idle = { before: beforeIdle.runtime_generation, after: idle.runtime_generation };
     assert.equal(idle.epoch, 1, 'an idle restart does not begin a new epoch');
+    assert.ok(idle.runtime_generation > beforeIdle.runtime_generation, 'but it does change the runtime generation');
     assert.equal((await history('root-history-after-idle', rootRun.agent_id, true)).data.filter(row => row.type === 'runtime_epoch').length, 1);
     assert.deepEqual(unexpected, []);
   } finally {

@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     sync::{
         Arc,
-        atomic::{AtomicU8, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
     },
 };
 
@@ -71,6 +71,11 @@ pub enum BeginStep<O = EncodedPayload> {
     Execute,
     /// A prior attempt completed; use this stored output instead of executing.
     Replay(O),
+    /// A lost owner (an earlier process) started this tool effect and never
+    /// settled it. Executing it again could repeat an external effect, so the
+    /// caller must settle it with an unknown outcome instead. Returned only
+    /// after [DurableSession::interrupt_lost_tool_effects].
+    Interrupted,
 }
 
 enum StoredAdmission {
@@ -122,6 +127,7 @@ impl StoredAdmission {
 enum StoredBeginStep {
     Execute,
     Replay(EncodedPayload),
+    Interrupted,
 }
 
 #[derive(Clone)]
@@ -300,6 +306,10 @@ struct Driver {
     active_agent_generation: Option<u64>,
     claimed: HashMap<String, Caller>,
     running: HashSet<String>,
+    /// Tool steps this driver (this process) started. A pending tool step
+    /// outside it was started by a lost owner.
+    started_here: HashSet<(String, String)>,
+    interrupt_lost_tool_effects: Arc<AtomicBool>,
     poisoned: bool,
     /// Immutable record keys this owner has observed committed for its state.
     /// Content-addressed records are never rewritten and are deleted only by
@@ -1182,8 +1192,24 @@ impl Driver {
                         output.load(&mut *self.store, &self.state_id).await?,
                     ));
                 }
-                StepStatus::EffectPending => {}
+                StepStatus::EffectPending => {
+                    if kind == "tool_call"
+                        && self.interrupt_lost_tool_effects.load(Ordering::Acquire)
+                        && !self
+                            .started_here
+                            .contains(&(operation_id.clone(), step_id.clone()))
+                    {
+                        // Leave the step pending: the caller settles it with
+                        // an unknown outcome through complete_step.
+                        self.started_here.insert((operation_id, step_id));
+                        return Ok(StoredBeginStep::Interrupted);
+                    }
+                }
             }
+        }
+        if kind == "tool_call" {
+            self.started_here
+                .insert((operation_id.clone(), step_id.clone()));
         }
         let entry = Transition::StepStarted {
             operation_id: operation_id.clone(),
@@ -1491,6 +1517,7 @@ pub struct DurableSession {
     state_id: Arc<str>,
     store: SharedStore,
     terminal_receipt_limit: Option<usize>,
+    interrupt_lost_tool_effects: Arc<AtomicBool>,
     commands: mpsc::Sender<Command>,
     releases: mpsc::UnboundedSender<ReleaseSignal>,
     caller_id: OwnerId,
@@ -1503,6 +1530,7 @@ impl Clone for DurableSession {
             state_id: Arc::clone(&self.state_id),
             store: self.store.clone(),
             terminal_receipt_limit: self.terminal_receipt_limit,
+            interrupt_lost_tool_effects: Arc::clone(&self.interrupt_lost_tool_effects),
             commands: self.commands.clone(),
             releases: self.releases.clone(),
             caller_id: OwnerId::new(),
@@ -1522,6 +1550,18 @@ impl Drop for DurableSession {
 }
 
 impl DurableSession {
+    /// Never re-executes a tool step that a lost owner started without
+    /// settling (for example, a shell command running when the host process
+    /// was killed). Such a step begins as [BeginStep::Interrupted] in this
+    /// process and must be settled with an unknown outcome. Steps this process
+    /// started itself, and model calls, keep re-executing as before. Hosts
+    /// whose tools reconcile their own effects (a Code Mode effect journal)
+    /// leave this off.
+    pub fn interrupt_lost_tool_effects(&self) {
+        self.interrupt_lost_tool_effects
+            .store(true, Ordering::Release);
+    }
+
     /// Loads and validates a durable session, then spawns its owning driver.
     pub async fn open<S>(store: S, state_id: impl Into<String>) -> Result<Self>
     where
@@ -1588,6 +1628,7 @@ impl DurableSession {
         let state_id = Arc::<str>::from(state_id);
         let (commands, receiver) = mpsc::channel(COMMAND_CAPACITY);
         let (releases, release_receiver) = mpsc::unbounded_channel();
+        let interrupt_lost_tool_effects = Arc::new(AtomicBool::new(false));
         spawn_driver(Driver {
             store: Box::new(store.clone()),
             state_id: Arc::clone(&state_id),
@@ -1598,6 +1639,8 @@ impl DurableSession {
             active_agent_generation: None,
             claimed: HashMap::new(),
             running: HashSet::new(),
+            started_here: HashSet::new(),
+            interrupt_lost_tool_effects: Arc::clone(&interrupt_lost_tool_effects),
             poisoned: false,
             committed_records: HashSet::new(),
             commands: receiver,
@@ -1607,6 +1650,7 @@ impl DurableSession {
             state_id,
             store,
             terminal_receipt_limit,
+            interrupt_lost_tool_effects,
             commands,
             releases,
             caller_id: OwnerId::new(),
@@ -1936,6 +1980,7 @@ impl DurableSession {
         {
             StoredBeginStep::Execute => Ok(BeginStep::Execute),
             StoredBeginStep::Replay(output) => Ok(BeginStep::Replay(output)),
+            StoredBeginStep::Interrupted => Ok(BeginStep::Interrupted),
         }
     }
 
@@ -1962,6 +2007,7 @@ impl DurableSession {
         {
             StoredBeginStep::Execute => Ok(BeginStep::Execute),
             StoredBeginStep::Replay(output) => Ok(BeginStep::Replay(output.decode()?)),
+            StoredBeginStep::Interrupted => Ok(BeginStep::Interrupted),
         }
     }
 
@@ -2369,6 +2415,7 @@ impl DurableOwner {
         match receive(receiver).await? {
             StoredBeginStep::Execute => Ok(BeginStep::Execute),
             StoredBeginStep::Replay(output) => Ok(BeginStep::Replay(output)),
+            StoredBeginStep::Interrupted => Ok(BeginStep::Interrupted),
         }
     }
 

@@ -61,6 +61,8 @@ impl Preconnect {
         validate_id("agent", agent_id)?;
         let mut endpoint = client.url(&format!("{}/ws", agent_path(agent_id)))?;
         set_websocket_scheme(&mut endpoint)?;
+        // This client decodes runtime epochs, so it opts into them.
+        endpoint.query_pairs_mut().append_pair("surface", "1");
         let client = client.clone();
         let expected = agent_id.to_owned();
         let task = tokio::spawn(async move {
@@ -578,7 +580,10 @@ async fn connect(
 ) -> Result<ConnectedSocket, ManagedError> {
     let mut endpoint = client.url(&format!("{}/ws", agent_path(agent_id)))?;
     set_websocket_scheme(&mut endpoint)?;
-    endpoint.query_pairs_mut().append_pair("cursor", cursor);
+    endpoint
+        .query_pairs_mut()
+        .append_pair("cursor", cursor)
+        .append_pair("surface", "1");
     let (connected, _) = connect_endpoint(client, endpoint, Some(agent_id), cursor).await?;
     Ok(connected)
 }

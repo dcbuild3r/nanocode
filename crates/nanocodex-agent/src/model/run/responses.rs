@@ -77,7 +77,9 @@ where
                 .begin::<_, RecordedModelResult>(&step_id, "model_call", &())
                 .await?
             {
-                crate::agent::ExecutionStep::Execute => None,
+                crate::agent::ExecutionStep::Execute | crate::agent::ExecutionStep::Interrupted => {
+                    None
+                }
                 crate::agent::ExecutionStep::Replay(output) => Some(output),
             }
         } else {
