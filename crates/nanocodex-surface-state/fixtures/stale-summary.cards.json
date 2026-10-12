@@ -1,0 +1,372 @@
+[
+  {
+    "label": "summary and resources stale",
+    "projection": {
+      "cards": [
+        {
+          "badges": [
+            {
+              "text": "stale resources",
+              "tone": "warn"
+            }
+          ],
+          "depth": 0,
+          "id": "paradigm",
+          "kind": "hand",
+          "lines": [
+            {
+              "text": "linux x86_64",
+              "tone": "muted"
+            },
+            {
+              "text": "CPU 21% · RAM 68 GB free · disk 120 GB free · observed 12m 0s ago",
+              "tone": "warn"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "online",
+          "title": "paradigm",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "r1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 15m 0s",
+          "subject": "Fix the flaky test",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "summary stale",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "a1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: tests",
+              "tone": "muted"
+            },
+            {
+              "text": "Running cargo test; 2 failures to fix",
+              "tone": "text"
+            },
+            {
+              "text": "summary (agent-reported) from cursor 5; 3 newer change(s) through cursor 8",
+              "tone": "warn"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 14m 50s",
+          "title": "fixer",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "a1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 101 · 40 KiB output",
+              "tone": "error"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 1m 20s",
+          "subject": "cargo test -p nanocodex-managed",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "a1.c2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 1m 40s",
+          "subject": "apply_patch crates/nanocodex-managed/src/lib.rs",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "a1.c3",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0 · 38 KiB output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 7m 10s",
+          "subject": "cargo test -p nanocodex-managed",
+          "title": "Shell",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "context_pct": 93,
+        "cursor": 9,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 9 · 2 open · last event 20s ago · heartbeat 1s ago · context 93%",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "warn"
+      },
+      "now_ms": 1791821700000
+    }
+  },
+  {
+    "label": "summary refreshed",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "r1.status",
+          "kind": "status",
+          "lines": [
+            {
+              "text": "Done",
+              "tone": "ok"
+            },
+            {
+              "text": "  [verified] cargo test -p nanocodex-managed passes",
+              "tone": "ok"
+            },
+            {
+              "text": "    evidence: a1.c3 exit 0",
+              "tone": "muted"
+            },
+            {
+              "text": "  [agent-reported] root cause: nondeterministic ordering",
+              "tone": "info"
+            },
+            {
+              "text": "    evidence: a1 summary",
+              "tone": "muted"
+            },
+            {
+              "text": "Next",
+              "tone": "text"
+            },
+            {
+              "text": "  [unsourced] push branch and open draft PR",
+              "tone": "muted"
+            }
+          ],
+          "pinned": true,
+          "state": "running",
+          "state_label": "next steps",
+          "subject": "Fix the flaky test",
+          "title": "Status",
+          "tone": "info"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "paradigm",
+          "kind": "hand",
+          "lines": [
+            {
+              "text": "linux x86_64",
+              "tone": "muted"
+            },
+            {
+              "text": "CPU 21% · RAM 68 GB free · disk 120 GB free · observed 5s ago",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "online",
+          "title": "paradigm",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "r1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 16m 0s",
+          "subject": "Fix the flaky test",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "a1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: tests",
+              "tone": "muted"
+            },
+            {
+              "text": "Fixed flaky ordering; cargo test passes",
+              "tone": "text"
+            },
+            {
+              "text": "summary (agent-reported) current at cursor 10",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 15m 40s",
+          "title": "fixer",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "a1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 101 · 40 KiB output",
+              "tone": "error"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 1m 20s",
+          "subject": "cargo test -p nanocodex-managed",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "a1.c2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 1m 40s",
+          "subject": "apply_patch crates/nanocodex-managed/src/lib.rs",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 2,
+          "id": "a1.c3",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0 · 38 KiB output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 7m 10s",
+          "subject": "cargo test -p nanocodex-managed",
+          "title": "Shell",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "context_pct": 93,
+        "cursor": 12,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 12 · 1 open · last event 2s ago · heartbeat 1m 1s ago · context 93%",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "warn"
+      },
+      "now_ms": 1791821760000
+    }
+  }
+]

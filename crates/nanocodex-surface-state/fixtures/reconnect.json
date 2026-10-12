@@ -1,0 +1,191 @@
+{
+  "name": "reconnect",
+  "description": "A surface disconnects, reconnects with a snapshot of open entities, and ignores replayed completions.",
+  "steps": [
+    {
+      "label": "connected",
+      "now_ms": 1791820820000,
+      "events": [
+        {
+          "type": "snapshot",
+          "epoch": 1,
+          "cursor": 10,
+          "at_ms": 1791820810000,
+          "entities": [
+            {
+              "id": "t1",
+              "kind": "turn",
+              "epoch": 1,
+              "state": "running",
+              "title": "Turn",
+              "subject": "Index the docs",
+              "started_at_ms": 1791820800000,
+              "updated_at_ms": 1791820810000
+            },
+            {
+              "id": "t1.c1",
+              "parent_id": "t1",
+              "kind": "tool_call",
+              "epoch": 1,
+              "state": "running",
+              "title": "Shell",
+              "subject": "rg -n surface docs",
+              "tool": "exec_command",
+              "cwd": "/srv/repo",
+              "hand_id": "paradigm",
+              "started_at_ms": 1791820805000,
+              "updated_at_ms": 1791820805000
+            },
+            {
+              "id": "t1.c2",
+              "parent_id": "t1",
+              "kind": "tool_call",
+              "epoch": 1,
+              "state": "running",
+              "title": "Shell",
+              "subject": "pnpm test",
+              "tool": "exec_command",
+              "cwd": "/srv/repo",
+              "hand_id": "paradigm",
+              "started_at_ms": 1791820808000,
+              "updated_at_ms": 1791820808000
+            }
+          ]
+        },
+        {
+          "type": "heartbeat",
+          "cursor": 11,
+          "at_ms": 1791820819000
+        }
+      ]
+    },
+    {
+      "label": "disconnected for 3 minutes",
+      "now_ms": 1791821000000,
+      "events": []
+    },
+    {
+      "label": "reconnected: snapshot then deltas, replays ignored",
+      "now_ms": 1791821005000,
+      "events": [
+        {
+          "type": "snapshot",
+          "epoch": 1,
+          "cursor": 30,
+          "at_ms": 1791821001000,
+          "entities": [
+            {
+              "id": "t1",
+              "kind": "turn",
+              "epoch": 1,
+              "state": "running",
+              "title": "Turn",
+              "subject": "Index the docs",
+              "started_at_ms": 1791820800000,
+              "updated_at_ms": 1791820950000
+            },
+            {
+              "id": "t1.c2",
+              "parent_id": "t1",
+              "kind": "tool_call",
+              "epoch": 1,
+              "state": "running",
+              "title": "Shell",
+              "subject": "pnpm test",
+              "tool": "exec_command",
+              "cwd": "/srv/repo",
+              "hand_id": "paradigm",
+              "started_at_ms": 1791820808000,
+              "updated_at_ms": 1791820990000,
+              "output_bytes": 2048
+            }
+          ]
+        },
+        {
+          "type": "upsert",
+          "cursor": 9,
+          "at_ms": 1791820809000,
+          "entity": {
+            "id": "t1.c1",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 1,
+            "state": "completed",
+            "title": "Shell",
+            "subject": "rg -n surface docs",
+            "tool": "exec_command",
+            "cwd": "/srv/repo",
+            "hand_id": "paradigm",
+            "started_at_ms": 1791820805000,
+            "updated_at_ms": 1791820809000,
+            "exit_code": 0
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 31,
+          "at_ms": 1791821002000,
+          "entity": {
+            "id": "t1.c1",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 1,
+            "state": "completed",
+            "title": "Shell",
+            "subject": "rg -n surface docs",
+            "tool": "exec_command",
+            "cwd": "/srv/repo",
+            "hand_id": "paradigm",
+            "started_at_ms": 1791820805000,
+            "updated_at_ms": 1791820860000,
+            "exit_code": 0,
+            "output_bytes": 512,
+            "provenance": "verified"
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 31,
+          "at_ms": 1791821002000,
+          "entity": {
+            "id": "t1.c1",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 1,
+            "state": "completed",
+            "title": "Shell",
+            "subject": "rg -n surface docs",
+            "tool": "exec_command",
+            "cwd": "/srv/repo",
+            "hand_id": "paradigm",
+            "started_at_ms": 1791820805000,
+            "updated_at_ms": 1791820860000,
+            "exit_code": 0,
+            "output_bytes": 512,
+            "provenance": "verified"
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 32,
+          "at_ms": 1791821003000,
+          "entity": {
+            "id": "t1.c2",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 1,
+            "state": "running",
+            "title": "Shell",
+            "subject": "pnpm test",
+            "tool": "exec_command",
+            "cwd": "/srv/repo",
+            "hand_id": "paradigm",
+            "started_at_ms": 1791820808000,
+            "updated_at_ms": 1791821003000,
+            "output_bytes": 4096
+          }
+        }
+      ]
+    }
+  ]
+}

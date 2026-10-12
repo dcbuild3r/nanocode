@@ -6555,6 +6555,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nanocodex-surface-state"
+version = "0.6.7"
+dependencies = [
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "nanocodex-tui-control"
 version = "0.6.7"
 dependencies = [

@@ -1,0 +1,167 @@
+{
+  "name": "restart-mid-tool",
+  "description": "The runtime restarts while a shell tool is in flight; the card settles to unknown instead of ticking, and a durable subagent completion later reconciles.",
+  "steps": [
+    {
+      "label": "before restart: tool silent for an hour",
+      "now_ms": 1791825081000,
+      "events": [
+        {
+          "type": "snapshot",
+          "epoch": 1,
+          "cursor": 1,
+          "at_ms": 1791820800000,
+          "entities": [
+            {
+              "id": "paradigm",
+              "kind": "hand",
+              "epoch": 1,
+              "state": "running",
+              "title": "paradigm",
+              "updated_at_ms": 1791825000000,
+              "online": true,
+              "os": "linux x86_64",
+              "resources": {
+                "observed_at_ms": 1791825000000,
+                "cpu_pct": 21,
+                "ram_free_gb": 68,
+                "disk_free_gb": 120
+              }
+            },
+            {
+              "id": "t1",
+              "kind": "turn",
+              "epoch": 1,
+              "state": "running",
+              "title": "Turn",
+              "subject": "Ship the release",
+              "started_at_ms": 1791820800000,
+              "updated_at_ms": 1791820800000
+            }
+          ]
+        },
+        {
+          "type": "upsert",
+          "cursor": 2,
+          "at_ms": 1791820803000,
+          "entity": {
+            "id": "t1.c1",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 1,
+            "state": "running",
+            "title": "Shell",
+            "subject": "cargo build --release",
+            "tool": "exec_command",
+            "cwd": "/srv/repo",
+            "hand_id": "paradigm",
+            "started_at_ms": 1791820803000,
+            "updated_at_ms": 1791820803000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 3,
+          "at_ms": 1791820804000,
+          "entity": {
+            "id": "t1.a1",
+            "parent_id": "t1",
+            "kind": "agent",
+            "epoch": 1,
+            "state": "running",
+            "title": "release-notes",
+            "role": "docs",
+            "summary": {
+              "text": "Drafting release notes",
+              "at_cursor": 3,
+              "provenance": "agent_reported"
+            },
+            "started_at_ms": 1791820804000,
+            "updated_at_ms": 1791820804000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 4,
+          "at_ms": 1791820805000,
+          "entity": {
+            "id": "t1.c1",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 1,
+            "state": "running",
+            "title": "Shell",
+            "subject": "cargo build --release",
+            "tool": "exec_command",
+            "cwd": "/srv/repo",
+            "hand_id": "paradigm",
+            "started_at_ms": 1791820803000,
+            "updated_at_ms": 1791820805000,
+            "output_bytes": 0
+          }
+        }
+      ]
+    },
+    {
+      "label": "runtime epoch 2: in-flight work settles",
+      "now_ms": 1791825083000,
+      "events": [
+        {
+          "type": "runtime_epoch",
+          "epoch": 2,
+          "cursor": 5,
+          "at_ms": 1791825082000,
+          "reason": "runtime restarted"
+        }
+      ]
+    },
+    {
+      "label": "after restart: new turn and reconciled completion",
+      "now_ms": 1791825120000,
+      "events": [
+        {
+          "type": "upsert",
+          "cursor": 6,
+          "at_ms": 1791825090000,
+          "entity": {
+            "id": "t2",
+            "kind": "turn",
+            "epoch": 2,
+            "state": "running",
+            "title": "Turn",
+            "subject": "Status?",
+            "started_at_ms": 1791825090000,
+            "updated_at_ms": 1791825090000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 7,
+          "at_ms": 1791825100000,
+          "entity": {
+            "id": "t1.a1",
+            "parent_id": "t1",
+            "kind": "agent",
+            "epoch": 1,
+            "state": "completed",
+            "title": "release-notes",
+            "role": "docs",
+            "summary": {
+              "text": "Release notes drafted in docs/RELEASE.md",
+              "at_cursor": 7,
+              "provenance": "agent_reported"
+            },
+            "started_at_ms": 1791820804000,
+            "updated_at_ms": 1791825100000
+          }
+        },
+        {
+          "type": "heartbeat",
+          "cursor": 8,
+          "at_ms": 1791825118000,
+          "context_pct": 40
+        }
+      ]
+    }
+  ]
+}

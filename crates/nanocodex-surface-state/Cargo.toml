@@ -1,0 +1,23 @@
+[package]
+name = "nanocodex-surface-state"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Shared surface-state model: a pure reducer over runtime lifecycle events and the card projection every Nanocodex surface renders"
+
+# Serde only: the TUI renderer, web mirror (js/nanocodex-surface-state) and
+# native apps consume the same projection without pulling in runtime crates.
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+
+[lints]
+workspace = true

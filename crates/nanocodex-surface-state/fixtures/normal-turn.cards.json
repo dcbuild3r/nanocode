@@ -1,0 +1,223 @@
+[
+  {
+    "label": "tool running",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "paradigm",
+          "kind": "hand",
+          "lines": [
+            {
+              "text": "linux x86_64",
+              "tone": "muted"
+            },
+            {
+              "text": "CPU 21% · RAM 68 GB free · disk 120 GB free · observed 14s ago",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "online",
+          "title": "paradigm",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "brain",
+          "kind": "brain",
+          "lines": [
+            {
+              "text": "/brain",
+              "tone": "text"
+            },
+            {
+              "text": "42 memory note(s) · 3 uncommitted file(s)",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "attached",
+          "subject": "durable workspace",
+          "title": "Brain",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 14s",
+          "subject": "Run the surface-state tests",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 12s",
+          "subject": "cargo test -p nanocodex-surface-state",
+          "title": "Shell",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "context_pct": 18,
+        "cursor": 4,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 4 · 2 open · last event 12s ago · heartbeat 1s ago · context 18%",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820814000
+    }
+  },
+  {
+    "label": "turn completed",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1.status",
+          "kind": "status",
+          "lines": [
+            {
+              "text": "Done",
+              "tone": "ok"
+            },
+            {
+              "text": "  [verified] surface-state tests pass",
+              "tone": "ok"
+            },
+            {
+              "text": "    evidence: t1.c1 exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": true,
+          "state": "completed",
+          "state_label": "done",
+          "subject": "Run the surface-state tests",
+          "title": "Status",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "paradigm",
+          "kind": "hand",
+          "lines": [
+            {
+              "text": "linux x86_64",
+              "tone": "muted"
+            },
+            {
+              "text": "CPU 21% · RAM 68 GB free · disk 120 GB free · observed 40s ago",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "online",
+          "title": "paradigm",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "brain",
+          "kind": "brain",
+          "lines": [
+            {
+              "text": "/brain",
+              "tone": "text"
+            },
+            {
+              "text": "42 memory note(s) · 3 uncommitted file(s)",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "attached",
+          "subject": "durable workspace",
+          "title": "Brain",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 38s",
+          "subject": "Run the surface-state tests",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0 · 17 KiB output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 29s",
+          "subject": "cargo test -p nanocodex-surface-state",
+          "title": "Shell",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "context_pct": 18,
+        "cursor": 7,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 7 · 0 open · last event 2s ago · heartbeat 27s ago · context 18%",
+        "open": 0,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820840000
+    }
+  }
+]

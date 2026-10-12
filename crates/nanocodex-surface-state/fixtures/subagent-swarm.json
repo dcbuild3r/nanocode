@@ -1,0 +1,254 @@
+{
+  "name": "subagent-swarm",
+  "description": "A root turn orchestrates three subagents across two Hands, with a pending decision and a pinned Status card mixing provenance.",
+  "steps": [
+    {
+      "label": "swarm in flight",
+      "now_ms": 1791821400000,
+      "events": [
+        {
+          "type": "snapshot",
+          "epoch": 1,
+          "cursor": 10,
+          "at_ms": 1791820800000,
+          "entities": [
+            {
+              "id": "paradigm",
+              "kind": "hand",
+              "epoch": 1,
+              "state": "running",
+              "title": "paradigm",
+              "updated_at_ms": 1791821390000,
+              "online": true,
+              "os": "linux x86_64",
+              "resources": {
+                "observed_at_ms": 1791821390000,
+                "cpu_pct": 21,
+                "ram_free_gb": 68,
+                "disk_free_gb": 120
+              }
+            },
+            {
+              "id": "mac",
+              "kind": "hand",
+              "epoch": 1,
+              "state": "completed",
+              "title": "studio-mac",
+              "updated_at_ms": 1791817200000,
+              "online": false,
+              "os": "linux x86_64",
+              "resources": {
+                "observed_at_ms": 1791817200000,
+                "cpu_pct": 21,
+                "ram_free_gb": 68,
+                "disk_free_gb": 120
+              }
+            },
+            {
+              "id": "brain",
+              "kind": "brain",
+              "epoch": 1,
+              "state": "running",
+              "title": "Brain",
+              "subject": "durable workspace",
+              "updated_at_ms": 1791820800000,
+              "workspace": "/brain",
+              "memory_notes": 42,
+              "dirty_files": 3
+            },
+            {
+              "id": "r1",
+              "kind": "turn",
+              "epoch": 1,
+              "state": "running",
+              "title": "Turn",
+              "subject": "Redesign surface state",
+              "started_at_ms": 1791820800000,
+              "updated_at_ms": 1791820800000
+            }
+          ]
+        },
+        {
+          "type": "upsert",
+          "cursor": 11,
+          "at_ms": 1791820805000,
+          "entity": {
+            "id": "a1",
+            "parent_id": "r1",
+            "kind": "agent",
+            "epoch": 1,
+            "state": "running",
+            "title": "protocol-runtime",
+            "role": "runtime events",
+            "started_at_ms": 1791820805000,
+            "updated_at_ms": 1791820805000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 12,
+          "at_ms": 1791820806000,
+          "entity": {
+            "id": "a2",
+            "parent_id": "r1",
+            "kind": "agent",
+            "epoch": 1,
+            "state": "running",
+            "title": "tui-card-stream",
+            "role": "card stream TUI",
+            "started_at_ms": 1791820806000,
+            "updated_at_ms": 1791820806000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 13,
+          "at_ms": 1791820807000,
+          "entity": {
+            "id": "a3",
+            "parent_id": "r1",
+            "kind": "agent",
+            "epoch": 1,
+            "state": "running",
+            "title": "dogfood-reviewer",
+            "role": "review",
+            "started_at_ms": 1791820807000,
+            "updated_at_ms": 1791820807000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 14,
+          "at_ms": 1791821100000,
+          "entity": {
+            "id": "a2.c1",
+            "parent_id": "a2",
+            "kind": "tool_call",
+            "epoch": 1,
+            "state": "running",
+            "title": "Shell",
+            "subject": "cargo test -p nanocodex-tui-render",
+            "tool": "exec_command",
+            "cwd": "/srv/repo",
+            "hand_id": "paradigm",
+            "started_at_ms": 1791821100000,
+            "updated_at_ms": 1791821100000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 15,
+          "at_ms": 1791821220000,
+          "entity": {
+            "id": "a1",
+            "parent_id": "r1",
+            "kind": "agent",
+            "epoch": 1,
+            "state": "running",
+            "title": "protocol-runtime",
+            "role": "runtime events",
+            "summary": {
+              "text": "Epoch event and snapshot route implemented; tests next",
+              "at_cursor": 15,
+              "provenance": "agent_reported"
+            },
+            "started_at_ms": 1791820805000,
+            "updated_at_ms": 1791821220000,
+            "context_pct": 64
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 16,
+          "at_ms": 1791821300000,
+          "entity": {
+            "id": "a3",
+            "parent_id": "r1",
+            "kind": "agent",
+            "epoch": 1,
+            "state": "completed",
+            "title": "dogfood-reviewer",
+            "role": "review",
+            "summary": {
+              "text": "Reviewed variant A; 2 findings filed",
+              "at_cursor": 16,
+              "provenance": "agent_reported"
+            },
+            "started_at_ms": 1791820807000,
+            "updated_at_ms": 1791821300000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 17,
+          "at_ms": 1791821310000,
+          "entity": {
+            "id": "r1.d1",
+            "parent_id": "r1",
+            "kind": "decision",
+            "epoch": 1,
+            "state": "running",
+            "title": "Decision",
+            "subject": "Merge order",
+            "updated_at_ms": 1791821310000,
+            "question": "Land the protocol PR before both TUI variants?",
+            "recommendation": "protocol first",
+            "options": [
+              "protocol first",
+              "variants first"
+            ]
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 18,
+          "at_ms": 1791821320000,
+          "entity": {
+            "id": "r1.status",
+            "parent_id": "r1",
+            "kind": "status",
+            "epoch": 1,
+            "state": "running",
+            "title": "Status",
+            "subject": "Redesign surface state",
+            "updated_at_ms": 1791821320000,
+            "items": [
+              {
+                "section": "done",
+                "text": "surface-state crate builds",
+                "provenance": "verified",
+                "evidence": "cargo build exit 0"
+              },
+              {
+                "section": "done",
+                "text": "variant A review complete",
+                "provenance": "agent_reported",
+                "evidence": "a3 summary"
+              },
+              {
+                "section": "in_progress",
+                "text": "card-stream renderer tests",
+                "provenance": "test_build",
+                "evidence": "a2.c1 running"
+              },
+              {
+                "section": "blocked",
+                "text": "studio-mac offline for Apple build"
+              },
+              {
+                "section": "next",
+                "text": "decide merge order"
+              }
+            ]
+          }
+        },
+        {
+          "type": "heartbeat",
+          "cursor": 19,
+          "at_ms": 1791821398000,
+          "context_pct": 71
+        }
+      ]
+    }
+  ]
+}

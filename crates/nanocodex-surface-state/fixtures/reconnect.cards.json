@@ -1,0 +1,235 @@
+[
+  {
+    "label": "connected",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 20s",
+          "subject": "Index the docs",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 15s",
+          "subject": "rg -n surface docs",
+          "title": "Shell",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "t1.c2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 12s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 11,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 11 · 3 open · last event 10s ago · heartbeat 1s ago",
+        "open": 3,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820820000
+    }
+  },
+  {
+    "label": "disconnected for 3 minutes",
+    "projection": {
+      "cards": [
+        {
+          "badges": [
+            {
+              "text": "quiet 3m 10s",
+              "tone": "warn"
+            }
+          ],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3m 20s",
+          "subject": "Index the docs",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "quiet 3m 10s",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3m 15s",
+          "subject": "rg -n surface docs",
+          "title": "Shell",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "quiet 3m 10s",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3m 12s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 11,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 11 · 3 open · last event 3m 10s ago · heartbeat 3m 1s ago",
+        "open": 3,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "warn"
+      },
+      "now_ms": 1791821000000
+    }
+  },
+  {
+    "label": "reconnected: snapshot then deltas, replays ignored",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3m 25s",
+          "subject": "Index the docs",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            },
+            {
+              "text": "outcome reconciled",
+              "tone": "info"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0 · 512 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 55s",
+          "subject": "rg -n surface docs",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "t1.c2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "4 KiB output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3m 17s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 32,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 32 · 2 open · last event 2s ago · heartbeat 3m 6s ago · 2 replay(s) ignored",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 2,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791821005000
+    }
+  }
+]

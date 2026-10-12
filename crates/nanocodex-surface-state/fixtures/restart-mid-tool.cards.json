@@ -1,0 +1,384 @@
+[
+  {
+    "label": "before restart: tool silent for an hour",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "paradigm",
+          "kind": "hand",
+          "lines": [
+            {
+              "text": "linux x86_64",
+              "tone": "muted"
+            },
+            {
+              "text": "CPU 21% · RAM 68 GB free · disk 120 GB free · observed 1m 21s ago",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "online",
+          "title": "paradigm",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "quiet 1h 11m",
+              "tone": "warn"
+            }
+          ],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 1h 11m",
+          "subject": "Ship the release",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "quiet 1h 11m",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "0 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 1h 11m",
+          "subject": "cargo build --release",
+          "title": "Shell",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "quiet 1h 11m",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.a1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: docs",
+              "tone": "muted"
+            },
+            {
+              "text": "Drafting release notes",
+              "tone": "text"
+            },
+            {
+              "text": "summary (agent-reported) current at cursor 3",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 1h 11m",
+          "title": "release-notes",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 4,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 4 · 3 open · last event 1h 11m ago",
+        "open": 3,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "warn"
+      },
+      "now_ms": 1791825081000
+    }
+  },
+  {
+    "label": "runtime epoch 2: in-flight work settles",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "paradigm",
+          "kind": "hand",
+          "lines": [
+            {
+              "text": "linux x86_64",
+              "tone": "muted"
+            },
+            {
+              "text": "CPU 21% · RAM 68 GB free · disk 120 GB free · observed 1m 23s ago",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "online",
+          "title": "paradigm",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "Ship the release",
+          "title": "Turn",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "0 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "cargo build --release",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            },
+            {
+              "text": "summary stale",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.a1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "role: docs",
+              "tone": "muted"
+            },
+            {
+              "text": "Drafting release notes",
+              "tone": "text"
+            },
+            {
+              "text": "summary (agent-reported) from cursor 3; 1 newer change(s) through cursor 5",
+              "tone": "warn"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "title": "release-notes",
+          "tone": "warn"
+        }
+      ],
+      "liveness": {
+        "cursor": 5,
+        "epoch": 2,
+        "label": "epoch 2 · cursor 5 · 0 open · last event 1s ago · 1 restart(s)",
+        "open": 0,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 1,
+        "tone": "ok"
+      },
+      "now_ms": 1791825083000
+    }
+  },
+  {
+    "label": "after restart: new turn and reconciled completion",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "paradigm",
+          "kind": "hand",
+          "lines": [
+            {
+              "text": "linux x86_64",
+              "tone": "muted"
+            },
+            {
+              "text": "CPU 21% · RAM 68 GB free · disk 120 GB free · observed 2m 0s ago",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "online",
+          "title": "paradigm",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "Ship the release",
+          "title": "Turn",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "0 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "cargo build --release",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome reconciled",
+              "tone": "info"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.a1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: docs",
+              "tone": "muted"
+            },
+            {
+              "text": "Release notes drafted in docs/RELEASE.md",
+              "tone": "text"
+            },
+            {
+              "text": "summary (agent-reported) current at cursor 7",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 1h 11m",
+          "title": "release-notes",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t2",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 30s",
+          "subject": "Status?",
+          "title": "Turn",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "context_pct": 40,
+        "cursor": 8,
+        "epoch": 2,
+        "label": "epoch 2 · cursor 8 · 1 open · last event 20s ago · heartbeat 2s ago · context 40% · 1 restart(s)",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 1,
+        "tone": "ok"
+      },
+      "now_ms": 1791825120000
+    }
+  }
+]
