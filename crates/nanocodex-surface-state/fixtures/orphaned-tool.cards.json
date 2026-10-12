@@ -1,0 +1,208 @@
+[
+  {
+    "label": "code mode cell with nested call running",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 20s",
+          "subject": "Summarize the logs",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "t1.cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 18s",
+          "subject": "const logs = await tools.read_file({path: 'app.log'})",
+          "title": "Code Mode",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 2,
+          "id": "t1.cell/code-0",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "read_file",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 17s",
+          "subject": "app.log",
+          "title": "read_file",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 1s",
+          "subject": "wc -l app.log",
+          "title": "Shell",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "cursor": 4,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 4 · 3 open · last event 16s ago",
+        "open": 3,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820820000
+    }
+  },
+  {
+    "label": "turn completes without the tool results",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 30s",
+          "subject": "Summarize the logs",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "owner ended without a tool result",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "const logs = await tools.read_file({path: 'app.log'})",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "t1.cell/code-0",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "owner ended without a tool result",
+              "tone": "warn"
+            },
+            {
+              "text": "read_file",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "app.log",
+          "title": "read_file",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "verified",
+              "tone": "ok"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 1s",
+          "subject": "wc -l app.log",
+          "title": "Shell",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "cursor": 6,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 6 · 0 open · last event 1s ago",
+        "open": 0,
+        "regressions_ignored": 1,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820831000
+    }
+  }
+]

@@ -149,6 +149,31 @@ export class SurfaceState {
     tracked.entity = structuredClone(entity);
     tracked.lastCursor = cursor;
     tracked.lastEventAtMs = atMs;
+    if (isTerminal(next) && !isTerminal(previous)) this.#settleOrphanedToolCalls(entity.id, cursor, atMs);
+  }
+
+  // A tool call cannot outlive the turn, run, agent or Code Mode cell that
+  // issued it: when the owner ends first, still-open tool calls settle to
+  // unknown (mirrors the Rust reducer).
+  #settleOrphanedToolCalls(ownerId, cursor, atMs) {
+    const kind = this.entities.get(ownerId)?.entity.kind;
+    if (!SETTLES_ON_EPOCH.has(kind) || kind === "process_session") return;
+    const owners = [ownerId];
+    while (owners.length > 0) {
+      const owner = owners.pop();
+      for (const tracked of this.entities.values()) {
+        const entity = tracked.entity;
+        if (entity.kind !== "tool_call" || entity.parent_id !== owner) continue;
+        owners.push(entity.id);
+        if (isTerminal(entity.state)) continue;
+        entity.state = "unknown";
+        entity.reason = "owner ended without a tool result";
+        entity.updated_at_ms = atMs;
+        tracked.settledLocally = true;
+        tracked.lastCursor = cursor;
+        tracked.lastEventAtMs = atMs;
+      }
+    }
   }
 
   #settleEpoch(epoch, cursor, atMs, reason) {

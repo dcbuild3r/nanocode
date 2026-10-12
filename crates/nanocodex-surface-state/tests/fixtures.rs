@@ -77,3 +77,8 @@ fn reconnect() {
 fn stale_summary() {
     run("stale-summary");
 }
+
+#[test]
+fn orphaned_tool() {
+    run("orphaned-tool");
+}

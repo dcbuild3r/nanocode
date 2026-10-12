@@ -9223,3 +9223,73 @@ async fn terminal_stream_and_view_telemetry_reach_the_log_and_otlp() {
     renderer_evidence("telemetry-otlp.bin", &traces.lock().unwrap());
     collector_task.abort();
 }
+
+/// Card-stream journey (F7): the shared surface-state projection renders a
+/// running shell tool, settles it to unknown when the runtime's restart
+/// receipt arrives, and shows the durable turn completion.
+#[tokio::test]
+async fn terminal_card_stream_settles_tools_from_runtime_receipts() {
+    let mut fixture = Fixture::start().await;
+    fixture.terminal.prompt("CARD_STREAM_JOURNEY", "\r");
+    let turn = fixture.submission("CARD_STREAM_JOURNEY").await;
+    fixture.nested(&turn, "run.started", json!({"model": "gpt-card-stream"}));
+    fixture.nested(&turn, "tool.call", json!({"call_id": "cards-build", "tool": "exec_command",
+        "arguments": {"cmd": "cargo build --release -p card-stream-journey", "workdir": "/srv/cards"}}));
+    fixture.nested(
+        &turn,
+        "tool.call",
+        json!({"call_id": "cards-probe", "tool": "exec_command",
+        "arguments": {"cmd": "echo CARD_PROBE"}}),
+    );
+    fixture.nested(
+        &turn,
+        "tool.result",
+        json!({"call_id": "cards-probe", "tool": "exec_command",
+        "status": "completed", "duration_ns": 1, "result": "CARD_PROBE",
+        "structured_result": {"exit_code": 0, "output": "CARD_PROBE"}}),
+    );
+    fixture.terminal.input("\x1b[18~");
+    fixture
+        .terminal
+        .wait_text("TOOL Shell cargo build --release -p card-stream-journey")
+        .await;
+    wait_line(&fixture.terminal, &["TOOL Shell echo CARD_PROBE", "done"]).await;
+    wait_line(&fixture.terminal, &["cargo build --release", "running"]).await;
+    fixture.terminal.wait_text("[verified]").await;
+    fixture
+        .terminal
+        .wait_text("exec_command in /srv/cards")
+        .await;
+    capture(&fixture.terminal, "card stream: tool running");
+
+    // The recovered runtime closes the interrupted call with an
+    // unknown-outcome receipt (runtime_epoch protocol).
+    fixture.nested(&turn, "tool.result", json!({"call_id": "cards-build", "tool": "exec_command",
+        "status": "failed", "duration_ns": 0, "started_after_ns": null,
+        "result": "The session runtime restarted before a terminal result for this tool call, so its outcome is unknown.",
+        "outcome_unknown": true,
+        "structured_result": {"code": "TOOL_CALL_INTERRUPTED", "outcome": "unknown", "reason": "runtime_restarted", "epoch": 1}}));
+    fixture.terminal.wait_text("runtime restarted").await;
+    wait_line(&fixture.terminal, &["cargo build --release", "unknown"]).await;
+    capture(
+        &fixture.terminal,
+        "card stream: restart receipt settles the tool",
+    );
+
+    fixture.complete(&turn);
+    wait_line(&fixture.terminal, &["TURN Turn gpt-card-stream", "done in"]).await;
+    capture(&fixture.terminal, "card stream: turn completed");
+
+    // F7 returns to the transcript, which kept receiving the same records.
+    fixture.terminal.input("\x1b[18~");
+    fixture
+        .terminal
+        .wait_no_text("TURN Turn gpt-card-stream")
+        .await;
+    fixture.terminal.wait_text("Enter send").await;
+}
+
+fn capture(terminal: &Terminal, label: &str) {
+    let contents = terminal.screen.lock().unwrap().screen().contents();
+    eprintln!("=== {label}\n{contents}\n=== end");
+}

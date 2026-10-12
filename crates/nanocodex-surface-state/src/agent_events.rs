@@ -195,6 +195,29 @@ impl AgentEventAdapter {
                 };
                 vec![self.upsert(entity, at_ms)]
             }
+            // Durable managed turn terminals, delivered even when the run's own
+            // terminal event was lost.
+            "managed.final_message" | "managed.turn_stopped" => {
+                let Some(id) = self.root_turn.clone() else {
+                    return Vec::new();
+                };
+                let Some(mut entity) = self.entities.get(&id).cloned() else {
+                    return Vec::new();
+                };
+                if entity.state.is_terminal() {
+                    return Vec::new();
+                }
+                entity.state = match (kind, payload["error"].as_str()) {
+                    ("managed.final_message", _) => Lifecycle::Completed,
+                    (_, Some(error)) => {
+                        entity.reason = Some(first_line(error, 160));
+                        Lifecycle::Failed
+                    }
+                    (_, None) => Lifecycle::Cancelled,
+                };
+                entity.updated_at_ms = at_ms;
+                vec![self.upsert(entity, at_ms)]
+            }
             "run.completed" | "run.failed" => {
                 let id = match scope.agent_id {
                     Some(agent) => format!("agent:{agent}"),
@@ -277,6 +300,7 @@ impl AgentEventAdapter {
                 let structured = &payload["structured_result"];
                 let unknown = payload["outcome_unknown"] == true
                     || structured["outcome_unknown"] == true
+                    || structured["outcome"] == "unknown"
                     || payload["status"] == "unknown";
                 entity.state = if unknown {
                     Lifecycle::Unknown
@@ -288,7 +312,11 @@ impl AgentEventAdapter {
                     }
                 };
                 if unknown {
-                    entity.reason = Some("runtime reported the outcome as unknown".to_owned());
+                    entity.reason = Some(if structured["reason"] == "runtime_restarted" {
+                        "runtime restarted".to_owned()
+                    } else {
+                        "runtime reported the outcome as unknown".to_owned()
+                    });
                 }
                 // A tool.result is a runtime receipt for the call itself.
                 entity.provenance = Some(Provenance::Verified);

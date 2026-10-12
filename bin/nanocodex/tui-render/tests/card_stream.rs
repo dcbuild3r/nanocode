@@ -67,6 +67,7 @@ fn every_fixture_renders_closed_cards_at_every_width() {
         "restart-mid-tool",
         "reconnect",
         "stale-summary",
+        "orphaned-tool",
     ] {
         for projection in projections(name) {
             for width in [40, 80, 120] {

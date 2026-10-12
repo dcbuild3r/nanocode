@@ -1,6 +1,6 @@
 //! The pure reducer from [`SurfaceEvent`]s to [`SurfaceState`].
 
-use crate::model::{Entity, Lifecycle, SurfaceEvent};
+use crate::model::{Entity, EntityKind, Lifecycle, SurfaceEvent};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
@@ -200,6 +200,47 @@ impl SurfaceState {
         tracked.entity = entity.clone();
         tracked.last_cursor = cursor;
         tracked.last_event_at_ms = at_ms;
+        if next.is_terminal() && !previous.is_terminal() {
+            self.settle_orphaned_tool_calls(&entity.id, cursor, at_ms);
+        }
+    }
+
+    /// A tool call cannot outlive the turn, run, agent or Code Mode cell that
+    /// issued it. When the owner ends first, its still-open tool calls (and
+    /// their nested calls) settle to `unknown`: the owner's terminal event is
+    /// explicit, the tool's own outcome was never reported.
+    fn settle_orphaned_tool_calls(&mut self, owner: &str, cursor: u64, at_ms: u64) {
+        let Some(kind) = self
+            .entities
+            .get(owner)
+            .map(|tracked| tracked.entity.kind())
+        else {
+            return;
+        };
+        if !kind.settles_on_epoch() || kind == EntityKind::ProcessSession {
+            return;
+        }
+        let mut owners = vec![owner.to_owned()];
+        while let Some(owner) = owners.pop() {
+            for tracked in self.entities.values_mut() {
+                let entity = &mut tracked.entity;
+                if entity.kind() != EntityKind::ToolCall
+                    || entity.parent_id.as_deref() != Some(owner.as_str())
+                {
+                    continue;
+                }
+                owners.push(entity.id.clone());
+                if entity.state.is_terminal() {
+                    continue;
+                }
+                entity.state = Lifecycle::Unknown;
+                entity.reason = Some("owner ended without a tool result".to_owned());
+                entity.updated_at_ms = at_ms;
+                tracked.settled_locally = true;
+                tracked.last_cursor = cursor;
+                tracked.last_event_at_ms = at_ms;
+            }
+        }
     }
 
     fn settle_epoch(&mut self, epoch: u64, cursor: u64, at_ms: u64, reason: &str) {
