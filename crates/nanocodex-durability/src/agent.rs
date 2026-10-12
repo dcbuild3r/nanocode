@@ -506,6 +506,7 @@ impl ExecutionPolicy for DurableExecution {
                 .await
             {
                 Ok(BeginStep::Execute) => Ok(ExecutionStepAdmission::Execute),
+                Ok(BeginStep::Interrupted) => Ok(ExecutionStepAdmission::Interrupted),
                 Ok(BeginStep::Replay(output)) => Ok(ExecutionStepAdmission::Replay(
                     output.json().map_err(agent_error)?.to_owned(),
                 )),

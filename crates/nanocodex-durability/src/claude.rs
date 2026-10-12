@@ -418,7 +418,7 @@ impl ClaudeExecutionPolicy for ClaudeExecution {
                 .await
                 .map_err(agent_error)?
             {
-                BeginStep::Execute => Ok(Step::Execute),
+                BeginStep::Execute | BeginStep::Interrupted => Ok(Step::Execute),
                 BeginStep::Replay(value) => Ok(Step::Replay(value.decode().map_err(agent_error)?)),
             }
         })
@@ -447,7 +447,7 @@ impl ClaudeExecutionPolicy for ClaudeExecution {
                 .await
                 .map_err(agent_error)?
             {
-                BeginStep::Execute => Ok(Step::Execute),
+                BeginStep::Execute | BeginStep::Interrupted => Ok(Step::Execute),
                 BeginStep::Replay(value) => Ok(Step::Replay(value.decode().map_err(agent_error)?)),
             }
         })
