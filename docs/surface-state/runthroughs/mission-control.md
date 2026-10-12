@@ -61,7 +61,8 @@ protocol integration is verified separately below, not implied by this run.
 
 ## Published protocol integration
 
-Merged producer through `20c486203` (PR #989).
+Merged producer through `400830739` (PR #989); earlier live evidence below
+identifies the exact producer revision it exercised.
 The actual wire marker is `runtime_epoch {epoch, reason, interrupted}`, not the
 proposed `runtime.epoch`. The TUI projects that exact message through both live
 and retained-history adapters. Only listed interrupted calls/runs are retired;
@@ -875,3 +876,20 @@ This is an evaluated adoption plan, not a claim the dependency was integrated.
 The inspected adapter snapshot shape omitted generation and explicit attempt,
 and its reconciliation policy needs alignment with the terminal-per-attempt
 contract. Wholesale swapping it now would regress fixes demonstrated here.
+
+## Protocol round 3 synchronization
+
+Merged #989 through `400830739`: loopback `/surface`, runtime epochs, explicit
+attempts and runtime generation now match the consumer contract; the loopback
+server opts into interruption rather than re-execution of a lost owner's tool
+effect. This worktree reran 351 TUI tests (2 ignored), 63 managed-client tests,
+and the durability test
+`a_tool_effect_started_by_a_lost_owner_is_interrupted_not_re_executed` (1 passed).
+The native binary build was rerun. This does not claim a new full loopback
+SIGKILL journey; agent 2's independent comparison is in the protocol runthrough.
+
+The new `ManagedEventStream::last_heartbeat()` exposes SSE heartbeat metadata.
+Mission Control currently uses the websocket path, so its footer deliberately
+still says health unconfirmed; merging this API does not falsely make that label
+connected or demonstrate heartbeat consumption. Shared-reducer adoption should
+wire real transport observations, not infer heartbeat from UI redraws.
