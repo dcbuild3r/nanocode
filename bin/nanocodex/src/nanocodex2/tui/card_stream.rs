@@ -6,17 +6,22 @@
 
 use super::{theme::Theme, transcript::TranscriptRecord};
 use nanocodex_subagents::AgentUpdate;
+use nanocodex_surface_state::SurfaceEvent;
 use nanocodex_surface_state::{
     SurfaceState,
     agent_events::{AgentEventAdapter, EventScope, ManagedSnapshot},
 };
-use nanocodex_tui_render::card_stream::CardStream;
+use nanocodex_tui_render::card_stream::{CardStream, max_scroll};
 use ratatui::{Frame, layout::Rect};
 use serde_json::Value;
 use std::{
+    cell::Cell,
     path::Path,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+
+/// Liveness ages are wall-clock text; redraw them while the view is open.
+const TICK: Duration = Duration::from_secs(1);
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -31,8 +36,12 @@ pub(crate) struct CardStreamView {
     state: SurfaceState,
     adapter: AgentEventAdapter,
     open: bool,
-    scroll: usize,
+    /// Rows scrolled from the top; `None` follows the newest cards.
+    scroll: Option<usize>,
+    /// The last rendered maximum scroll, for keyboard paging.
+    max_scroll: Cell<usize>,
     workspace_shown: bool,
+    last_tick: Option<Instant>,
 }
 
 impl CardStreamView {
@@ -121,15 +130,42 @@ impl CardStreamView {
 
     pub(crate) const fn toggle(&mut self) {
         self.open = !self.open;
-        self.scroll = 0;
+        self.scroll = None;
+    }
+
+    /// The event stream dropped (`false`) or resumed (`true`).
+    pub(crate) fn connection(&mut self, connected: bool) {
+        self.state.apply(&SurfaceEvent::Connection {
+            connected,
+            at_ms: now_ms(),
+        });
+    }
+
+    /// Next redraw for the live liveness footer while the view is open.
+    pub(crate) fn tick_deadline(&self) -> Option<Instant> {
+        self.open
+            .then(|| self.last_tick.map_or_else(Instant::now, |last| last + TICK))
+    }
+
+    /// Whether the view is due for a liveness redraw at `now`.
+    pub(crate) fn tick(&mut self, now: Instant) -> bool {
+        if self.tick_deadline().is_some_and(|deadline| now >= deadline) {
+            self.last_tick = Some(now);
+            true
+        } else {
+            false
+        }
     }
 
     pub(crate) const fn close(&mut self) {
         self.open = false;
     }
 
-    pub(crate) const fn scroll_by(&mut self, rows: isize) {
-        self.scroll = self.scroll.saturating_add_signed(rows);
+    /// Page the stream; paging past the end resumes following new cards.
+    pub(crate) fn scroll_by(&mut self, rows: isize) {
+        let max = self.max_scroll.get();
+        let next = self.scroll.unwrap_or(max).saturating_add_signed(rows);
+        self.scroll = (next < max).then_some(next);
     }
 
     /// The shared projection at `now_ms`; any TUI renderer (card stream,
@@ -140,9 +176,9 @@ impl CardStreamView {
 
     pub(crate) fn render(&self, frame: &mut Frame<'_>, area: Rect, theme: &Theme) {
         let projection = self.projection(now_ms());
-        frame.render_widget(
-            CardStream::new(&projection, theme).scroll(self.scroll),
-            area,
-        );
+        let max = max_scroll(&projection, theme, area);
+        self.max_scroll.set(max);
+        let scroll = self.scroll.unwrap_or(max).min(max);
+        frame.render_widget(CardStream::new(&projection, theme).scroll(scroll), area);
     }
 }

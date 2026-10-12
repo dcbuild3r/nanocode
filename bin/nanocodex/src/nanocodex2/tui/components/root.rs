@@ -1031,6 +1031,7 @@ impl RootNode {
                 .as_ref()
                 .map(|confirmation| confirmation.deadline),
             self.notification.as_ref().map(|notice| notice.deadline),
+            self.card_stream.tick_deadline(),
             self.selection_auto_scroll
                 .as_ref()
                 .map(|scroll| scroll.deadline),
@@ -3993,6 +3994,7 @@ impl RootNode {
     }
 
     fn agent_stream_closed(&mut self) -> ComponentUpdate<RootEffect> {
+        self.card_stream.connection(false);
         self.pending_recent_prompts = false;
         self.managed_active_turns = 0;
         self.interactive = false;
@@ -4304,6 +4306,11 @@ impl RootNode {
             RenderRequest::None
         };
         let selection = self.update_selection_auto_scroll(now);
+        let cards = if self.card_stream.tick(now) {
+            RenderRequest::Streaming
+        } else {
+            RenderRequest::None
+        };
         let notification = if self
             .notification
             .as_ref()
@@ -4330,6 +4337,7 @@ impl RootNode {
                 .max(subagents)
                 .max(selection)
                 .max(confirmation)
+                .max(cards)
                 .max(notification),
         }
     }
@@ -4550,6 +4558,7 @@ impl Component for RootNode {
                 pending_local,
                 reasoning_mode,
             } => {
+                self.card_stream.connection(true);
                 if let Some(surface) = surface {
                     self.card_stream.apply_snapshot(&surface);
                 }

@@ -286,6 +286,19 @@ pub fn liveness_line(projection: &Projection, theme: &Theme, width: u16) -> Line
     ])
 }
 
+/// Largest useful scroll offset for the stream at `area`; scrolling to it
+/// follows the newest cards.
+#[must_use]
+pub fn max_scroll(projection: &Projection, theme: &Theme, area: Rect) -> usize {
+    if area.height == 0 {
+        return 0;
+    }
+    let (pinned, stream) = stream_lines(projection, theme, area.width);
+    let body_height = usize::from(area.height - 1);
+    let pinned_rows = pinned.len().min(body_height / 2);
+    stream.len().saturating_sub(body_height - pinned_rows)
+}
+
 /// Card-stream widget: pinned Status cards (at most half the height), the
 /// scrolled stream, and the liveness footer.
 pub struct CardStream<'a> {
