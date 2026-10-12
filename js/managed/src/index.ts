@@ -241,7 +241,7 @@ import {
 import { persistEventStreamFailure } from "./event-stream-failure";
 import { watchManagedAgentFamilyEvents } from "./agent-event-watcher";
 import { createToolLifecycleObserver } from "./tool-observation";
-import { OpenToolCalls } from "./open-tool-calls";
+import { legacyVisible, SurfaceState } from "./surface-state";
 import { traceToolInvocation } from "./tool-tracing";
 import { DiagnosticJournal, diagnosticQuery, diagnosticScope } from "./diagnostic-journal";
 import {
@@ -889,6 +889,7 @@ type StreamMessage = Extract<ServerMessage,
   | { type: "turn_failed" }
   | { type: "event" }
   | { type: "stream_failed" }
+  | { type: "runtime_epoch" }
 >;
 
 /** Merged delta rows stay far below event chunking and history page limits. */
@@ -3531,7 +3532,7 @@ async function managedFetchRoute(
         recordManagedSessionTiming(request, performance.now() - sessionStarted);
       }
     }
-    if (resource === "events" || resource === "events/history" || resource === "capacity" || resource === "diagnostics") {
+    if (resource === "events" || resource === "events/history" || resource === "surface" || resource === "capacity" || resource === "diagnostics") {
       if (request.method !== "GET") return json({ error: "method_not_allowed" }, { status: 405 });
       if (!principal.capabilities.includes("agents:read")) {
         return json({ error: "forbidden" }, { status: 403 });
@@ -4565,8 +4566,7 @@ export class DurableAgentSession extends DurableComputerObject {
   #presentation?: AgentPresentationWriter;
   #events?: EventWatcher;
   #eventLog!: DurableEventLog<StreamMessage>;
-  #openToolCalls!: OpenToolCalls;
-  #finishedRunAgent: number | undefined;
+  #surface!: SurfaceState;
   #eventArchive!: ManagedEventArchive<StreamMessage>;
   #eventArchiveTask?: Promise<ManagedEventSealResult>;
   #archiveMaintenance!: ArchiveMaintenance;
@@ -4894,10 +4894,10 @@ export class DurableAgentSession extends DurableComputerObject {
       .toArray().some(({ name }) => name === "source_cursor")) {
       this.ctx.storage.sql.exec("ALTER TABLE history_projection_outbox ADD COLUMN source_cursor TEXT NOT NULL DEFAULT '0'");
     }
-    this.#openToolCalls = new OpenToolCalls(this.ctx.storage);
+    this.#surface = new SurfaceState(this.ctx.storage);
     this.#eventLog = new DurableEventLog<StreamMessage>(this.ctx.storage, event => {
       this.#operations.record(event, this.#sessionId());
-      this.#finishedRunAgent = this.#openToolCalls.observe(event) ?? this.#finishedRunAgent;
+      this.#surface.observe(event);
     });
     this.#codeEffectJournal = createManagedCodeEffectJournal(this.ctx.storage, {
       // Runs inside the receipt's own commit transaction.
@@ -4946,6 +4946,7 @@ export class DurableAgentSession extends DurableComputerObject {
       else if (!pristine) {
         if (!this.#deleted && !this.#durabilityExported && this.#durabilityImportState !== "pending")
           retireSessionProjects(this.ctx.storage, id => { this.#markCancelling(id); });
+        this.#recoverRuntimeEpoch();
         this.#scheduleRecovery();
         this.#scheduleHistoryProjection();
         this.#resumeClientReplays();
@@ -6225,11 +6226,13 @@ export class DurableAgentSession extends DurableComputerObject {
           : parseCursor(requested);
       if (cursor === undefined)
         return json({ error: "invalid_cursor" }, { status: 400 });
+      const surface = url.searchParams.get("surface") === "1";
       return this.#eventLog.streamWithPage(
         cursor,
         this.#eventArchive.latestCursor(this.#eventLog),
         this.#eventArchive.pageReader(this.#eventLog),
         request.signal,
+        surface ? undefined : { project: event => (legacyVisible(event.message) ? event : null) },
       );
     }
     if (request.method === "GET" && url.pathname === "/events/history") {
@@ -6300,8 +6303,9 @@ export class DurableAgentSession extends DurableComputerObject {
           headers: { "cache-control": "no-store", "retry-after": "1" },
         });
       }
+      const surface = url.searchParams.get("surface") === "1";
       return json({
-        data: page.data.map((event) => ({
+        data: page.data.filter(event => surface || legacyVisible(event.message)).map((event) => ({
           cursor: event.cursor,
           created_at: event.created_at,
           turn_id: event.turn_id,
@@ -6448,6 +6452,11 @@ export class DurableAgentSession extends DurableComputerObject {
           () => this.#cancelHttpTurn(turnId)) : this.#cancelHttpTurn(turnId);
       }
       return json({ error: "method_not_allowed" }, { status: 405 });
+    }
+    if (request.method === "GET" && url.pathname === "/surface") {
+      if (this.#deleting) return json({ error: "agent_deleting" }, { status: 409 });
+      if (!this.#sessionId()) return json({ error: "not_found" }, { status: 404 });
+      return json(this.#surfaceSnapshot(), { headers: { "cache-control": "no-store" } });
     }
     if (request.method === "GET" && url.pathname === "/state") {
       if (this.#deleting) return json({ error: "agent_deleting" }, { status: 409 });
@@ -7088,6 +7097,7 @@ export class DurableAgentSession extends DurableComputerObject {
       this.#eventArchive.pageReader(this.#eventLog), request.signal, {
         stopAfter: event => event.turn_id === turnId
           && ["turn_completed", "turn_failed", "turn_cancelled"].includes(event.message.type),
+        project: event => (legacyVisible(event.message) ? event : null),
       });
     if (!events.ok || !events.body) return events;
     const receipt = { agent_id: sessionId, session_id: sessionId,
@@ -7604,6 +7614,10 @@ export class DurableAgentSession extends DurableComputerObject {
       while (socket.readyState === WebSocket.OPEN) {
         const events = await page(cursor, MAX_HISTORY_PAGE_SIZE);
         for (const event of events) {
+          if (!legacyVisible(event.message)) {
+            cursor = event.cursor;
+            continue;
+          }
           const message: ServerMessage = {
             ...event.message,
             cursor: event.cursor,
@@ -10376,7 +10390,7 @@ export class DurableAgentSession extends DurableComputerObject {
       this.ctx.storage.sql.exec("DELETE FROM history_projection_outbox");
       this.ctx.storage.sql.exec("DELETE FROM turn_history_citations");
       this.#eventLog.clear();
-      this.#openToolCalls.clear();
+      this.#surface.clear();
       this.#eventArchive.clearLocalState();
       this.#turnArchive.clearLocalState();
       this.#realtimeArchive.clearLocalState();
@@ -12085,9 +12099,12 @@ export class DurableAgentSession extends DurableComputerObject {
         inferenceForSession,
         preserveRootTransport: !this.#threadRoute(),
         subagentLifecycle: (event: unknown) => {
+          const releasing = (event as { type?: unknown; sessionId?: unknown } | null)?.type === "release"
+            ? bindings.authorizations.get(String((event as { sessionId?: unknown }).sessionId)) : undefined;
           const completed = applyManagedSubagentLifecycle(
             this.ctx.storage, bindings, event, rootSessionId => this.#importedSubagentAuthority(rootSessionId),
           );
+          this.#observeSubagentSurface(event, releasing);
           const lifecycle = event as { type?: unknown; sessionId?: unknown };
           if (lifecycle.type === "release" && typeof lifecycle.sessionId === "string") {
             // An explicit close (runtime teardown detaches without a release):
@@ -14070,7 +14087,6 @@ A direct subagent completed after the previous turn ended. Continue the current 
         return this.#eventLog.append(message, turnId);
       });
       this.#publish(event);
-      this.#settleAbandonedToolCalls();
       if (turnId && message.type === "event" && ["model.call.completed", "model.compaction.completed"].includes(message.event.type)) {
         const goal = this.#goalRuntime.flush(turnId);
         if ((goal?.status === "budgetLimited" || goal?.status === "usageLimited") && this.#managedTurn(turnId)?.state === "accepted") {
@@ -14083,20 +14099,75 @@ A direct subagent completed after the previous turn ended. Continue the current 
     }
   }
 
-  /** After a child's run in this isolate finishes, a previous isolate's calls
-   * it did not replay can never report: publish their unknown-outcome results
-   * right after that run terminal, before any later event is recorded. */
-  #settleAbandonedToolCalls(): void {
-    const agent = this.#finishedRunAgent;
-    this.#finishedRunAgent = undefined;
-    if (agent === undefined) return;
-    const abandoned = this.#openToolCalls.abandoned(agent);
-    if (abandoned.length === 0) return;
-    const events = this.ctx.storage.transactionSync(() =>
-      abandoned.map(({ message, turnId }) => this.#eventLog.append(message, turnId)));
-    this.#finishedRunAgent = undefined;
-    for (const event of events) this.#publish(event);
-    console.info({ type: "managed.tool_calls.abandoned", count: events.length });
+  /**
+   * Cold construction after isolate loss: the previous runtime's handlers and
+   * runs are gone. Publish one runtime_epoch and an unknown-outcome terminal
+   * result for every call it left open (root and child), before recovery can
+   * replay anything, so no client renders a lost call as running.
+   */
+  #recoverRuntimeEpoch(): void {
+    if (this.#deleting || this.#deleted || this.#streamError || this.#durabilityExported || !this.#sessionId()) return;
+    try {
+      const events = this.ctx.storage.transactionSync(() =>
+        this.#surface.recover(this.#activeTurnIds())
+          .map(({ message, turnId }) => this.#eventLog.append(message as StreamMessage, turnId)));
+      if (events.length === 0) return;
+      for (const event of events) this.#publish(event);
+      console.info({ type: "managed.runtime_epoch", epoch: this.#surface.epoch(), settled_tool_calls: events.length - 1 });
+    } catch (error) {
+      this.#failEventStream(error);
+    }
+  }
+
+  /** Open lifecycle entities and the cursor they are exact at (read in one synchronous step). */
+  #surfaceSnapshot(): Record<string, unknown> {
+    const turns = this.#managedTurns(
+      "WHERE state IN ('accepted', 'cancelling') ORDER BY created_at, rowid",
+    ).map(turn => ({ id: turn.id, state: turn.state, attempt_count: turn.attempt_count,
+      retry_at: turn.retry_at, created_at: turn.created_at, updated_at: turn.updated_at }));
+    const processTable = this.ctx.storage.sql.exec(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'managed_namespace_processes'").toArray().length > 0;
+    const processes = (processTable ? this.ctx.storage.sql.exec<{ id: number; binding_json: string }>(
+      "SELECT id, binding_json FROM managed_namespace_processes ORDER BY id",
+    ).toArray() : []).flatMap(({ id, binding_json }) => {
+      try {
+        const binding = JSON.parse(binding_json) as { machineId?: unknown; providerSessionId?: unknown };
+        return [{ id, machine_id: typeof binding.machineId === "string" ? binding.machineId : null,
+          provider_session_id: Number.isSafeInteger(binding.providerSessionId) ? binding.providerSessionId : null }];
+      } catch { return []; }
+    });
+    return {
+      protocol: 1,
+      epoch: this.#surface.epoch(),
+      cursor: this.#eventArchive.latestCursor(this.#eventLog),
+      generated_at: Date.now(),
+      runtime_loaded: this.#agent !== undefined,
+      turns,
+      runs: this.#surface.runs(),
+      agents: this.#surface.agents(),
+      tool_calls: this.#surface.toolCalls(),
+      process_sessions: processes,
+    };
+  }
+
+  /** Child lifecycle reports (accepted by applyManagedSubagentLifecycle) feed the surface snapshot. */
+  #observeSubagentSurface(value: unknown, released: ManagedSubagentAuthorizationRow | undefined): void {
+    try {
+      const event = value as { type?: unknown; descriptor?: unknown; status?: { state?: unknown } };
+      if (event.type === "release") {
+        if (released) this.#surface.closeAgent(released.agentId);
+        return;
+      }
+      const descriptor = event.descriptor as Partial<ManagedSubagentDescriptor> | undefined;
+      if (!descriptor || typeof descriptor.agentId !== "string" || typeof descriptor.role !== "string") return;
+      const state = event.type === "bind" ? "pending" : typeof event.status?.state === "string" ? event.status.state : undefined;
+      if (state === undefined) return;
+      this.#surface.observeAgent({ agentId: descriptor.agentId, parentAgentId: descriptor.parentAgentId ?? null,
+        role: descriptor.role, state, bind: event.type === "bind" });
+    } catch (error) {
+      // Observational projection: never fail the child lifecycle.
+      console.warn({ type: "managed.surface_agent_observation_failed", error_kind: errorKind(error) });
+    }
   }
 
   #flushStagedDelta(): void {
@@ -14233,7 +14304,9 @@ A direct subagent completed after the previous turn ended. Continue the current 
     }
     this.#eventLog.publish(event);
     if (this.#operations.nextAlarm() !== undefined) this.ctx.waitUntil(this.#scheduleNextAlarm());
-    this.#broadcast({
+    // WebSocket clients decode only the legacy message set; surface-state
+    // readers receive runtime_epoch over SSE with surface=1 or in /surface.
+    if (legacyVisible(event.message)) this.#broadcast({
       ...event.message,
       cursor: event.cursor,
       created_at: event.created_at,

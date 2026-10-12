@@ -1,6 +1,7 @@
 import type { AgentEvent, PromptInput, TurnUsage } from "nanocodex";
 import type { HistoryCitation } from "./history-search";
 import type { ManagedAgentSettings } from "./agent-settings";
+import type { RuntimeEpochMessage } from "./surface-state";
 
 export type ClientCommand =
   | { type: "prompt"; id: string; input: PromptInput }
@@ -38,6 +39,7 @@ export type ServerMessage = (
   | { type: "turn_failed"; id: string; error: string }
   | { type: "event"; event: AgentEvent; agent_id?: number }
   | { type: "stream_failed"; error: string }
+  | RuntimeEpochMessage
   | { type: "status"; active_turns: string[]; agent_loaded: boolean; connected_clients: number; settings: ManagedAgentSettings }
   | { type: "pong"; nonce?: string }
   | { type: "error"; code: string; message: string }
