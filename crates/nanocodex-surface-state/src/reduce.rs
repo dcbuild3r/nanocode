@@ -27,6 +27,9 @@ pub(crate) struct Tracked {
     pub(crate) settled_locally: bool,
     /// A definitive outcome later replaced a local `unknown` settlement.
     pub(crate) reconciled: bool,
+    /// Execution attempts on this card: a terminal entity resumed by a newer
+    /// runtime epoch starts attempt 2, and so on.
+    pub(crate) attempt: u32,
 }
 
 /// Reduced surface state. Apply events in delivery order with
@@ -43,6 +46,10 @@ pub struct SurfaceState {
     pub(crate) replays_ignored: u64,
     pub(crate) regressions_ignored: u64,
     pub(crate) restarts: Vec<EpochMark>,
+    /// Whether any runtime epoch has been observed; the first observation is
+    /// a baseline, not a restart.
+    epoch_known: bool,
+    pub(crate) disconnected_at_ms: Option<u64>,
 }
 
 impl SurfaceState {
@@ -99,7 +106,26 @@ impl SurfaceState {
                 at_ms,
                 entities,
             } => self.apply_snapshot(*epoch, *cursor, *at_ms, entities),
-            _ if event.cursor() <= self.cursor => self.replays_ignored += 1,
+            SurfaceEvent::Heartbeat {
+                at_ms, context_pct, ..
+            } => {
+                if self.last_heartbeat_at_ms.is_none_or(|last| *at_ms >= last) {
+                    self.last_heartbeat_at_ms = Some(*at_ms);
+                    if context_pct.is_some() {
+                        self.context_pct = *context_pct;
+                    }
+                }
+            }
+            SurfaceEvent::Connection { connected, at_ms } => {
+                self.disconnected_at_ms = if *connected {
+                    None
+                } else {
+                    Some(self.disconnected_at_ms.unwrap_or(*at_ms))
+                };
+            }
+            _ if event.cursor().is_some_and(|cursor| cursor <= self.cursor) => {
+                self.replays_ignored += 1;
+            }
             SurfaceEvent::Upsert {
                 cursor,
                 at_ms,
@@ -117,17 +143,6 @@ impl SurfaceState {
                 self.settle_epoch(*epoch, *cursor, *at_ms, reason);
                 self.advance(*cursor, *at_ms);
             }
-            SurfaceEvent::Heartbeat {
-                cursor,
-                at_ms,
-                context_pct,
-            } => {
-                self.last_heartbeat_at_ms = Some(*at_ms);
-                if context_pct.is_some() {
-                    self.context_pct = *context_pct;
-                }
-                self.cursor = *cursor;
-            }
         }
     }
 
@@ -141,7 +156,7 @@ impl SurfaceState {
             self.replays_ignored += 1;
             return;
         }
-        if self.cursor > 0 && epoch > self.epoch {
+        if self.epoch_known && epoch > self.epoch {
             self.settle_epoch(epoch, cursor, at_ms, "runtime restarted while disconnected");
         }
         let open: HashSet<&str> = entities.iter().map(|entity| entity.id.as_str()).collect();
@@ -165,6 +180,7 @@ impl SurfaceState {
             self.upsert(entity, cursor, at_ms);
         }
         self.epoch = self.epoch.max(epoch);
+        self.epoch_known = true;
         self.advance(cursor, at_ms);
     }
 
@@ -179,6 +195,7 @@ impl SurfaceState {
                     last_event_at_ms: at_ms,
                     settled_locally: false,
                     reconciled: false,
+                    attempt: 1,
                 },
             );
             self.next_seq += 1;
@@ -194,6 +211,9 @@ impl SurfaceState {
         if previous.is_definitive() && next == Lifecycle::Unknown {
             self.regressions_ignored += 1;
             return;
+        }
+        if previous.is_terminal() && !next.is_terminal() {
+            tracked.attempt += 1;
         }
         let reconciles = tracked.settled_locally && next.is_definitive();
         if reconciles {
@@ -269,12 +289,15 @@ impl SurfaceState {
                 settled += 1;
             }
         }
-        self.restarts.push(EpochMark {
-            epoch,
-            at_ms,
-            reason: reason.to_owned(),
-            settled,
-        });
+        if self.epoch_known || settled > 0 {
+            self.restarts.push(EpochMark {
+                epoch,
+                at_ms,
+                reason: reason.to_owned(),
+                settled,
+            });
+        }
         self.epoch = epoch;
+        self.epoch_known = true;
     }
 }

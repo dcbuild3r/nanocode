@@ -115,6 +115,7 @@ fn badge(text: impl Into<String>, tone: Tone) -> Badge {
 const fn provenance_tone(provenance: Provenance) -> Tone {
     match provenance {
         Provenance::Verified => Tone::Ok,
+        Provenance::Receipt => Tone::Muted,
         Provenance::AgentReported => Tone::Info,
         Provenance::TestBuild => Tone::Warn,
     }
@@ -203,10 +204,15 @@ impl SurfaceState {
         let heartbeat_age = self
             .last_heartbeat_at_ms
             .map(|at| now_ms.saturating_sub(at));
-        let mut parts = vec![
-            format!("epoch {}", self.epoch),
-            format!("cursor {}", self.cursor),
-        ];
+        let mut parts = Vec::new();
+        if let Some(since) = self.disconnected_at_ms {
+            parts.push(format!(
+                "disconnected {}",
+                format_duration(now_ms.saturating_sub(since))
+            ));
+        }
+        parts.push(format!("epoch {}", self.epoch));
+        parts.push(format!("cursor {}", self.cursor));
         parts.push(format!("{open} open"));
         if let Some(age) = event_age {
             parts.push(format!("last event {} ago", format_duration(age)));
@@ -225,7 +231,9 @@ impl SurfaceState {
         }
         let quiet = |age: Option<u64>| age.is_none_or(|age| age > QUIET_MS);
         let stalled = open > 0 && quiet(event_age) && quiet(heartbeat_age);
-        let tone = if stalled || self.context_pct.is_some_and(|pct| pct >= 90) {
+        let tone = if self.disconnected_at_ms.is_some() {
+            Tone::Error
+        } else if stalled || self.context_pct.is_some_and(|pct| pct >= 90) {
             Tone::Warn
         } else {
             Tone::Ok
@@ -341,6 +349,9 @@ impl SurfaceState {
         }
         if tracked.reconciled {
             badges.push(badge("outcome reconciled", Tone::Info));
+        }
+        if tracked.attempt > 1 {
+            badges.push(badge(format!("attempt {}", tracked.attempt), Tone::Info));
         }
         let quiet_for = now_ms.saturating_sub(self.subtree_last_event_at(tracked, children));
         if !entity.state.is_terminal() && kind.settles_on_epoch() && quiet_for > QUIET_MS {

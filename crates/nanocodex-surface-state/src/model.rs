@@ -34,7 +34,11 @@ impl Lifecycle {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Provenance {
+    /// Independently checked evidence for a claim.
     Verified,
+    /// The runtime observed the call return (a tool receipt). It proves the
+    /// call finished, not that its claim is true.
+    Receipt,
     AgentReported,
     TestBuild,
 }
@@ -44,6 +48,7 @@ impl Provenance {
     pub const fn label(self) -> &'static str {
         match self {
             Self::Verified => "verified",
+            Self::Receipt => "receipt",
             Self::AgentReported => "agent-reported",
             Self::TestBuild => "test-build",
         }
@@ -282,22 +287,27 @@ pub enum SurfaceEvent {
         at_ms: u64,
         reason: String,
     },
+    /// Runtime liveness control frame. It carries the producer's cursor
+    /// high-water mark for display only and never fences deltas.
     Heartbeat {
         cursor: u64,
         at_ms: u64,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         context_pct: Option<u32>,
     },
+    /// Surface-local transport state: the event stream dropped or resumed.
+    Connection { connected: bool, at_ms: u64 },
 }
 
 impl SurfaceEvent {
+    /// The delta cursor that fences replays; control frames have none.
     #[must_use]
-    pub const fn cursor(&self) -> u64 {
+    pub const fn cursor(&self) -> Option<u64> {
         match self {
             Self::Snapshot { cursor, .. }
             | Self::Upsert { cursor, .. }
-            | Self::RuntimeEpoch { cursor, .. }
-            | Self::Heartbeat { cursor, .. } => *cursor,
+            | Self::RuntimeEpoch { cursor, .. } => Some(*cursor),
+            Self::Heartbeat { .. } | Self::Connection { .. } => None,
         }
     }
 }
