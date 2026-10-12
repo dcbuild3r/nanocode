@@ -1243,3 +1243,96 @@ async fn large_checkpoint_reopens_with_exact_receipts_and_pending_step_replay() 
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn a_tool_effect_started_by_a_lost_owner_is_interrupted_not_re_executed() {
+    let store = MemoryStore::new().unwrap();
+    let lost = DurableSession::open(store.clone(), "lost-owner-tool-effect")
+        .await
+        .unwrap();
+    lost.admit("turn-1", &"run shell").await.unwrap();
+    lost.begin_attempt("turn-1").await.unwrap();
+    assert!(matches!(
+        lost.begin_step("turn-1", "tool-1", "tool_call", &"sleep 900")
+            .await
+            .unwrap(),
+        BeginStep::Execute
+    ));
+    assert!(matches!(
+        lost.begin_step("turn-1", "model-1", "model_call", &"request")
+            .await
+            .unwrap(),
+        BeginStep::Execute
+    ));
+    // The owning process dies with both steps unsettled.
+    drop(lost);
+
+    let reopened = DurableSession::open(store.clone(), "lost-owner-tool-effect")
+        .await
+        .unwrap();
+    reopened.interrupt_lost_tool_effects();
+    assert!(matches!(
+        reopened.admit("turn-1", &"run shell").await,
+        Ok(Admission::Pending)
+    ));
+    reopened.begin_attempt("turn-1").await.unwrap();
+    assert!(matches!(
+        reopened
+            .begin_step("turn-1", "tool-1", "tool_call", &"sleep 900")
+            .await
+            .unwrap(),
+        BeginStep::Interrupted
+    ));
+    // A model request has no external effect and is re-issued as before.
+    assert!(matches!(
+        reopened
+            .begin_step("turn-1", "model-1", "model_call", &"request")
+            .await
+            .unwrap(),
+        BeginStep::Execute
+    ));
+    let state = reopened.state().await.unwrap();
+    assert_eq!(
+        state.operation("turn-1").unwrap().steps["tool-1"].attempts,
+        1,
+        "the interrupted effect was not started again"
+    );
+    reopened
+        .complete_step("turn-1", "tool-1", &"outcome unknown")
+        .await
+        .unwrap();
+    let BeginStep::Replay(output) = reopened
+        .begin_step("turn-1", "tool-1", "tool_call", &"sleep 900")
+        .await
+        .unwrap()
+    else {
+        panic!("the settled unknown outcome must replay")
+    };
+    assert_eq!(output.decode::<String>().unwrap(), "outcome unknown");
+
+    // Without the opt-in, a lost tool effect keeps executing again.
+    drop(reopened);
+    let legacy = MemoryStore::new().unwrap();
+    let first = DurableSession::open(legacy.clone(), "legacy-lost-owner")
+        .await
+        .unwrap();
+    first.admit("turn-1", &"run shell").await.unwrap();
+    first.begin_attempt("turn-1").await.unwrap();
+    first
+        .begin_step("turn-1", "tool-1", "tool_call", &"effect")
+        .await
+        .unwrap();
+    drop(first);
+    let second = DurableSession::open(legacy, "legacy-lost-owner")
+        .await
+        .unwrap();
+    second.admit("turn-1", &"run shell").await.unwrap();
+    second.begin_attempt("turn-1").await.unwrap();
+    assert!(matches!(
+        second
+            .begin_step("turn-1", "tool-1", "tool_call", &"effect")
+            .await
+            .unwrap(),
+        BeginStep::Execute
+    ));
+}

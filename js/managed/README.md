@@ -1056,6 +1056,9 @@ evidence as `managed-curl-durability`.
   `/events`, `/events/history` or the `/ws` upgrade (whose `ready` then
   carries `surface: {epoch, runtime_generation}`). Turn streams, share links and
   older clients never receive it; the unknown-outcome results reach everyone.
+  A `surface=1` SSE stream also carries cursorless `event: heartbeat` frames
+  (`{type, at, epoch, runtime_generation, latest_cursor}`) instead of keepalive
+  comments, so an idle client can tell a live connection from a dead one.
 - `GET /v1/agents/:id/surface` returns the open entities at one durable cursor:
   `{protocol, epoch, runtime_generation, cursor, generated_at, runtime_loaded,
   turns, runs, agents, tool_calls, process_sessions}`. `runtime_generation`

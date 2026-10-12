@@ -124,3 +124,42 @@ origin/master worktree and in this branch.)
 report. A surface whose snapshot `epoch` is greater than an agent's
 `reported_epoch` is showing a status that predates the latest restart and must
 render it as stale (agent-reported, unverified) until a new report arrives.
+
+
+## 6. Loopback `nanocodex managed-server` (local dogfooding)
+
+I ran the reviewer's loopback harness in my own copy (`dogfood.sh`, `drive.sh`,
+`restart.sh` with the scripted Responses mock) through
+`output/protocol-loopback/proto-restart.sh`. Each run starts a real
+`nanocodex attach` TUI and starts `sleep 913` through `exec_command`, then
+SIGKILLs the server and restarts it after 3 s.
+
+| | master binary (960d866b0) | this branch |
+| --- | --- | --- |
+| `sleep 913` processes after restart | **2** (started 21:44:08 and 21:44:12: re-executed) | **1** (original, started 21:43:14) |
+| `GET /surface` | 404 | before: epoch 0, cell + nested `exec_command` open (attempt 1); after: epoch 1, runtime_generation 2, nothing open |
+| `runtime_epoch` in history | none | 1 for `surface=1` readers, 0 for legacy readers |
+| unknown results | none | cell and nested call `TOOL_CALL_INTERRUPTED` right after the epoch |
+| heartbeats on idle SSE | none | 3 in 12 s with `surface=1`, 0 without |
+
+Branch history (cursor, type, event, call, status, code):
+
+```
+15  event  tool.call    call_resp_mock_1_…
+16  event  tool.call    call_resp_mock_1_…/code-1
+17  runtime_epoch                                               epoch=1 calls=2
+18  event  tool.result  call_resp_mock_1_…/code-1  failed  TOOL_CALL_INTERRUPTED
+19  event  tool.result  call_resp_mock_1_…         failed  TOOL_CALL_INTERRUPTED
+41  event  run.completed
+42  turn_completed
+```
+
+The restored agent did not run the shell call again. Its durable tool step
+began as interrupted, so the model received "...outcome is unknown. It was not
+run again..." and finished the turn. The attached TUI after restart:
+
+```
+  ▶ ? Tools  1 call · 1 outcome unknown · 4.5s
+    └── ? Shell  $ echo starting long job; sleep 913; echo done · The session runtime restarted before a terminal result for this tool cal …
+◇ Turn completed · 4s
+```
