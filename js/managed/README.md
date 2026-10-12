@@ -1043,19 +1043,29 @@ evidence as `managed-curl-durability`.
   (tool calls, runs or accepted turns), it appends one `runtime_epoch` event
   (`epoch`, `reason: "runtime_restarted"` and the interrupted tool calls,
   runs and turns), then one `tool.result` per open root or child call with
-  `status: "failed"`, `outcome_unknown: true` and `structured_result`
-  `{code: "TOOL_CALL_INTERRUPTED", outcome: "unknown", reason:
-  "runtime_restarted", epoch}`, before recovery resumes. A recovered run that
-  replays the same call id publishes a new `tool.call`/`tool.result` attempt
-  after the epoch. An idle restart publishes nothing. `runtime_epoch` is sent
-  only to readers that pass `surface=1` on `/events` or `/events/history`;
-  WebSockets, turn streams and older clients never receive it, while the
-  unknown-outcome results reach every reader.
+  `outcome_unknown: true` and `structured_result` `{code:
+  "TOOL_CALL_INTERRUPTED", outcome: "unknown", reason: "runtime_restarted",
+  epoch, attempt}`, before recovery resumes. Its `status` is `failed` only
+  because deployed decoders accept just completed/failed/cancelled; surfaces
+  must check `outcome_unknown` first and render unknown, never failure.
+- A recovered run that replays an interrupted call id publishes a new
+  attempt: its `tool.call` and `tool.result` carry `payload.attempt` (2, 3,
+  ...; absent means 1), so cards key on `(agent_id, call_id, attempt)` and the
+  interrupted attempt keeps its unknown outcome.
+- `runtime_epoch` is sent only to readers that opt in with `surface=1` on
+  `/events`, `/events/history` or the `/ws` upgrade (whose `ready` then
+  carries `surface: {epoch, runtime_generation}`). Turn streams, share links and
+  older clients never receive it; the unknown-outcome results reach everyone.
 - `GET /v1/agents/:id/surface` returns the open entities at one durable cursor:
-  `{protocol, epoch, cursor, generated_at, runtime_loaded, turns, runs, agents,
-  tool_calls, process_sessions}`. Reconnecting clients render it, then resume
-  `/events?cursor=<cursor>&surface=1` for deltas. `agents` holds each child's
-  latest reported state with the epoch it was reported in.
+  `{protocol, epoch, runtime_generation, cursor, generated_at, runtime_loaded,
+  turns, runs, agents, tool_calls, process_sessions}`. `runtime_generation`
+  counts cold constructions, idle restarts included (an idle restart begins no
+  epoch), so a change means retained processes and summaries belong to a lost
+  runtime. `agents` holds each unclosed child's latest reported state with the
+  epoch it was reported in. The snapshot lists open entities only: a client that
+  still holds state from cursor C resumes `/events?cursor=C&surface=1` to see
+  what finished while it was away; a client without state renders the snapshot
+  and resumes from its `cursor`.
 - API key resolution validates live account membership, scope, and authorization
   epoch inside the key object. This avoids serial edge-to-account round trips;
   raw-key resolution never caches authority. Short-lived signed snapshots above

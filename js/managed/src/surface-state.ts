@@ -14,13 +14,14 @@ export const RUNTIME_EPOCH_MESSAGE = "runtime_epoch";
 /** Root events carry no agent_id. Child agent ids are positive integers. */
 const ROOT_AGENT = -1;
 const EPOCH_KEY = "nanocodex:runtime-epoch";
+const GENERATION_KEY = "nanocodex:runtime-generation";
 
 type EventMessage = Readonly<{ type: "event"; event: AgentEvent; agent_id?: number }>;
 
 type OpenCallRow = {
   agent_id: number; call_id: string; tool: string; request_id: string; protocol_version: number;
   seq: number; turn_id: string | null; runtime_turn_id: string | null; model_call_index: number | null;
-  cursor: number; started_at: number;
+  cursor: number; started_at: number; attempt: number;
 };
 type OpenRunRow = { agent_id: number; turn_id: string | null; cursor: number; started_at: number };
 type AgentRow = {
@@ -30,6 +31,8 @@ type AgentRow = {
 export type SurfaceToolCall = Readonly<{
   agent_id: number | null; call_id: string; tool: string; turn_id: string | null;
   parent_call_id: string | null; started_cursor: string; started_at: number;
+  /** 1 for the first execution; a call replayed after a runtime epoch is attempt 2, and so on. */
+  attempt: number;
 }>;
 export type SurfaceRun = Readonly<{
   agent_id: number | null; turn_id: string | null; state: "running"; started_cursor: string; started_at: number;
@@ -59,7 +62,16 @@ const parentCallId = (callId: string): string | null => {
 const toolCall = (row: OpenCallRow): SurfaceToolCall => ({
   agent_id: agentId(row.agent_id), call_id: row.call_id, tool: row.tool, turn_id: row.turn_id,
   parent_call_id: parentCallId(row.call_id), started_cursor: String(row.cursor), started_at: row.started_at,
+  attempt: row.attempt ?? 1,
 });
+const callKey = (message: Partial<EventMessage>): { agent: number; callId: string; type: string } | undefined => {
+  if (message.type !== "event" || !message.event) return;
+  const { type, payload } = message.event;
+  if (type !== "tool.call" && type !== "tool.result") return;
+  const callId = payload?.call_id;
+  if (typeof callId !== "string" || !callId) return;
+  return { agent: Number.isSafeInteger(message.agent_id) ? message.agent_id! : ROOT_AGENT, callId, type };
+};
 
 /**
  * Durable projection of the open lifecycle entities a client must render:
@@ -94,10 +106,18 @@ export class SurfaceState {
     CREATE TABLE IF NOT EXISTS managed_surface_runs (
       agent_id INTEGER PRIMARY KEY, turn_id TEXT, cursor INTEGER NOT NULL, started_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS managed_surface_interrupted_calls (
+      agent_id INTEGER NOT NULL, call_id TEXT NOT NULL, attempt INTEGER NOT NULL,
+      PRIMARY KEY (agent_id, call_id)
+    );
     CREATE TABLE IF NOT EXISTS managed_surface_agents (
       agent_id INTEGER PRIMARY KEY, parent_agent_id INTEGER, role TEXT NOT NULL,
       state TEXT NOT NULL, updated_at INTEGER NOT NULL, epoch INTEGER NOT NULL
     );`);
+    if (!storage.sql.exec<{ name: string }>("PRAGMA table_info(managed_surface_tool_calls)")
+      .toArray().some(({ name }) => name === "attempt")) {
+      storage.sql.exec("ALTER TABLE managed_surface_tool_calls ADD COLUMN attempt INTEGER NOT NULL DEFAULT 1");
+    }
     // The previous child-only index is superseded; calls it still holds are
     // carried over so they are settled at the next recovery.
     const legacy = storage.sql.exec<{ name: string }>(
@@ -111,6 +131,47 @@ export class SurfaceState {
         storage.sql.exec("DROP TABLE managed_open_tool_calls");
       });
     }
+  }
+
+  /**
+   * Counts every cold construction of the Session (including idle restarts,
+   * which begin no epoch). A changed generation means the runtime that owned
+   * retained processes or summaries is gone. Called once per construction.
+   */
+  beginGeneration(): number {
+    const generation = (this.#storage.kv.get<number>(GENERATION_KEY) ?? 0) + 1;
+    this.#storage.kv.put(GENERATION_KEY, generation);
+    return generation;
+  }
+
+  generation(): number {
+    return this.#storage.kv.get<number>(GENERATION_KEY) ?? 0;
+  }
+
+  /**
+   * Tags a replayed call with its attempt before it is appended. A call id
+   * that a runtime epoch settled as unknown and is then published again starts
+   * attempt N+1, and its result carries the same attempt, so clients can key
+   * cards by (agent, call_id, attempt) instead of reopening a terminal card.
+   * First attempts are unchanged on the wire (attempt absent means 1).
+   */
+  annotate<Message extends { type: string }>(message: Message): Message {
+    const key = callKey(message as Partial<EventMessage>);
+    if (!key) return message;
+    const attempt = key.type === "tool.call"
+      ? (() => {
+        const open = this.#storage.sql.exec<{ attempt: number }>(
+          "SELECT attempt FROM managed_surface_tool_calls WHERE agent_id = ? AND call_id = ?", key.agent, key.callId).toArray()[0];
+        if (open) return open.attempt;
+        const interrupted = this.#storage.sql.exec<{ attempt: number }>(
+          "SELECT attempt FROM managed_surface_interrupted_calls WHERE agent_id = ? AND call_id = ?", key.agent, key.callId).toArray()[0];
+        return interrupted ? interrupted.attempt + 1 : 1;
+      })()
+      : this.#storage.sql.exec<{ attempt: number }>(
+        "SELECT attempt FROM managed_surface_tool_calls WHERE agent_id = ? AND call_id = ?", key.agent, key.callId).toArray()[0]?.attempt ?? 1;
+    if (attempt <= 1) return message;
+    const event = (message as unknown as EventMessage).event;
+    return { ...message, event: { ...event, payload: { ...event.payload, attempt } } };
   }
 
   /** Current runtime epoch; 0 until the first recovery with open work. */
@@ -143,16 +204,18 @@ export class SurfaceState {
       return;
     }
     const { protocol_version: version, request_id: requestId, seq } = message.event;
+    const attempt = Number.isSafeInteger(payload.attempt) ? payload.attempt as number : 1;
+    this.#storage.sql.exec("DELETE FROM managed_surface_interrupted_calls WHERE agent_id = ? AND call_id = ?", agent, callId);
     this.#storage.sql.exec(
       `INSERT OR REPLACE INTO managed_surface_tool_calls (agent_id, call_id, tool, request_id,
-        protocol_version, seq, turn_id, runtime_turn_id, model_call_index, cursor, started_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        protocol_version, seq, turn_id, runtime_turn_id, model_call_index, cursor, started_at, attempt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       agent, callId, typeof payload.tool === "string" ? payload.tool : "unknown",
       typeof requestId === "string" ? requestId : "",
       Number.isSafeInteger(version) ? version : 1, Number.isSafeInteger(seq) ? seq : 0,
       event.turn_id, typeof payload.turn_id === "string" ? payload.turn_id : null,
       Number.isSafeInteger(payload.model_call_index) ? payload.model_call_index as number : null,
-      Number(event.cursor), now,
+      Number(event.cursor), now, attempt,
     );
   }
 
@@ -194,7 +257,9 @@ export class SurfaceState {
   }
 
   agents(): SurfaceAgent[] {
-    return this.#storage.sql.exec<AgentRow>("SELECT * FROM managed_surface_agents ORDER BY agent_id").toArray()
+    // Explicitly closed children are no longer part of the open task tree.
+    return this.#storage.sql.exec<AgentRow>(
+      "SELECT * FROM managed_surface_agents WHERE state != 'closed' ORDER BY agent_id").toArray()
       .map(row => ({ agent_id: row.agent_id, parent_agent_id: row.parent_agent_id, role: row.role,
         state: row.state, updated_at: row.updated_at, reported_epoch: row.epoch }));
   }
@@ -215,6 +280,11 @@ export class SurfaceState {
     const epoch = this.epoch() + 1;
     this.#storage.kv.put(EPOCH_KEY, epoch);
     this.#storage.sql.exec("DELETE FROM managed_surface_runs");
+    for (const call of calls) {
+      this.#storage.sql.exec(
+        "INSERT OR REPLACE INTO managed_surface_interrupted_calls (agent_id, call_id, attempt) VALUES (?, ?, ?)",
+        call.agent_id, call.call_id, call.attempt ?? 1);
+    }
     const now = Date.now();
     const marker: RuntimeEpochMessage = {
       type: RUNTIME_EPOCH_MESSAGE, epoch, reason: "runtime_restarted",
@@ -241,9 +311,10 @@ export class SurfaceState {
             started_after_ns: null,
             result: INTERRUPTED_TOOL_CALL_ERROR,
             outcome_unknown: true,
+            ...((call.attempt ?? 1) > 1 ? { attempt: call.attempt } : {}),
             structured_result: {
               code: "TOOL_CALL_INTERRUPTED", error: INTERRUPTED_TOOL_CALL_ERROR, outcome: "unknown",
-              reason: "runtime_restarted", epoch,
+              reason: "runtime_restarted", epoch, attempt: call.attempt ?? 1,
             },
             ...(call.runtime_turn_id === null ? {} : { turn_id: call.runtime_turn_id }),
             ...(call.model_call_index === null ? {} : { model_call_index: call.model_call_index }),
@@ -258,6 +329,7 @@ export class SurfaceState {
     this.#storage.sql.exec("DELETE FROM managed_surface_tool_calls");
     this.#storage.sql.exec("DELETE FROM managed_surface_runs");
     this.#storage.sql.exec("DELETE FROM managed_surface_agents");
+    this.#storage.sql.exec("DELETE FROM managed_surface_interrupted_calls");
     this.#storage.kv.delete(EPOCH_KEY);
   }
 }
