@@ -49,6 +49,7 @@ pub(crate) struct ModelChange {
 
 #[derive(Default)]
 pub(crate) struct TranscriptModel {
+    runtime_epoch: Option<String>,
     entries: Vec<TranscriptEntry>,
     entry_indices: HashMap<EntryId, usize>,
     next_entry_id: usize,
@@ -351,6 +352,25 @@ impl TranscriptModel {
     }
 
     pub(crate) fn apply(&mut self, record: &TranscriptRecord) -> ModelChange {
+        if record.kind() == "runtime.epoch" {
+            let epoch = record
+                .decode_payload::<Value>()
+                .ok()
+                .and_then(|p| p.get("epoch").map(Value::to_string));
+            if epoch == self.runtime_epoch {
+                return ModelChange::default();
+            }
+            self.runtime_epoch = epoch;
+            let unfinished = self.running_tools.iter().copied().collect::<Vec<_>>();
+            self.settle_unfinished_tools(&unfinished);
+            self.active_runs.clear();
+            self.run_activity.clear();
+            self.refresh_transient();
+            return ModelChange {
+                changed: true,
+                ..ModelChange::default()
+            };
+        }
         if record.source() == "tact" {
             return self.apply_local(record);
         }
@@ -619,6 +639,15 @@ impl TranscriptModel {
             "reasoning.summary.delta" => self.reasoning_delta(record),
             "run.started" => {
                 let scope = RunScope::new(record);
+                let unfinished = self
+                    .tool_owners
+                    .iter()
+                    .filter(|(_, owner)| owner.turn == scope.turn && owner.child == scope.child)
+                    .map(|(id, _)| *id)
+                    .collect::<Vec<_>>();
+                self.settle_unfinished_tools(&unfinished);
+                self.active_runs
+                    .retain(|run| run.scope.turn != scope.turn || run.scope.child != scope.child);
                 // A retry is a new run. Keep the previous failure in history,
                 // but do not let a later terminal rewrite that earlier attempt.
                 self.run_failure_entries.retain(|previous, _| {
@@ -636,6 +665,30 @@ impl TranscriptModel {
                 self.set_run_status(record, Some(TransientStatus::Error(payload.message)));
                 true
             }),
+            "run.unknown" => {
+                let scope = RunScope::new(record);
+                let unfinished = self
+                    .tool_owners
+                    .iter()
+                    .filter(|(_, owner)| owner.turn == scope.turn && owner.child == scope.child)
+                    .map(|(id, _)| *id)
+                    .collect::<Vec<_>>();
+                self.settle_unfinished_tools(&unfinished);
+                self.remove_run(record);
+                self.finish_activity(Some(&scope));
+                Ok(true)
+            }
+            "tool.unknown" => {
+                let payload = record.decode_payload::<Value>().unwrap_or(Value::Null);
+                let ids = payload["call_id"]
+                    .as_str()
+                    .and_then(|call| self.tools.get(call))
+                    .copied()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                self.settle_unfinished_tools(&ids);
+                Ok(true)
+            }
             "run.completed" => {
                 self.complete_turn(record);
                 Ok(true)

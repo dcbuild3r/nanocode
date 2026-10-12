@@ -795,3 +795,110 @@ criterion_group!(
     user_prompt_payload_benchmarks,
     tool_payload_benchmarks,
 );
+
+/// Fixture-driven production-renderer recovery journey; captures are intentionally ignored output.
+#[test]
+fn mission_control_journey() {
+    fn record(
+        seq: u64,
+        kind: &str,
+        payload: serde_json::Value,
+        child: Option<u64>,
+    ) -> Arc<TranscriptRecord> {
+        Arc::new(serde_json::from_value(json!({
+            "schema_version": 2, "sequence": seq, "recorded_at_unix_ms": 1_750_000_000_000u64 + seq,
+            "source": "agent", "type": kind,
+            "agent": {"protocol_version":1,"request_id":"mission", "sequence":seq,"managed_turn_id":"mission-turn","managed_agent_id":child},
+            "payload": payload
+        })).unwrap())
+    }
+    fn capture(name: &str, records: Vec<Arc<TranscriptRecord>>, expected: &[&str]) {
+        let mut harness = Harness::from_records(records, 140, 48);
+        harness.render();
+        let text = harness.screen_text();
+        assert!(!text.contains("Could not render"), "{name}: {text}");
+        for value in expected {
+            assert!(text.contains(value), "{name} missing {value}: {text}");
+        }
+        let fingerprint = harness.fingerprint();
+        harness.render();
+        assert_eq!(fingerprint, harness.fingerprint());
+        let buffer = harness.terminal.backend().buffer();
+        let frame = buffer
+            .content()
+            .chunks(140)
+            .map(|row| row.iter().map(|cell| cell.symbol()).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let output = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../output/mission-control");
+        std::fs::create_dir_all(&output).unwrap();
+        std::fs::write(output.join(format!("{name}.txt")), frame).unwrap();
+    }
+    let mut records = vec![record(
+        1,
+        "run.started",
+        json!({"model":"gpt-6-astra","family":"codex"}),
+        None,
+    )];
+    capture(
+        "normal",
+        records.clone(),
+        &["Mission Control", "Status", "running", "NO SIGNAL"],
+    );
+    records.push(record(
+        2,
+        "run.started",
+        json!({"model":"claude-opus-4-6","family":"claude"}),
+        Some(7),
+    ));
+    records.push(record(
+        3,
+        "tool.call",
+        json!({"call_id":"shell-1","tool":"exec_command","arguments":{"cmd":"echo fixture"}}),
+        None,
+    ));
+    capture(
+        "swarm",
+        records.clone(),
+        &["claude", "shell-1", "Task tree"],
+    );
+    records.push(record(4, "runtime.epoch", json!({"epoch":2}), None));
+    capture(
+        "restart",
+        records.clone(),
+        &["unknown", "epoch 2", "completion unknown"],
+    );
+    records.push(record(
+        5,
+        "run.started",
+        json!({"model":"gpt-6-astra","family":"codex"}),
+        None,
+    ));
+    capture(
+        "reconnect",
+        records.clone(),
+        &["unknown", "running", "offline/replay"],
+    );
+    records.push(record(6, "run.completed", json!({}), Some(7)));
+    capture(
+        "stale-summary",
+        records.clone(),
+        &["stale report", "not verified"],
+    );
+    records.push(record(7, "model.call.completed", json!({
+        "call_index":1,"model":"gpt-6-astra","attempt":1,"connection_generation":1,"status":"completed","duration_ns":1,"time_to_first_event_ns":1,"tool_calls":0,
+        "usage":{"input_tokens":293760,"output_tokens":0,"total_tokens":293760}
+    }), None));
+    capture("context-overflow", records.clone(), &["108% WARNING >100%"]);
+    let fallback = vec![
+        record(1, "run.started", json!({}), None),
+        record(
+            2,
+            "tool.call",
+            json!({"call_id":"fallback-shell","tool":"exec_command","arguments":{}}),
+            None,
+        ),
+        record(3, "run.started", json!({}), None),
+    ];
+    capture("fallback", fallback, &["unknown", "no terminal receipt"]);
+}

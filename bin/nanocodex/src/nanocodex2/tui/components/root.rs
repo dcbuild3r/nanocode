@@ -263,6 +263,7 @@ pub(crate) enum RootEvent {
 pub(crate) struct RestoredSessionProjection {
     transcript: Transcript,
     subagents: SubagentTree,
+    surface: super::super::surface::SurfaceState,
     context_diagnostics: ContextDiagnostics,
     context_tokens: Option<u64>,
     recent_prompts: Vec<RecentPromptDraft>,
@@ -275,6 +276,7 @@ impl RestoredSessionProjection {
         records: impl IntoIterator<Item = Arc<TranscriptRecord>>,
     ) {
         for record in records {
+            self.surface.observe(&record);
             self.subagents.observe_record(&record);
             if self.transcript.ignores_finished_run_event(&record) {
                 continue;
@@ -509,6 +511,7 @@ pub(crate) struct RootNode {
     theme_mode: ThemeMode,
     preferred_reasoning_mode: ReasoningMode,
     subagents: SubagentTree,
+    surface: super::super::surface::SurfaceState,
     pending_recent_prompts: bool,
     context_diagnostics: ContextDiagnostics,
     recent_prompts: Vec<RecentPromptDraft>,
@@ -602,6 +605,7 @@ impl RootNode {
             theme_mode: ThemeMode::Auto,
             preferred_reasoning_mode: ReasoningMode::Standard,
             subagents,
+            surface: Default::default(),
             pending_recent_prompts: false,
             context_diagnostics: ContextDiagnostics::default(),
             recent_prompts: Vec::new(),
@@ -864,6 +868,7 @@ impl RootNode {
         let mut projection = RestoredSessionProjection {
             transcript: Transcript::with_effort(thinking),
             subagents: SubagentTree::new(thinking),
+            surface: Default::default(),
             context_diagnostics: ContextDiagnostics::default(),
             context_tokens: None,
             recent_prompts: Vec::new(),
@@ -889,6 +894,7 @@ impl RootNode {
         projection.subagents.set_workspace(&self.workspace);
         projection.subagents.preserve_view_from(&self.subagents);
         self.subagents = projection.subagents;
+        self.surface = projection.surface;
         let _ = self
             .composer
             .component_mut()
@@ -953,6 +959,7 @@ impl RootNode {
         projection.subagents.set_workspace(&self.workspace);
         projection.subagents.preserve_view_from(&self.subagents);
         self.subagents = projection.subagents;
+        self.surface = projection.surface;
         let _ = self
             .composer
             .component_mut()
@@ -1031,6 +1038,31 @@ impl RootNode {
 
     fn render_root(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, focused: bool) {
         self.refresh_actions();
+        let now = super::super::surface::now_ms();
+        let percent = self.context_diagnostics.usage.map(|u| {
+            u.total.saturating_mul(100) / self.context_diagnostics.model_window_tokens.max(1)
+        });
+        let footer = Rect::new(
+            area.x,
+            area.bottom().saturating_sub(1),
+            area.width,
+            area.height.min(1),
+        );
+        frame.render_widget(Paragraph::new(self.surface.footer(now, percent)), footer);
+        let mut area = Rect {
+            height: area.height.saturating_sub(1),
+            ..area
+        };
+        if area.width >= 100 {
+            let side = Rect::new(area.right().saturating_sub(38), area.y, 38, area.height);
+            frame.render_widget(
+                Paragraph::new(self.surface.panel(now))
+                    .wrap(Wrap { trim: false })
+                    .block(ratatui::widgets::Block::bordered().title(" Mission Control ")),
+                side,
+            );
+            area.width = area.width.saturating_sub(38);
+        }
         let height = self
             .composer
             .component_mut()
@@ -3944,6 +3976,7 @@ impl RootNode {
     }
 
     fn agent_stream_closed(&mut self) -> ComponentUpdate<RootEffect> {
+        self.surface.connected = false;
         self.pending_recent_prompts = false;
         self.managed_active_turns = 0;
         self.interactive = false;
@@ -3966,6 +3999,7 @@ impl RootNode {
         reasoning_mode: ReasoningMode,
     ) -> ComponentUpdate<RootEffect> {
         self.pending_recent_prompts = false;
+        self.surface.connected = true;
         self.set_reasoning_modes(reasoning_mode, reasoning_mode);
         self.reconnecting = None;
         self.interactive = self.pending_session_list.is_none() && !self.resuming_session;
@@ -4333,6 +4367,8 @@ impl RootNode {
             }
             _ => None,
         };
+        self.surface
+            .subagent(&update, super::super::surface::now_ms());
         let subagents_changed = self.subagents.apply(update);
         let mut result = root_message.map_or_else(ComponentUpdate::none, |update| {
             self.update_transcript(TranscriptEvent::DirectedMessage {
@@ -4378,6 +4414,8 @@ impl RootNode {
     }
 
     fn transcript_record(&mut self, record: Arc<TranscriptRecord>) -> ComponentUpdate<RootEffect> {
+        self.surface.observe(&record);
+        self.surface.connected = true;
         let subagents_changed = self.subagents.observe_record(&record);
         if subagents_changed {
             let _ = self

@@ -37,6 +37,7 @@ mod shell;
 mod sites;
 mod spinner;
 mod sudo_input;
+mod surface;
 mod telemetry;
 mod terminal;
 mod theme;
