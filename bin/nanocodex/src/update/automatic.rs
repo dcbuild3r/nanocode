@@ -441,6 +441,12 @@ mod linux {
         euid == 0 && owner != 0
     }
 
+    #[cfg(not(unix))]
+    fn foreign_owner(_root: &Path) -> Result<Option<u32>> {
+        Ok(None)
+    }
+
+    #[cfg(unix)]
     fn foreign_owner(root: &Path) -> Result<Option<u32>> {
         use std::os::unix::fs::MetadataExt as _;
         let owner = match fs::metadata(root) {
