@@ -1395,6 +1395,44 @@ impl ManagedClient {
         ))
     }
 
+    /// Opens a resumable durable event stream that also carries surface-state
+    /// messages, such as `ManagedEventData::RuntimeEpoch`. Pair it with
+    /// `ManagedClient::surface` and resume from the snapshot cursor.
+    ///
+    /// # Errors
+    ///
+    /// Returns an identifier-validation failure before any network work.
+    pub fn surface_events(
+        &self,
+        agent_id: &str,
+        cursor: EventCursor,
+    ) -> Result<ManagedEventStream, ManagedError> {
+        Ok(self.events(agent_id, cursor)?.with_surface())
+    }
+
+    /// Reads every open lifecycle entity of one agent (non-terminal turns,
+    /// runs, child agents, tool calls and process sessions), exact at the
+    /// returned durable cursor.
+    ///
+    /// # Errors
+    ///
+    /// Returns an identifier-validation, transport, HTTP, size, or
+    /// response-schema failure.
+    pub async fn surface(&self, agent_id: &str) -> Result<crate::SurfaceSnapshot, ManagedError> {
+        validate_id("agent", agent_id)?;
+        let snapshot: crate::SurfaceSnapshot = self
+            .json(
+                Method::GET,
+                &format!("{}/surface", agent_path(agent_id)),
+                None,
+                None,
+            )
+            .await?;
+        crate::sse::validate_numeric_cursor(&snapshot.cursor)
+            .map_err(|_| ManagedError::InvalidResponse("surface snapshot cursor is invalid"))?;
+        Ok(snapshot)
+    }
+
     async fn turn_action(
         &self,
         agent_id: &str,

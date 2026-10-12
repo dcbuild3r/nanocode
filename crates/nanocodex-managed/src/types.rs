@@ -993,6 +993,135 @@ pub enum ManagedEventData {
         /// Stream failure detail.
         error: String,
     },
+    /// The durable runtime restarted and began a new epoch. Delivered only to
+    /// surface-state readers. Every tool call it lists is also closed by an
+    /// ordinary unknown-outcome tool.result event that follows it.
+    RuntimeEpoch {
+        /// Monotonic runtime epoch for this agent.
+        epoch: u64,
+        /// Stable restart reason, currently runtime_restarted.
+        reason: String,
+        /// Lifecycle entities the lost runtime left open.
+        interrupted: RuntimeEpochInterrupted,
+    },
+}
+
+/// Entities left open by a lost runtime, closed by a runtime epoch.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub struct RuntimeEpochInterrupted {
+    /// Tool calls that had no terminal result, in start order.
+    #[serde(default)]
+    pub tool_calls: Vec<SurfaceToolCall>,
+    /// Runs that had no terminal event.
+    #[serde(default)]
+    pub runs: Vec<SurfaceRun>,
+    /// Managed turns that were accepted or cancelling; recovery resumes them.
+    #[serde(default)]
+    pub turns: Vec<String>,
+}
+
+/// One open tool call in the surface-state projection.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SurfaceToolCall {
+    /// Numeric child agent identity; absent for the root agent.
+    pub agent_id: Option<u64>,
+    /// Provider tool-call identity.
+    pub call_id: String,
+    /// Canonical tool name.
+    pub tool: String,
+    /// Owning managed turn, when known.
+    pub turn_id: Option<String>,
+    /// Containing Code Mode cell for nested calls.
+    pub parent_call_id: Option<String>,
+    /// Durable cursor of the tool.call event.
+    pub started_cursor: String,
+    /// Service timestamp of the tool.call event in Unix milliseconds (0 when unknown).
+    pub started_at: u64,
+}
+
+/// One open run (root or child) in the surface-state projection.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SurfaceRun {
+    /// Numeric child agent identity; absent for the root agent.
+    pub agent_id: Option<u64>,
+    /// Owning managed turn, when known.
+    pub turn_id: Option<String>,
+    /// Durable cursor of the run.started event.
+    pub started_cursor: String,
+    /// Service timestamp of run.started in Unix milliseconds.
+    pub started_at: u64,
+}
+
+/// Latest reported lifecycle state of one child agent.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SurfaceAgent {
+    /// Numeric child agent identity.
+    pub agent_id: u64,
+    /// Parent child agent; absent when the root spawned it.
+    pub parent_agent_id: Option<u64>,
+    /// Public role label.
+    pub role: String,
+    /// pending, running, completed, failed, interrupted, closing or closed.
+    pub state: String,
+    /// Last report time in Unix milliseconds.
+    pub updated_at: u64,
+    /// Runtime epoch in which the state was reported; older than the
+    /// snapshot epoch means the report predates the latest restart.
+    pub reported_epoch: u64,
+}
+
+/// One non-terminal managed turn in the surface-state projection.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct SurfaceTurn {
+    /// Managed turn identifier.
+    pub id: String,
+    /// accepted or cancelling.
+    pub state: String,
+    /// Number of execution attempts.
+    pub attempt_count: u64,
+    /// Scheduled retry timestamp, when present.
+    pub retry_at: Option<f64>,
+    /// Creation timestamp.
+    pub created_at: f64,
+    /// Last-update timestamp.
+    pub updated_at: f64,
+}
+
+/// One durable Hand process session that has not finished.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SurfaceProcessSession {
+    /// Session-local process identifier used by write_stdin.
+    pub id: u64,
+    /// Hand machine that owns the process.
+    pub machine_id: Option<String>,
+    /// Provider-local process session identifier.
+    pub provider_session_id: Option<u64>,
+}
+
+/// Snapshot of every open lifecycle entity, exact at its cursor. Resume the
+/// surface event stream from this cursor to apply later deltas.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct SurfaceSnapshot {
+    /// Snapshot protocol version.
+    pub protocol: u32,
+    /// Current runtime epoch (0 before the first restart with open work).
+    pub epoch: u64,
+    /// Durable event cursor this snapshot is exact at.
+    pub cursor: String,
+    /// Service time of the snapshot in Unix milliseconds.
+    pub generated_at: u64,
+    /// Whether a runtime is resident in the session right now.
+    pub runtime_loaded: bool,
+    /// Non-terminal managed turns.
+    pub turns: Vec<SurfaceTurn>,
+    /// Runs without a terminal event.
+    pub runs: Vec<SurfaceRun>,
+    /// Child agents with their latest reported state.
+    pub agents: Vec<SurfaceAgent>,
+    /// Tool calls without a terminal result.
+    pub tool_calls: Vec<SurfaceToolCall>,
+    /// Durable Hand process sessions that have not finished.
+    pub process_sessions: Vec<SurfaceProcessSession>,
 }
 
 impl<'de> Deserialize<'de> for ManagedEventData {
@@ -1054,6 +1183,13 @@ impl ManagedEventData {
         #[derive(Deserialize)]
         struct StreamFailed {
             error: String,
+        }
+        #[derive(Deserialize)]
+        struct RuntimeEpoch {
+            epoch: u64,
+            reason: String,
+            #[serde(default)]
+            interrupted: RuntimeEpochInterrupted,
         }
 
         let kind: Discriminator = decode_raw(raw)?;
@@ -1120,6 +1256,14 @@ impl ManagedEventData {
                 let value: StreamFailed = decode_raw(raw)?;
                 Ok(Self::StreamFailed { error: value.error })
             }
+            "runtime_epoch" => {
+                let value: RuntimeEpoch = decode_raw(raw)?;
+                Ok(Self::RuntimeEpoch {
+                    epoch: value.epoch,
+                    reason: value.reason,
+                    interrupted: value.interrupted,
+                })
+            }
             other => Err(format!("unknown managed event type {other:?}")),
         }
     }
@@ -1160,7 +1304,10 @@ impl ManagedEventData {
             | Self::TurnCancelled { id }
             | Self::TurnRetryable { id, .. }
             | Self::TurnFailed { id, .. } => Some(id),
-            Self::AgentCreated { .. } | Self::Event { .. } | Self::StreamFailed { .. } => None,
+            Self::AgentCreated { .. }
+            | Self::Event { .. }
+            | Self::StreamFailed { .. }
+            | Self::RuntimeEpoch { .. } => None,
         }
     }
 
@@ -1197,6 +1344,7 @@ impl ManagedEventData {
             Self::TurnFailed { .. } => "turn_failed",
             Self::Event { .. } => "event",
             Self::StreamFailed { .. } => "stream_failed",
+            Self::RuntimeEpoch { .. } => "runtime_epoch",
         }
     }
 }
@@ -1354,6 +1502,35 @@ mod tests {
 
 #[cfg(test)]
 mod presentation_contract_tests {
+    // Frames captured from the surface-state curl recovery journey.
+    #[test]
+    fn runtime_epoch_and_surface_snapshot_decode_service_frames() {
+        let epoch: super::ManagedEvent = serde_json::from_str(r#"{"cursor":"11","created_at":1791838773897,"turn_id":null,"type":"runtime_epoch","epoch":1,"reason":"runtime_restarted","interrupted":{"tool_calls":[{"agent_id":null,"call_id":"surface-root-cell","tool":"exec","turn_id":"4d83ebe3-6dfe-80df-9ba9-4a62fa024291","parent_call_id":null,"started_cursor":"9","started_at":1791838772235},{"agent_id":null,"call_id":"surface-root-cell/code-1","tool":"exec_command","turn_id":"4d83ebe3-6dfe-80df-9ba9-4a62fa024291","parent_call_id":"surface-root-cell","started_cursor":"10","started_at":1791838772274}],"runs":[{"agent_id":null,"turn_id":"4d83ebe3-6dfe-80df-9ba9-4a62fa024291","started_cursor":"4","started_at":1791838772166}],"turns":["4d83ebe3-6dfe-80df-9ba9-4a62fa024291"]}}"#).unwrap();
+        let super::ManagedEventData::RuntimeEpoch {
+            epoch: number,
+            reason,
+            interrupted,
+        } = &epoch.data
+        else {
+            panic!("runtime_epoch must decode as RuntimeEpoch");
+        };
+        assert_eq!(
+            (*number, reason.as_str(), epoch.data.event_name()),
+            (1, "runtime_restarted", "runtime_epoch")
+        );
+        assert_eq!(
+            interrupted.tool_calls[1].parent_call_id.as_deref(),
+            Some("surface-root-cell")
+        );
+        assert_eq!(interrupted.turns.len(), 1);
+        assert!(epoch.data.turn_id().is_none() && epoch.data.agent_event().unwrap().is_none());
+
+        let snapshot: super::SurfaceSnapshot = serde_json::from_str(r#"{"protocol":1,"epoch":0,"cursor":"24","generated_at":1791838774699,"runtime_loaded":true,"turns":[{"id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","state":"accepted","attempt_count":0,"retry_at":null,"created_at":1791838774478,"updated_at":1791838774516}],"runs":[{"agent_id":null,"turn_id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","state":"running","started_cursor":"4","started_at":1791838774515},{"agent_id":1,"turn_id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","state":"running","started_cursor":"12","started_at":1791838774579}],"agents":[{"agent_id":1,"parent_agent_id":null,"role":"Surface child","state":"running","updated_at":1791838774578,"reported_epoch":0}],"tool_calls":[{"agent_id":1,"call_id":"surface-child-cell","tool":"exec","turn_id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","parent_call_id":null,"started_cursor":"20","started_at":1791838774602},{"agent_id":null,"call_id":"surface-wait/code-1","tool":"wait_agent","turn_id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","parent_call_id":"surface-wait","started_cursor":"24","started_at":1791838774651}],"process_sessions":[]}"#).unwrap();
+        assert_eq!((snapshot.cursor.as_str(), snapshot.runs.len()), ("24", 2));
+        assert_eq!(snapshot.tool_calls[0].agent_id, Some(1));
+        assert_eq!(snapshot.agents[0].state, "running");
+    }
+
     #[test]
     fn list_json_preserves_presentation_and_accepts_legacy_summaries() {
         let mut value = serde_json::json!({"data":["synthetic"],"summaries":{"synthetic":{

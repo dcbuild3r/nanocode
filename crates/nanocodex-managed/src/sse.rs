@@ -92,6 +92,7 @@ pub struct ManagedEventStream {
     client: ManagedClient,
     agent_id: String,
     cursor: EventCursor,
+    surface: bool,
     reconnect_delay: Duration,
     response: Option<(Response, Instant)>,
     buffer: Vec<u8>,
@@ -167,11 +168,19 @@ impl ManagedEventStream {
             client,
             agent_id,
             cursor,
+            surface: false,
             reconnect_delay: DEFAULT_RECONNECT_DELAY,
             response: None,
             buffer: Vec::new(),
             search_from: 0,
         }
+    }
+
+    /// Opts this stream into surface-state messages such as runtime epochs.
+    #[must_use]
+    pub(crate) const fn with_surface(mut self) -> Self {
+        self.surface = true;
+        self
     }
 
     pub(crate) async fn from_run_response(
@@ -346,6 +355,9 @@ impl ManagedEventStream {
             .url(&format!("{}/events", agent_path(&self.agent_id)))?;
         url.query_pairs_mut()
             .append_pair("cursor", self.cursor.as_str());
+        if self.surface {
+            url.query_pairs_mut().append_pair("surface", "1");
+        }
         loop {
             match self
                 .client
