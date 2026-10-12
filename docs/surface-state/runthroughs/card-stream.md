@@ -70,7 +70,7 @@ controlled managed service, press F7, and print the `vt100` screen (160x32).
 3. The durable turn completion.
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpVPEXTL                                                                                                                                              │
+│ /tmp/.tmpNeA4SF                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_STREAM_JOURNEY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -94,7 +94,7 @@ controlled managed service, press F7, and print the `vt100` screen (160x32).
 Restart receipt: the card settles to `unknown`, and the epoch named by the receipt advances the footer:
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpVPEXTL                                                                                                                                              │
+│ /tmp/.tmpNeA4SF                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_STREAM_JOURNEY ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── unknown ─╮
 │ [outcome unknown]                                                                                                                                            │
@@ -122,7 +122,7 @@ Restart receipt: the card settles to `unknown`, and the epoch named by the recei
 Durable turn completion (F7 then returns to the transcript, asserted):
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpVPEXTL                                                                                                                                              │
+│ /tmp/.tmpNeA4SF                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_STREAM_JOURNEY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 0s ─╮
 │ [outcome reconciled]                                                                                                                                         │
@@ -163,7 +163,7 @@ running when the stream breaks.
   owners.
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpGBSR09                                                                                                                                              │
+│ /tmp/.tmpyuCv3s                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -182,7 +182,7 @@ running when the stream breaks.
 Stream dropped:
 ~~~text
 ╭─ BRAIN Workspace ─╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮──────── attached ─╮
-│ /tmp/.tmpGBSR09   │ Could not reconnect: managed request failed (503 Service Unavailable): unavailable: try again. Press Enter to retry. │                   │
+│ /tmp/.tmpyuCv3s   │ Could not reconnect: managed request failed (503 Service Unavailable): unavailable: try again. Press Enter to retry. │                   │
 ╰───────────────────╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯───────────────────╯
 ╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -237,7 +237,7 @@ After reconnect and the surface snapshot:
 Turn completed:
 ~~~text
 ╭─ BRAIN Workspace ─────────────────────────────────────────────────────╭─────────────╮───────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpGBSR09                                                       │ Reconnected │                                                                        │
+│ /tmp/.tmpyuCv3s                                                       │ Reconnected │                                                                        │
 ╰───────────────────────────────────────────────────────────────────────╰─────────────╯────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 1s ─╮
 │ [attempt 2]                                                                                                                                                  │
@@ -263,6 +263,31 @@ Turn completed:
   │ owner ended without a tool result                                                                                                                          │
   │ exec                                                                                                                                                       │
 ● epoch 1 · cursor 5 · 2 open · last event 0s ago · 1 restart(s)
+╭─ 0%/272k ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── gpt-6-astra  low ─╮
+│                                                                                                                                                              │
+│                                                                                                                                                              │
+│                                                                                                                                                              │
+╰─ Enter send · / actions · @ paths · @@ sessions ────────────────────────────────────────────────────────────────────────────────────────────────── ◉ dev  ~ ─╯
+~~~
+
+### 1c. First attach reads the snapshot
+
+`terminal_card_stream_reads_the_surface_snapshot_on_first_attach`: the service already sits at epoch 1 with a child at work (the real `child-surface-moved-on.json` body, clock-shifted). Attach reads `/surface` after history, so the view opens at epoch 1 with the open entities and no spurious restart (asserted). End and Home jump to the newest and oldest cards.
+~~~text
+╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
+│ /tmp/.tmpOd36ND                                                                                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ AGENT Surface child ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+│ role: Surface child                                                                                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Code Mode ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+  │ exec                                                                                                                                                       │
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Shell ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+    │ exec_command                                                                                                                                             │
+    ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+● epoch 1 · cursor 2 · 3 open · last event 0s ago
 ╭─ 0%/272k ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── gpt-6-astra  low ─╮
 │                                                                                                                                                              │
 │                                                                                                                                                              │
@@ -875,7 +900,7 @@ frame 1: full child history (110x34)
     │ spawn_agent                                                                                            │
     │ 66 B output                                                                                            │
     ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-  ╭─ AGENT Surface child A directed message from the root agent was delivered by the sub-agent…  running 0s ─╮
+  ╭─ AGENT Surface child SURFACE_CHILD_TASK: apply effect S2 once, then submit_result. ───────── running 0s ─╮
   │ [attempt 2]                                                                                              │
   │ role: Surface child                                                                                      │
   ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -897,6 +922,95 @@ frame 1: full child history (110x34)
       │ [receipt]                                                                                            │
       │ exec_command                                                                                         │
 ● epoch 1 · cursor 32 · 1 open · last event 0s ago · 1 restart(s)
+~~~
+
+### Real hosted-stack swarm: 17 children, six restarts
+
+The history and `/surface` body were captured from the reviewer's real Managed API stack (protocol workerd harness, scripted model) and trimmed to lifecycle events in `fixtures/managed/swarm-*.json`. Children whose runs ended without an accepted result are reported `failed` by `wait_agent` (cursor 332). Their cards say failed, titled by role, with the task as subject. Children with no reported outcome yet show `unknown · run ended; assignment outcome not reported yet` instead of done. Excerpt of the history replay:
+~~~text
+  ╭─ AGENT Worker 1 CHILD 1 40: run your shell then submit_result. ───────────────────────────────── failed ─╮
+  │ subagent turn ended without a valid submit_result call Inspect child evidence before assigning recovery. │
+  │ A plain final answer is not an accepted result; do not…                                                  │
+  │ role: Worker 1                                                                                           │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"echo child 1; sleep 40; echo child …  done in 11s ─╮
+    │ [receipt]                                                                                              │
+    │ exec                                                                                                   │
+    │ 98 B output                                                                                            │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+      ╭─ TOOL Shell echo child 1; sleep 40; echo child 1 done ───────────────────────────────────── unknown ─╮
+      │ [outcome unknown]                                                                                    │
+      │ runtime restarted                                                                                    │
+      │ exec_command                                                                                         │
+      ╰──────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Code Mode text(await tools.submit_result({output:"child 1 finished"})); ─────────── done in 11s ─╮
+    │ [receipt]                                                                                              │
+    │ exec                                                                                                   │
+    │ 98 B output                                                                                            │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ AGENT Worker 2 CHILD 2 43: run your shell then submit_result. ───────────────────────────────── failed ─╮
+  │ subagent turn ended without a valid submit_result call Inspect child evidence before assigning recovery. │
+  │ A plain final answer is not an accepted result; do not…                                                  │
+  │ role: Worker 2                                                                                           │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"echo child 2; sleep 43; echo child …  done in 11s ─╮
+    │ [receipt]                                                                                              │
+    │ exec                                                                                                   │
+    │ 98 B output                                                                                            │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+      ╭─ TOOL Shell echo child 2; sleep 43; echo child 2 done ───────────────────────────────────── unknown ─╮
+      │ [outcome unknown]                                                                                    │
+      │ runtime restarted                                                                                    │
+      │ exec_command                                                                                         │
+      ╰──────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Code Mode text(await tools.submit_result({output:"child 2 finished"})); ─────────── done in 11s ─╮
+    │ [receipt]                                                                                              │
+    │ exec                                                                                                   │
+    │ 99 B output                                                                                            │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+~~~
+
+After the service snapshot (all 17 `agents[].state = failed`):
+~~~text
+  ╭─ AGENT Worker 1 CHILD 1 60: run your shell then submit_result. ───────────────────────────────── failed ─╮
+  │ role: Worker 1                                                                                           │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"echo child 1; sleep 60; echo child …  done in 11s ─╮
+    │ [receipt]                                                                                              │
+    │ exec                                                                                                   │
+    │ 98 B output                                                                                            │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+      ╭─ TOOL Shell echo child 1; sleep 60; echo child 1 done ───────────────────────────────────── unknown ─╮
+      │ [outcome unknown]                                                                                    │
+      │ runtime restarted                                                                                    │
+      │ exec_command                                                                                         │
+      ╰──────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Code Mode text(await tools.submit_result({output:"child 1 finished"})); ─────────── done in 11s ─╮
+    │ [receipt]                                                                                              │
+    │ exec                                                                                                   │
+    │ 99 B output                                                                                            │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ AGENT Worker 2 CHILD 2 63: run your shell then submit_result. ───────────────────────────────── failed ─╮
+  │ role: Worker 2                                                                                           │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"echo child 2; sleep 63; echo child …  done in 11s ─╮
+    │ [receipt]                                                                                              │
+    │ exec                                                                                                   │
+    │ 98 B output                                                                                            │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+      ╭─ TOOL Shell echo child 2; sleep 63; echo child 2 done ───────────────────────────────────── unknown ─╮
+      │ [outcome unknown]                                                                                    │
+      │ runtime restarted                                                                                    │
+      │ exec_command                                                                                         │
+      ╰──────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Code Mode text(await tools.submit_result({output:"child 2 finished"})); ─────────── done in 11s ─╮
+    │ [receipt]                                                                                              │
+    │ exec                                                                                                   │
+    │ 99 B output                                                                                            │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+~~~
+~~~text
+● epoch 6 · cursor 266 · 0 open · last event 0s ago · 6 restart(s)
 ~~~
 
 ## Adopting the shared state from Mission Control (variant A)
@@ -921,11 +1035,14 @@ Variant A's `surface.rs` maps onto it one to one:
 - Hand, Decision and Status cards are modeled, reduced, projected and rendered
   (fixtures above), but the managed stream carries no Hand resources, decisions
   or Status items yet. The live TUI shows Turn, Agent, Tool and Workspace cards.
-- First attach still builds cards from the history replay; only reconnect reads
-  the snapshot.
+- The TUI reads the snapshot at attach and on Enter-to-reconnect. A transport
+  reconnect handled inside the event stream does not re-read it; the epoch then
+  arrives through the restart receipts' `epoch` field.
 - The snapshot lists open entities only, so work that finished during a gap is
   known only from the replayed history. The TUI replays the gap before applying
   the snapshot.
+- A child whose run ends with no lifecycle report reads `unknown` until a
+  `wait_agent`/`list_agents` receipt or the snapshot reports its state.
 - Producer cursors are not passed through: the adapter numbers events locally,
   so per-agent cursor spaces cannot collide. A watermark vector is needed before
   surfaces fence on producer cursors directly.
