@@ -993,6 +993,135 @@ pub enum ManagedEventData {
         /// Stream failure detail.
         error: String,
     },
+    /// The durable runtime restarted and began a new epoch. Delivered only to
+    /// surface-state readers. Every tool call it lists is also closed by an
+    /// ordinary unknown-outcome tool.result event that follows it.
+    RuntimeEpoch {
+        /// Monotonic runtime epoch for this agent.
+        epoch: u64,
+        /// Stable restart reason, currently runtime_restarted.
+        reason: String,
+        /// Lifecycle entities the lost runtime left open.
+        interrupted: RuntimeEpochInterrupted,
+    },
+}
+
+/// Entities left open by a lost runtime, closed by a runtime epoch.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+pub struct RuntimeEpochInterrupted {
+    /// Tool calls that had no terminal result, in start order.
+    #[serde(default)]
+    pub tool_calls: Vec<SurfaceToolCall>,
+    /// Runs that had no terminal event.
+    #[serde(default)]
+    pub runs: Vec<SurfaceRun>,
+    /// Managed turns that were accepted or cancelling; recovery resumes them.
+    #[serde(default)]
+    pub turns: Vec<String>,
+}
+
+/// One open tool call in the surface-state projection.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SurfaceToolCall {
+    /// Numeric child agent identity; absent for the root agent.
+    pub agent_id: Option<u64>,
+    /// Provider tool-call identity.
+    pub call_id: String,
+    /// Canonical tool name.
+    pub tool: String,
+    /// Owning managed turn, when known.
+    pub turn_id: Option<String>,
+    /// Containing Code Mode cell for nested calls.
+    pub parent_call_id: Option<String>,
+    /// Durable cursor of the tool.call event.
+    pub started_cursor: String,
+    /// Service timestamp of the tool.call event in Unix milliseconds (0 when unknown).
+    pub started_at: u64,
+}
+
+/// One open run (root or child) in the surface-state projection.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SurfaceRun {
+    /// Numeric child agent identity; absent for the root agent.
+    pub agent_id: Option<u64>,
+    /// Owning managed turn, when known.
+    pub turn_id: Option<String>,
+    /// Durable cursor of the run.started event.
+    pub started_cursor: String,
+    /// Service timestamp of run.started in Unix milliseconds.
+    pub started_at: u64,
+}
+
+/// Latest reported lifecycle state of one child agent.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SurfaceAgent {
+    /// Numeric child agent identity.
+    pub agent_id: u64,
+    /// Parent child agent; absent when the root spawned it.
+    pub parent_agent_id: Option<u64>,
+    /// Public role label.
+    pub role: String,
+    /// pending, running, completed, failed, interrupted, closing or closed.
+    pub state: String,
+    /// Last report time in Unix milliseconds.
+    pub updated_at: u64,
+    /// Runtime epoch in which the state was reported; older than the
+    /// snapshot epoch means the report predates the latest restart.
+    pub reported_epoch: u64,
+}
+
+/// One non-terminal managed turn in the surface-state projection.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct SurfaceTurn {
+    /// Managed turn identifier.
+    pub id: String,
+    /// accepted or cancelling.
+    pub state: String,
+    /// Number of execution attempts.
+    pub attempt_count: u64,
+    /// Scheduled retry timestamp, when present.
+    pub retry_at: Option<f64>,
+    /// Creation timestamp.
+    pub created_at: f64,
+    /// Last-update timestamp.
+    pub updated_at: f64,
+}
+
+/// One durable Hand process session that has not finished.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct SurfaceProcessSession {
+    /// Session-local process identifier used by write_stdin.
+    pub id: u64,
+    /// Hand machine that owns the process.
+    pub machine_id: Option<String>,
+    /// Provider-local process session identifier.
+    pub provider_session_id: Option<u64>,
+}
+
+/// Snapshot of every open lifecycle entity, exact at its cursor. Resume the
+/// surface event stream from this cursor to apply later deltas.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct SurfaceSnapshot {
+    /// Snapshot protocol version.
+    pub protocol: u32,
+    /// Current runtime epoch (0 before the first restart with open work).
+    pub epoch: u64,
+    /// Durable event cursor this snapshot is exact at.
+    pub cursor: String,
+    /// Service time of the snapshot in Unix milliseconds.
+    pub generated_at: u64,
+    /// Whether a runtime is resident in the session right now.
+    pub runtime_loaded: bool,
+    /// Non-terminal managed turns.
+    pub turns: Vec<SurfaceTurn>,
+    /// Runs without a terminal event.
+    pub runs: Vec<SurfaceRun>,
+    /// Child agents with their latest reported state.
+    pub agents: Vec<SurfaceAgent>,
+    /// Tool calls without a terminal result.
+    pub tool_calls: Vec<SurfaceToolCall>,
+    /// Durable Hand process sessions that have not finished.
+    pub process_sessions: Vec<SurfaceProcessSession>,
 }
 
 impl<'de> Deserialize<'de> for ManagedEventData {
@@ -1054,6 +1183,13 @@ impl ManagedEventData {
         #[derive(Deserialize)]
         struct StreamFailed {
             error: String,
+        }
+        #[derive(Deserialize)]
+        struct RuntimeEpoch {
+            epoch: u64,
+            reason: String,
+            #[serde(default)]
+            interrupted: RuntimeEpochInterrupted,
         }
 
         let kind: Discriminator = decode_raw(raw)?;
@@ -1120,6 +1256,14 @@ impl ManagedEventData {
                 let value: StreamFailed = decode_raw(raw)?;
                 Ok(Self::StreamFailed { error: value.error })
             }
+            "runtime_epoch" => {
+                let value: RuntimeEpoch = decode_raw(raw)?;
+                Ok(Self::RuntimeEpoch {
+                    epoch: value.epoch,
+                    reason: value.reason,
+                    interrupted: value.interrupted,
+                })
+            }
             other => Err(format!("unknown managed event type {other:?}")),
         }
     }
@@ -1160,7 +1304,10 @@ impl ManagedEventData {
             | Self::TurnCancelled { id }
             | Self::TurnRetryable { id, .. }
             | Self::TurnFailed { id, .. } => Some(id),
-            Self::AgentCreated { .. } | Self::Event { .. } | Self::StreamFailed { .. } => None,
+            Self::AgentCreated { .. }
+            | Self::Event { .. }
+            | Self::StreamFailed { .. }
+            | Self::RuntimeEpoch { .. } => None,
         }
     }
 
@@ -1197,6 +1344,7 @@ impl ManagedEventData {
             Self::TurnFailed { .. } => "turn_failed",
             Self::Event { .. } => "event",
             Self::StreamFailed { .. } => "stream_failed",
+            Self::RuntimeEpoch { .. } => "runtime_epoch",
         }
     }
 }

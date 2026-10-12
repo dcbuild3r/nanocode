@@ -1015,6 +1015,7 @@ where
                 ))));
             }
             ManagedEventData::Event { .. }
+            | ManagedEventData::RuntimeEpoch { .. }
             | ManagedEventData::AgentCreated { .. }
             | ManagedEventData::TurnAccepted { .. }
             | ManagedEventData::TurnCancelling { .. }
