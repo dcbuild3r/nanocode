@@ -48,7 +48,7 @@ golden cards.
 
 ~~~sh
 export CARGO_TARGET_DIR=/srv/nanocodex/w/surface-target-A
-cargo test -p nanocodex-surface-state                  # 7 fixtures + wire round-trip, 3 real-producer journeys
+cargo test -p nanocodex-surface-state                  # 7 fixtures + wire round-trip, 4 real-producer journeys
 (cd js/nanocodex-surface-state && pnpm test)           # 9 node tests (same goldens) + tsc type test
 cargo test -p nanocodex-tui-render --test card_stream  # every fixture at 40/80/120 columns
 cargo test -p nanocodex-bin --test nanocodex2_tui_lifecycle terminal_card_stream -- --nocapture
