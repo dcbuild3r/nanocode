@@ -73,6 +73,8 @@ type Subscriber = {
   authorize?: () => boolean;
   project?: (event: DurableEvent<{ type: string }>) => DurableEvent<{ type: string }> | null;
   stopAfter?: (event: DurableEvent<{ type: string }>) => boolean;
+  /** Surface readers get a cursorless heartbeat frame instead of a comment. */
+  heartbeat?: () => Record<string, unknown>;
   tag?: string;
   removeAbortListener?: () => void;
   page: (after: string, limit: number) => Promise<DurableEvent<{ type: string }>[]>;
@@ -447,6 +449,8 @@ export class DurableEventLog<Message extends { type: string }> {
       tag?: string;
       /** Close only after this durable event has been delivered to the reader. */
       stopAfter?: (event: DurableEvent<Message>) => boolean;
+      /** Liveness payload for cursorless heartbeat frames (surface readers). */
+      heartbeat?: () => Record<string, unknown>;
     },
   ): Response {
     const cursor = parseCursor(after);
@@ -489,6 +493,7 @@ export class DurableEventLog<Message extends { type: string }> {
       project: options?.project as Subscriber["project"],
       tag: options?.tag,
       stopAfter: options?.stopAfter as Subscriber["stopAfter"],
+      heartbeat: options?.heartbeat,
       tail: Promise.resolve(),
       writer: body.writable.getWriter(),
     };
@@ -503,7 +508,9 @@ export class DurableEventLog<Message extends { type: string }> {
       // failed reads close the stream so clients reconnect to the active owner.
       // This also catches committed events whose publication wakeup was lost.
       this.#wake(subscriber);
-      this.#enqueueComment(subscriber, sseEncoder.encode(": keepalive\n\n"));
+      this.#enqueueComment(subscriber, sseEncoder.encode(subscriber.heartbeat
+        ? "event: heartbeat\ndata: " + JSON.stringify(subscriber.heartbeat()) + "\n\n"
+        : ": keepalive\n\n"));
     }, KEEPALIVE_MS);
     const close = () => this.#close(subscriber);
     const abort = () => this.#close(subscriber, true);

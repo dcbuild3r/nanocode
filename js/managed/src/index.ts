@@ -6237,7 +6237,10 @@ export class DurableAgentSession extends DurableComputerObject {
         this.#eventArchive.latestCursor(this.#eventLog),
         this.#eventArchive.pageReader(this.#eventLog),
         request.signal,
-        surface ? undefined : { project: event => (legacyVisible(event.message) ? event : null) },
+        surface
+          ? { heartbeat: () => ({ type: "heartbeat", at: Date.now(), epoch: this.#surface.epoch(),
+            runtime_generation: this.#surface.generation(), latest_cursor: this.#eventArchive.latestCursor(this.#eventLog) }) }
+          : { project: event => (legacyVisible(event.message) ? event : null) },
       );
     }
     if (request.method === "GET" && url.pathname === "/events/history") {
