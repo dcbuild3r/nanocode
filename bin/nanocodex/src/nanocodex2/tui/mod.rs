@@ -507,7 +507,12 @@ struct SessionSearchCompletion {
 }
 
 enum ConnectionResult {
-    Recovered(Result<ConnectedAgent, ConnectionFailure>),
+    /// A reconnected agent and, when the service provides it, the surface
+    /// snapshot read after catch-up.
+    Recovered(
+        Result<ConnectedAgent, ConnectionFailure>,
+        Option<Box<nanocodex_managed::SurfaceSnapshot>>,
+    ),
     Agent {
         purpose: ConnectionPurpose,
         result: Result<ConnectedAgent, ConnectionFailure>,
@@ -596,6 +601,7 @@ struct DriverRuntime {
     managed_events_open: bool,
     recovery: Option<RecoveryPhase>,
     recovery_events: VecDeque<ManagedEvent>,
+    recovery_surface: Option<Box<nanocodex_managed::SurfaceSnapshot>>,
     observed_cursor: String,
     last_recovery: Option<Instant>,
     connection_generation: u64,
@@ -1325,7 +1331,14 @@ impl DriverRuntime {
         let agent_id = self.agent_id.clone();
         let cursor = self.observed_cursor.clone();
         self.connection.spawn(async move {
-            ConnectionResult::Recovered(reconnect_agent(client, agent_id, cursor).await)
+            let recovered = reconnect_agent(client.clone(), agent_id.clone(), cursor).await;
+            // Read after catch-up so the snapshot supersedes the replayed
+            // history. A service without the route leaves cards on history.
+            let surface = match &recovered {
+                Ok(_) => client.surface(&agent_id).await.ok().map(Box::new),
+                Err(_) => None,
+            };
+            ConnectionResult::Recovered(recovered, surface)
         });
     }
 
@@ -2413,6 +2426,7 @@ async fn run_inner(
         managed_events_open: false,
         recovery: None,
         recovery_events: VecDeque::new(),
+        recovery_surface: None,
         observed_cursor: "0".to_owned(),
         last_recovery: None,
         connection_generation: 0,
@@ -2696,6 +2710,7 @@ async fn run_inner(
             );
             let update = app.update(AppEvent::AgentReconnected {
                 pane: PaneId::Main,
+                surface: runtime.recovery_surface.take(),
                 active_turns: runtime.managed_active_turns.ids.len(),
                 pending_local: runtime.pending_submission.is_some(),
                 reasoning_mode: reasoning_mode_from_managed(runtime.settings.reasoning_mode),
@@ -3456,7 +3471,8 @@ async fn run_inner(
                         continue;
                     }
                     match result {
-                        ConnectionResult::Recovered(Ok((agent, events, agent_id, workspace, history, _, settings, _, active_turns))) => {
+                        ConnectionResult::Recovered(Ok((agent, events, agent_id, workspace, history, _, settings, _, active_turns)), surface) => {
+                            runtime.recovery_surface = surface;
                             runtime.agent = Some(agent);
                             if runtime.agent_id != agent_id {
                                 runtime.voice.take();
@@ -3478,7 +3494,7 @@ async fn run_inner(
                             runtime.recovery_events = history.events.into();
                             runtime.recovery = Some(RecoveryPhase::Replaying);
                         }
-                        ConnectionResult::Recovered(Err(failure)) => {
+                        ConnectionResult::Recovered(Err(failure), _) => {
                             runtime.pending_voice = None;
                             request_render(app.update(AppEvent::VoiceStatus(runtime.voice_status())), &mut scheduler);
                             runtime.recovery = Some(RecoveryPhase::Disconnected);
@@ -6723,6 +6739,7 @@ mod tests {
             managed_events_open: false,
             recovery: None,
             recovery_events: VecDeque::new(),
+            recovery_surface: None,
             observed_cursor: "0".to_owned(),
             last_recovery: None,
             connection_generation: 1,

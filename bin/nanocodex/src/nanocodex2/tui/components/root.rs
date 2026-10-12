@@ -160,6 +160,7 @@ pub(crate) enum RootEvent {
     AgentStreamClosed,
     AgentConnecting,
     AgentReconnected {
+        surface: Option<Box<nanocodex_managed::SurfaceSnapshot>>,
         active_turns: usize,
         pending_local: bool,
         reasoning_mode: ReasoningMode,
@@ -4544,10 +4545,16 @@ impl Component for RootNode {
                 self.reconnection_status("Connecting…")
             }
             RootEvent::AgentReconnected {
+                surface,
                 active_turns,
                 pending_local,
                 reasoning_mode,
-            } => self.agent_reconnected(active_turns, pending_local, reasoning_mode),
+            } => {
+                if let Some(surface) = surface {
+                    self.card_stream.apply_snapshot(&surface);
+                }
+                self.agent_reconnected(active_turns, pending_local, reasoning_mode)
+            }
             RootEvent::AgentReconnectFailed(error) => {
                 self.pending_recent_prompts = false;
                 self.reconnecting = Some(false);
@@ -7175,6 +7182,7 @@ mod live_control_tests {
                 "late lookup must not cover the edited draft"
             );
             root.update(RootEvent::AgentReconnected {
+                surface: None,
                 active_turns: 1,
                 pending_local: false,
                 reasoning_mode: ReasoningMode::Standard,

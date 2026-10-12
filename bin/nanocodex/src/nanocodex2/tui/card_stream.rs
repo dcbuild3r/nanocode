@@ -8,7 +8,7 @@ use super::{theme::Theme, transcript::TranscriptRecord};
 use nanocodex_subagents::AgentUpdate;
 use nanocodex_surface_state::{
     SurfaceState,
-    agent_events::{AgentEventAdapter, EventScope},
+    agent_events::{AgentEventAdapter, EventScope, ManagedSnapshot},
 };
 use nanocodex_tui_render::card_stream::CardStream;
 use ratatui::{Frame, layout::Rect};
@@ -79,6 +79,19 @@ impl CardStreamView {
             }
             _ => {}
         }
+    }
+
+    /// Apply the service's surface snapshot (`GET /v1/agents/:id/surface`)
+    /// read on reconnect: open entities come from it, not from inference over
+    /// whatever history the gap left behind.
+    pub(crate) fn apply_snapshot(&mut self, snapshot: &nanocodex_managed::SurfaceSnapshot) {
+        let Ok(snapshot) =
+            serde_json::to_value(snapshot).and_then(serde_json::from_value::<ManagedSnapshot>)
+        else {
+            return;
+        };
+        let event = self.adapter.snapshot(&snapshot);
+        self.state.apply(&event);
     }
 
     pub(crate) fn set_workspace(&mut self, workspace: &Path) {

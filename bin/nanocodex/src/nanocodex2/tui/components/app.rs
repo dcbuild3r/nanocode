@@ -59,6 +59,7 @@ pub(crate) enum AppEvent {
     },
     AgentReconnected {
         pane: PaneId,
+        surface: Option<Box<nanocodex_managed::SurfaceSnapshot>>,
         active_turns: usize,
         pending_local: bool,
         reasoning_mode: ReasoningMode,
@@ -376,12 +377,14 @@ impl AppNode {
             AppEvent::AgentConnecting(pane) => self.update_root(pane, RootEvent::AgentConnecting),
             AppEvent::AgentReconnected {
                 pane,
+                surface,
                 active_turns,
                 pending_local,
                 reasoning_mode,
             } => self.update_root(
                 pane,
                 RootEvent::AgentReconnected {
+                    surface,
                     active_turns,
                     pending_local,
                     reasoning_mode,
