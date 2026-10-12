@@ -5870,6 +5870,7 @@ dependencies = [
  "nanocodex-oai-tools",
  "nanocodex-observability",
  "nanocodex-subagents",
+ "nanocodex-surface-state",
  "nanocodex-tui-control",
  "nanocodex-tui-render",
  "nanocodex-vm",

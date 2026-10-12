@@ -263,6 +263,7 @@ pub(crate) enum RootEvent {
 pub(crate) struct RestoredSessionProjection {
     transcript: Transcript,
     subagents: SubagentTree,
+    card_stream: crate::nanocodex2::tui::card_stream::CardStreamView,
     context_diagnostics: ContextDiagnostics,
     context_tokens: Option<u64>,
     recent_prompts: Vec<RecentPromptDraft>,
@@ -275,6 +276,7 @@ impl RestoredSessionProjection {
         records: impl IntoIterator<Item = Arc<TranscriptRecord>>,
     ) {
         for record in records {
+            self.card_stream.observe(&record);
             self.subagents.observe_record(&record);
             if self.transcript.ignores_finished_run_event(&record) {
                 continue;
@@ -509,6 +511,7 @@ pub(crate) struct RootNode {
     theme_mode: ThemeMode,
     preferred_reasoning_mode: ReasoningMode,
     subagents: SubagentTree,
+    card_stream: crate::nanocodex2::tui::card_stream::CardStreamView,
     pending_recent_prompts: bool,
     context_diagnostics: ContextDiagnostics,
     recent_prompts: Vec<RecentPromptDraft>,
@@ -602,6 +605,7 @@ impl RootNode {
             theme_mode: ThemeMode::Auto,
             preferred_reasoning_mode: ReasoningMode::Standard,
             subagents,
+            card_stream: Default::default(),
             pending_recent_prompts: false,
             context_diagnostics: ContextDiagnostics::default(),
             recent_prompts: Vec::new(),
@@ -864,6 +868,7 @@ impl RootNode {
         let mut projection = RestoredSessionProjection {
             transcript: Transcript::with_effort(thinking),
             subagents: SubagentTree::new(thinking),
+            card_stream: Default::default(),
             context_diagnostics: ContextDiagnostics::default(),
             context_tokens: None,
             recent_prompts: Vec::new(),
@@ -889,6 +894,9 @@ impl RootNode {
         projection.subagents.set_workspace(&self.workspace);
         projection.subagents.preserve_view_from(&self.subagents);
         self.subagents = projection.subagents;
+        projection.card_stream.preserve_view_from(&self.card_stream);
+        projection.card_stream.set_workspace(&self.workspace);
+        self.card_stream = projection.card_stream;
         let _ = self
             .composer
             .component_mut()
@@ -953,6 +961,9 @@ impl RootNode {
         projection.subagents.set_workspace(&self.workspace);
         projection.subagents.preserve_view_from(&self.subagents);
         self.subagents = projection.subagents;
+        projection.card_stream.preserve_view_from(&self.card_stream);
+        projection.card_stream.set_workspace(&self.workspace);
+        self.card_stream = projection.card_stream;
         let _ = self
             .composer
             .component_mut()
@@ -1087,7 +1098,13 @@ impl RootNode {
                 ..composer_area
             }
         };
-        self.transcript.render(frame, transcript_area, theme);
+        let card_stream = self.card_stream.is_open();
+        if card_stream {
+            self.card_stream.ensure_workspace(&self.workspace);
+            self.card_stream.render(frame, transcript_area, theme);
+        } else {
+            self.transcript.render(frame, transcript_area, theme);
+        }
         self.queue.render(frame, queue_area, theme);
         if let Some(status) = &self.voice_status {
             super::voice::render(frame, status, voice_area);
@@ -1105,16 +1122,19 @@ impl RootNode {
                 && (!self.queue.component().focused() || self.queue_edit.is_some()),
             composer_selection,
         );
-        if self.selection.surface() == Some(Surface::Transcript)
+        if !card_stream
+            && self.selection.surface() == Some(Surface::Transcript)
             && let Some(range) = self.selection.range()
         {
             self.transcript
                 .component()
                 .render_selection(frame.buffer_mut(), range);
         }
-        self.transcript
-            .component_mut()
-            .render_chrome(frame, transcript_area, theme);
+        if !card_stream {
+            self.transcript
+                .component_mut()
+                .render_chrome(frame, transcript_area, theme);
+        }
         if let Some(overlay) = &mut self.overlay {
             match overlay {
                 Overlay::VaultReview(review) => {
@@ -1321,6 +1341,34 @@ impl RootNode {
     fn update_terminal(&mut self, event: Event) -> ComponentUpdate<RootEffect> {
         if let Some(writable) = self.shared_thread {
             return self.shared_terminal(event, writable);
+        }
+        if self.overlay.is_none()
+            && let Event::Key(key) = &event
+            && key.kind == KeyEventKind::Press
+        {
+            // F7 swaps the transcript for the shared surface-state card stream.
+            let handled = match key.code {
+                KeyCode::F(7) => {
+                    self.card_stream.toggle();
+                    true
+                }
+                KeyCode::Esc if self.card_stream.is_open() => {
+                    self.card_stream.close();
+                    true
+                }
+                KeyCode::PageDown if self.card_stream.is_open() => {
+                    self.card_stream.scroll_by(10);
+                    true
+                }
+                KeyCode::PageUp if self.card_stream.is_open() => {
+                    self.card_stream.scroll_by(-10);
+                    true
+                }
+                _ => false,
+            };
+            if handled {
+                return ComponentUpdate::render(RenderRequest::Immediate);
+            }
         }
         if self.voice_status.is_some() && is_control_key(&event, 'x') {
             if matches!(&event, Event::Key(key) if key.kind != KeyEventKind::Press) {
@@ -4333,6 +4381,7 @@ impl RootNode {
             }
             _ => None,
         };
+        self.card_stream.observe_subagent(&update);
         let subagents_changed = self.subagents.apply(update);
         let mut result = root_message.map_or_else(ComponentUpdate::none, |update| {
             self.update_transcript(TranscriptEvent::DirectedMessage {
@@ -4378,6 +4427,7 @@ impl RootNode {
     }
 
     fn transcript_record(&mut self, record: Arc<TranscriptRecord>) -> ComponentUpdate<RootEffect> {
+        self.card_stream.observe(&record);
         let subagents_changed = self.subagents.observe_record(&record);
         if subagents_changed {
             let _ = self

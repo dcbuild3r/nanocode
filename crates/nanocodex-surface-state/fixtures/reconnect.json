@@ -65,8 +65,8 @@
       "events": []
     },
     {
-      "label": "reconnected: snapshot then deltas, replays ignored",
-      "now_ms": 1791821005000,
+      "label": "reconnected: snapshot of open entities",
+      "now_ms": 1791821002000,
       "events": [
         {
           "type": "snapshot",
@@ -100,7 +100,13 @@
               "output_bytes": 2048
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "label": "deltas after snapshot: replays ignored, outcome reconciled",
+      "now_ms": 1791821005000,
+      "events": [
         {
           "type": "upsert",
           "cursor": 9,

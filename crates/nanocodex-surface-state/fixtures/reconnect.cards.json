@@ -149,7 +149,87 @@
     }
   },
   {
-    "label": "reconnected: snapshot then deltas, replays ignored",
+    "label": "reconnected: snapshot of open entities",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3m 22s",
+          "subject": "Index the docs",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "closed while disconnected",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "rg -n surface docs",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "t1.c2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command in /srv/repo on paradigm",
+              "tone": "muted"
+            },
+            {
+              "text": "2 KiB output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3m 14s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 30,
+        "epoch": 1,
+        "label": "epoch 1 · cursor 30 · 2 open · last event 1s ago · heartbeat 3m 3s ago",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791821002000
+    }
+  },
+  {
+    "label": "deltas after snapshot: replays ignored, outcome reconciled",
     "projection": {
       "cards": [
         {

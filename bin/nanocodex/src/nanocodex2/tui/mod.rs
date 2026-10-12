@@ -11,6 +11,7 @@ pub(crate) mod backend;
 pub(crate) mod bench;
 mod btw;
 mod bug;
+mod card_stream;
 mod clipboard;
 mod components;
 mod context;
