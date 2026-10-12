@@ -159,6 +159,34 @@ struct AgentMetadata {
 }
 
 impl TranscriptRecord {
+    /// Projection-local identity: preserve wire IDs in the journal, isolate
+    /// root/child calls and replay attempts in the historical card maps.
+    pub(crate) fn scoped_tool_identity(&self) -> Option<Self> {
+        let mut payload = self.decode_payload::<serde_json::Value>().ok()?;
+        if matches!(self.kind(), "tool.call" | "tool.result" | "tool.unknown") {
+            let call = payload["call_id"].as_str()?;
+            let attempt = payload["attempt"].as_u64().unwrap_or(1);
+            payload["call_id"] =
+                serde_json::Value::String(tool_identity(self.managed_agent_id(), call, attempt));
+        } else if self.kind() == "runtime_epoch" {
+            for call in payload["interrupted"]["tool_calls"].as_array_mut()? {
+                let Some(id) = call["call_id"].as_str() else {
+                    continue;
+                };
+                call["call_id"] = serde_json::Value::String(tool_identity(
+                    call["agent_id"].as_u64(),
+                    id,
+                    call["attempt"].as_u64().unwrap_or(1),
+                ));
+            }
+        } else {
+            return None;
+        }
+        let mut record = self.clone();
+        record.payload = to_raw_value(&payload).ok()?.into();
+        Some(record)
+    }
+
     pub(crate) fn runtime_epoch(
         sequence: u64,
         at: u64,
@@ -572,4 +600,11 @@ mod tests {
             Some(8)
         );
     }
+}
+
+fn tool_identity(agent: Option<u64>, call: &str, attempt: u64) -> String {
+    format!(
+        "agent:{}/attempt:{attempt}/{call}",
+        agent.map_or_else(|| "root".into(), |id| id.to_string())
+    )
 }

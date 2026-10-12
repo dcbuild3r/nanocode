@@ -2122,7 +2122,6 @@ async fn connect_agent(
 ) -> Result<ConnectedAgent, ConnectionFailure> {
     let created = agent_id.is_none();
     let (managed_event_sender, managed_events) = mpsc::unbounded_channel();
-    let surface_sender = managed_event_sender.clone();
     let (opened, history, history_before, retry, settings, active_turns) = match agent_id {
         None => {
             let opened = super::open_workspace_agent_with_settings(
@@ -2185,33 +2184,8 @@ async fn connect_agent(
     };
     let (agent, _events, agent_id, workspace) =
         opened.map_err(|error| ConnectionFailure { error, retry })?;
-    // Legacy websocket readers deliberately do not receive runtime_epoch. Negotiate
-    // the published surface endpoint separately and forward only epoch markers;
-    // ordinary events remain owned by the existing websocket driver.
-    let surface_client = client.clone();
-    let surface_agent = agent_id.clone();
-    tokio::spawn(async move {
-        let snapshot = tokio::select! {
-            () = surface_sender.closed() => return,
-            result = surface_client.surface(&surface_agent) => match result { Ok(value) => value, Err(_) => return },
-        };
-        let Ok(cursor) = EventCursor::parse(snapshot.cursor) else {
-            return;
-        };
-        let Ok(mut stream) = surface_client.surface_events(&surface_agent, cursor) else {
-            return;
-        };
-        loop {
-            tokio::select! {
-                () = surface_sender.closed() => break,
-                result = stream.next() => match result {
-                    Ok(event) if matches!(event.data, ManagedEventData::RuntimeEpoch { .. }) => { if surface_sender.send(event).is_err() { break; } },
-                    Ok(_) => {},
-                    Err(_) => break,
-                }
-            }
-        }
-    });
+    // ManagedClient negotiates /ws?surface=1 and replays from the retained
+    // driver cursor. Do not open a second stream at a newer snapshot cursor.
     let (history, warning) = match history {
         None => (HistoryWindow::default(), None),
         Some(Ok(history)) => (history, None),

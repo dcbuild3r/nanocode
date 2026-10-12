@@ -82,7 +82,7 @@ impl SurfaceState {
                 .agent_id
                 .map_or_else(|| "root".into(), |id| id.to_string());
             next.entities.insert(
-                format!("{scope}/{}", call.call_id),
+                call_key(&scope, &call.call_id, u64::from(call.attempt)),
                 Entity {
                     scope,
                     parent: "root".into(),
@@ -118,7 +118,11 @@ impl SurfaceState {
                 let owner = call["agent_id"]
                     .as_u64()
                     .map_or_else(|| "root".into(), |id| id.to_string());
-                let key = format!("{owner}/{}", call["call_id"].as_str().unwrap_or(""));
+                let key = call_key(
+                    &owner,
+                    call["call_id"].as_str().unwrap_or(""),
+                    call["attempt"].as_u64().unwrap_or(1),
+                );
                 if let Some(entity) = self.entities.get_mut(&key)
                     && matches!(entity.state.as_str(), "running" | "retained")
                     && entity.at <= at
@@ -126,6 +130,7 @@ impl SurfaceState {
                     entity.state = "unknown".into();
                     entity.retained = false;
                     entity.step = "runtime restarted; reconcile receipt".into();
+                    entity.evidence = "runtime receipt · effect unknown".into();
                 }
             }
             for run in p["interrupted"]["runs"].as_array().into_iter().flatten() {
@@ -193,9 +198,10 @@ impl SurfaceState {
             return;
         }
         let key = if tool {
-            format!(
-                "{scope}/{}",
-                p["call_id"].as_str().unwrap_or("unidentified")
+            call_key(
+                &scope,
+                p["call_id"].as_str().unwrap_or("unidentified"),
+                p["attempt"].as_u64().unwrap_or(1),
             )
         } else {
             scope.clone()
@@ -230,7 +236,11 @@ impl SurfaceState {
             evidence: "agent-reported".into(),
             retained: false,
         });
-        if at < entity.at {
+        if at < entity.at
+            || (entity.tool
+                && entity.state == "unknown"
+                && entity.evidence == "runtime receipt · effect unknown")
+        {
             return;
         }
         entity.at = at;
@@ -450,4 +460,12 @@ fn identity(value: &Value) -> String {
     value
         .as_str()
         .map_or_else(|| value.to_string(), str::to_owned)
+}
+
+fn call_key(scope: &str, call: &str, attempt: u64) -> String {
+    if attempt == 1 {
+        format!("{scope}/{call}")
+    } else {
+        format!("{scope}/a{attempt}/{call}")
+    }
 }

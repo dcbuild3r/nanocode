@@ -61,27 +61,36 @@ protocol integration is verified separately below, not implied by this run.
 
 ## Published protocol integration
 
-Merged producer `b94dfa6f75d3a8b853d3bf9a3faab8a5f61880ce`.
+Merged producer through `20c486203` (PR #989).
 The actual wire marker is `runtime_epoch {epoch, reason, interrupted}`, not the
 proposed `runtime.epoch`. The TUI projects that exact message through both live
 and retained-history adapters. Only listed interrupted calls/runs are retired;
 known terminal/newer observations are preserved. Legacy dotted markers remain
 supported but a first baseline marker does not imply a restart.
 
-The client negotiates GET `/surface`, takes its opaque `cursor`, and opens the
-published `surface_events` (`?surface=1`) stream after that cursor. Only epoch
-markers are forwarded alongside the existing websocket data, avoiding duplicate
-ordinary events. Unsupported legacy servers simply keep legacy behavior. The
-task exits when its receiver closes. This side stream currently stops on an
-unrecoverable stream error; it is not a substitute for lifecycle heartbeat health.
+The ManagedClient now negotiates `/ws?surface=1`, receiving epoch markers
+through the same retained-cursor websocket replay path as ordinary events. The
+older snapshot-cursor SSE side task has been removed: a fresh snapshot cursor on
+stateful reconnect could skip a recovery marker. Unsupported legacy servers
+keep the legacy behavior and unconfirmed recovery label.
+
+Tool cards in both projections now isolate `(agent_id, call_id, attempt)`;
+missing attempt defaults to 1. The raw event journal keeps original wire IDs.
+Snapshot tool calls and interrupted epoch tool references consume `attempt` too.
+The `replay-attempts` capture demonstrates an unknown first attempt beside a
+separate completed second attempt, rather than folding replay into the old card.
 
 The typed snapshot adapter consumes `protocol`, `epoch`, `cursor`, `generated_at`,
 `runs`, `agents`, and `tool_calls`; the consumer fixture hydrates cursor 10 then
 applies later real deltas. **Full live panel snapshot replacement, process/turn
 resource hydration, and snapshot/replay race equivalence are not shipped here.**
-The live side stream uses the snapshot cursor, while the panel still uses existing
-history and child events. This is partial integration, not `surface_state_v1`
-conformance or an attempt/revision ledger.
+`ready.surface.runtime_generation` is not yet bound to retained process health.
+This is partial integration, not full `surface_state_v1` conformance.
+
+Latest validation: 351 TUI tests passed (2 ignored), 62 managed-client tests
+passed, native binary build passed. The new websocket/attempt revision has not
+independently undergone a fresh real-workerd SIGKILL run here; the older real
+producer fixture and deterministic renderer journeys are the captured evidence.
 
 `bin/nanocodex/fixtures/surface-state/README.md` records exact producer capture
 provenance. The test replays actual curl output from agent 2's workerd recovery
@@ -91,10 +100,12 @@ claim that this variant independently killed a deployed Worker.
 
 ## Remaining integration boundaries
 
-No canonical attempt/revision reconciliation, evidence-backed Status revisions,
+Tool attempts are isolated; full Run/Agent revision reconciliation, evidence-backed Status revisions,
 dependency-aware stale summaries, independently verified effects, native Hand
-resource health, or complete snapshot/delta race test. Legacy later receipts may
-refine unknown in place. The producer can still replay effects on restart (see
+resource health, and complete snapshot/delta race tests remain incomplete. Legacy inferred uncertainty may be refined by later receipts. An explicit
+producer `outcome_unknown` receipt or an exact epoch interruption stays terminal
+for that attempt; a later
+same-attempt success is ignored, while a new attempt gets its own card. The producer can still replay effects on restart (see
 reviewer's upstream report); this TUI cannot make that execution policy safe.
 Navigation currently follows row indices; live insertion can move the selected
 entity. This branch is a reviewable alternative, not merge-ready certification.
@@ -655,4 +666,39 @@ context ? | event 99s ago | epoch 1 | stream unconfirmed/replay
 context 0% | event 25s ago | epoch unreported | stream observed (health unconfirmed)
 context 0% | event 28s ago | epoch unreported | stream observed (health unconfirmed)
 context 0% | event 31s ago | epoch unreported | stream observed (health unconfirmed)
+```
+
+### replay-attempts
+
+Unknown attempt 1 remains unchanged after a late same-attempt success. Attempt 2
+has a distinct completed card. Captured by the production TestBackend journey.
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 0 (not verified)              │
+│In progress: 1                      │
+│Blocked/unknown: 1                  │
+│Retained calls: 0 (unconfirmed)     │
+│Next: inspect task evidence         │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 shown / 3 loaded · row 1          │
+│root [running] · 1 unresolved calls │
+│  family ? / model ?                │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/retry [unknown]                │
+│  family ? / model ?                │
+│  exec_command · 99s                │
+│  runtime receipt · effect unknown  │
+│root/a2/retry [completed]           │
+│  family ? / model ?                │
+│  exec_command · 99s                │
+│  verified: receipt only            │
+└────────────────────────────────────┘
+  ▶ ? Tools  2 calls · 1 outcome unknown · 0ms
+    ├── ? Shell  $ echo attempt1 · completion unknown · 0ms
+    └── ✓ Shell  $ echo attempt2 · exit 0 · 0ms
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```

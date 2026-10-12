@@ -352,6 +352,8 @@ impl TranscriptModel {
     }
 
     pub(crate) fn apply(&mut self, record: &TranscriptRecord) -> ModelChange {
+        let scoped = record.scoped_tool_identity();
+        let record = scoped.as_ref().unwrap_or(record);
         if record.kind() == "runtime_epoch" {
             if let Ok(p) = record.decode_payload::<Value>() {
                 let ids = p["interrupted"]["tool_calls"]
@@ -367,6 +369,14 @@ impl TranscriptModel {
                     })
                     .collect::<Vec<_>>();
                 self.settle_unfinished_tools(&ids);
+                // Epoch interruption is authoritative terminal uncertainty for
+                // this attempt, unlike the legacy missing-result fallback.
+                self.settled_calls.extend(
+                    self.tools
+                        .iter()
+                        .filter(|(_, id)| ids.contains(id))
+                        .map(|(call, _)| call.clone()),
+                );
                 let interrupted = |scope: &RunScope| {
                     p["interrupted"]["runs"]
                         .as_array()
@@ -1231,8 +1241,9 @@ impl TranscriptModel {
         } else {
             tool_result_state(family, &payload.status, &result)
         };
-        // An unknown outcome stays open to the call's later actual result.
-        if state == ToolState::Unknown {
+        // Legacy inferred uncertainty can be refined. A producer-issued unknown
+        // receipt is terminal for this attempt; replay requires a new attempt.
+        if state == ToolState::Unknown && payload.outcome_unknown != Some(true) {
             self.settled_calls.remove(&payload.call_id);
         }
         let entry_state = if resumed_shell.is_some() && state == ToolState::Yielded {

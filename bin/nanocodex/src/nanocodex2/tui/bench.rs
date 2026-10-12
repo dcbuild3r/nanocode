@@ -987,6 +987,46 @@ fn mission_control_journey() {
         yielded,
         &["unresolved", "Blocked/unknown: 1"],
     );
+    let replayed = vec![
+        record(1, "run.started", json!({}), None),
+        record(
+            2,
+            "tool.call",
+            json!({"call_id":"retry","attempt":1,"tool":"exec_command","arguments":{"cmd":"echo attempt1"}}),
+            None,
+        ),
+        record(
+            3,
+            "tool.result",
+            json!({"call_id":"retry","attempt":1,"tool":"exec_command","status":"failed","outcome_unknown":true,"duration_ns":1,"result":"lost first attempt"}),
+            None,
+        ),
+        record(
+            4,
+            "tool.call",
+            json!({"call_id":"retry","attempt":2,"tool":"exec_command","arguments":{"cmd":"echo attempt2"}}),
+            None,
+        ),
+        record(
+            5,
+            "tool.result",
+            json!({"call_id":"retry","attempt":2,"tool":"exec_command","status":"completed","duration_ns":1,"result":{"output":"second attempt done","exit_code":0}}),
+            None,
+        ),
+        // A late duplicate success must not rewrite the terminal unknown
+        // receipt for attempt 1. Only attempt 2 has a successful receipt.
+        record(
+            6,
+            "tool.result",
+            json!({"call_id":"retry","attempt":1,"tool":"exec_command","status":"completed","duration_ns":1,"result":{"output":"late duplicate","exit_code":0}}),
+            None,
+        ),
+    ];
+    capture(
+        "replay-attempts",
+        replayed,
+        &["root/a2/retry", "root/retry [unknown]", "2 calls"],
+    );
     let fallback = vec![
         record(1, "run.started", json!({}), None),
         record(
