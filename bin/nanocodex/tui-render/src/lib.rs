@@ -8,6 +8,7 @@
 //! CLI, Hand or session dependencies, so its compiled output stays cached while
 //! the rest of the terminal client changes.
 
+pub mod card_stream;
 pub mod diff;
 pub mod format;
 pub mod highlight;

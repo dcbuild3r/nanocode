@@ -6582,6 +6582,7 @@ version = "0.6.7"
 dependencies = [
  "crossterm 0.29.0",
  "image",
+ "nanocodex-surface-state",
  "png 0.18.1",
  "pulldown-cmark",
  "ratatex",
