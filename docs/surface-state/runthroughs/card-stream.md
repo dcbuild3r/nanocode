@@ -1,61 +1,76 @@
 # Runthrough: TUI variant B, card stream
 
-Branch `feat/tui-card-stream`. One shared surface-state model feeds both the
-terminal and the web:
+Branch `feat/tui-card-stream` (stacked on `feat/surface-state-protocol`). One shared
+surface-state model feeds the terminal and the web:
 
-- `crates/nanocodex-surface-state`: a pure reducer (`SurfaceEvent` to
-  `SurfaceState`) and the card projection (`SurfaceState::project(now)`).
-  Every label, badge and line is produced here. The shared `agent_events`
-  adapter maps today's `run.*`/`tool.*` lifecycle pairs, durable turn
-  terminals and the runtime epoch onto it.
-- `js/nanocodex-surface-state`: the JavaScript mirror for web, with a
-  DOM-free HTML renderer and stylesheet.
-- `nanocodex-tui-render::card_stream`: the ratatui widget. In the TUI, **F7**
-  swaps the transcript pane for the card stream (Esc or F7 returns, PgUp/PgDn
-  scroll); the composer stays live.
+- `crates/nanocodex-surface-state`: a pure reducer (`SurfaceEvent` to `SurfaceState`)
+  and the card projection (`SurfaceState::project(now)`). Every label, badge and
+  line is produced there. The shared `agent_events` adapter maps the managed wire
+  (event envelopes, `run.*`/`tool.*` pairs, durable turn terminals, `runtime_epoch`,
+  the `GET /v1/agents/:id/surface` snapshot) onto it.
+- `js/nanocodex-surface-state`: the JavaScript mirror for web, with a DOM-free HTML
+  renderer and stylesheet.
+- `nanocodex-tui-render::card_stream`: the ratatui widget. In the TUI, **F7** swaps
+  the transcript pane for the card stream (Esc or F7 returns, PgUp/PgDn page; the
+  view follows the newest cards until you page up). The composer stays live.
 
-Reducer guarantees: cursor fencing (replays are counted, never applied); sticky
-terminal states; epoch settlement of in-flight turns/runs/agents/tools to
-`unknown` ("runtime restarted"); snapshot authority (an open entity missing from
-a reconnect snapshot becomes `unknown`, "closed while disconnected"); orphan
-settlement (a tool call cannot outlive the turn, run, agent or Code Mode cell
-that issued it). Liveness footer: epoch, cursor, open count, last-event and
-heartbeat age, context percentage, restarts, ignored replays. Provenance badges:
-`verified` (runtime receipt), `agent-reported`, `test-build`, and `unsourced`.
+Reducer guarantees:
+
+- Cursor fencing: replays are counted and never applied.
+- Heartbeats and connection changes are control frames: they never fence deltas.
+- Terminal states are sticky.
+- A newer epoch settles in-flight turns, runs, agents and tools to `unknown`
+  ("runtime restarted"). A first-seen epoch is a baseline, not a restart.
+- Snapshot authority: an open runtime entity missing from a reconnect snapshot
+  becomes `unknown`.
+- Orphan settlement: a tool call cannot outlive its owner.
+- Attempts: a turn or agent resumed in a newer epoch shows `attempt N`. A tool call
+  re-dispatched under the same call id becomes a separate attempt card, so
+  "attempt 1 unknown / attempt 2 running" stays visible.
+
+Liveness footer: disconnected time, epoch, cursor, open count, last-event and
+heartbeat age, context %, restarts and ignored replays. The TUI redraws it every
+second while the view is open.
+
+Provenance badges:
+
+- `verified`: checked evidence.
+- `receipt`: the runtime observed the tool call return. It says nothing about the
+  call's claim.
+- `agent-reported`, `test-build` and `unsourced`.
 
 ## Cross-surface parity
 
-The six synthetic fixtures in `crates/nanocodex-surface-state/fixtures/*.json` are event
-streams with clock steps; `*.cards.json` holds the golden projection. The Rust
-test and the JavaScript test reduce the same events and must produce the same
-golden cards, so the TUI and web cannot drift.
+The seven synthetic fixtures in `crates/nanocodex-surface-state/fixtures/*.json`
+are event streams with clock steps, and `*.cards.json` holds the golden projection.
+The Rust and JavaScript tests reduce the same events and must produce the same
+golden cards.
 
 ~~~sh
 export CARGO_TARGET_DIR=/srv/nanocodex/w/surface-target-A
-cargo test -p nanocodex-surface-state                         # 6 fixtures + wire round-trip + 3 real-producer journeys
-(cd js/nanocodex-surface-state && pnpm test)                  # 8 node tests + tsc type test
-cargo test -p nanocodex-tui-render --test card_stream         # every fixture at 40/80/120 columns
+cargo test -p nanocodex-surface-state                  # 7 fixtures + wire round-trip, 3 real-producer journeys
+(cd js/nanocodex-surface-state && pnpm test)           # 9 node tests (same goldens) + tsc type test
+cargo test -p nanocodex-tui-render --test card_stream  # every fixture at 40/80/120 columns
 cargo test -p nanocodex-bin --test nanocodex2_tui_lifecycle terminal_card_stream -- --nocapture
 ~~~
 
-Mutation check: changing one badge string only in `index.mjs` made 2 parity
-tests fail, so the comparison is effective.
-
 ## 1. Real TUI over a controlled managed service (PTY)
 
-Both journeys start the built `nanocodex` binary in a PTY against the test
-file's controlled managed service, press F7, and print the `vt100` screen
-(160x32). `cargo test -p nanocodex-bin --test nanocodex2_tui_lifecycle terminal_card_stream -- --nocapture`.
+Both journeys start the built `nanocodex` binary in a PTY against the test file's
+controlled managed service, press F7, and print the `vt100` screen (160x32).
 
 ### 1a. Restart receipt settles a running tool
 
-`terminal_card_stream_settles_tools_from_runtime_receipts`: `input.accepted`,
-`run.started` and two `tool.call`s (one completes); then the protocol's restart
-receipt (an unknown-outcome `tool.result` with `reason: runtime_restarted`); then
-the durable turn completion. The Turn card's subject is the accepted prompt.
+`terminal_card_stream_settles_tools_from_runtime_receipts`:
+
+1. `input.accepted` (the prompt becomes the Turn subject), `run.started` and two
+   `tool.call`s, one of which completes with a `receipt`.
+2. The protocol's restart receipt: an unknown-outcome `tool.result` with
+   `reason: runtime_restarted` and `epoch: 1`.
+3. The durable turn completion.
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpfPgfMU                                                                                                                                              │
+│ /tmp/.tmpVPEXTL                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_STREAM_JOURNEY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -63,7 +78,7 @@ the durable turn completion. The Turn card's subject is the accepted prompt.
   │ exec_command in /srv/cards                                                                                                                                 │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell echo CARD_PROBE ────────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 0s ─╮
-  │ [verified]                                                                                                                                                 │
+  │ [receipt]                                                                                                                                                  │
   │ exec_command                                                                                                                                               │
   │ exit 0 · 10 B output                                                                                                                                       │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -76,12 +91,14 @@ the durable turn completion. The Turn card's subject is the accepted prompt.
 ╰─ Enter steer · Tab queue · Esc Esc stop ────────────────────────────────────────────────────────────────────────────────────────────────────────── ◉ dev  ~ ─╯
 ~~~
 
-Restart receipt: the card settles to `unknown` instead of ticking:
+Restart receipt: the card settles to `unknown`, and the epoch named by the receipt advances the footer:
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpfPgfMU                                                                                                                                              │
+│ /tmp/.tmpVPEXTL                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─ TURN Turn CARD_STREAM_JOURNEY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+╭─ TURN Turn CARD_STREAM_JOURNEY ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── unknown ─╮
+│ [outcome unknown]                                                                                                                                            │
+│ runtime restarted                                                                                                                                            │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell cargo build --release -p card-stream-journey ──────────────────────────────────────────────────────────────────────────────────────── unknown ─╮
   │ [outcome unknown]                                                                                                                                          │
@@ -89,12 +106,12 @@ Restart receipt: the card settles to `unknown` instead of ticking:
   │ exec_command in /srv/cards                                                                                                                                 │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell echo CARD_PROBE ────────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 0s ─╮
-  │ [verified]                                                                                                                                                 │
+  │ [receipt]                                                                                                                                                  │
   │ exec_command                                                                                                                                               │
   │ exit 0 · 10 B output                                                                                                                                       │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-● epoch 0 · cursor 6 · 1 open · last event 0s ago
+● epoch 1 · cursor 7 · 0 open · last event 0s ago · 1 restart(s)
 ╭─ 0%/272k Thinking… ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 0s  gpt-6-astra  low ─╮
 │                                                                                                                                                              │
 │                                                                                                                                                              │
@@ -105,9 +122,10 @@ Restart receipt: the card settles to `unknown` instead of ticking:
 Durable turn completion (F7 then returns to the transcript, asserted):
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpfPgfMU                                                                                                                                              │
+│ /tmp/.tmpVPEXTL                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_STREAM_JOURNEY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 0s ─╮
+│ [outcome reconciled]                                                                                                                                         │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell cargo build --release -p card-stream-journey ──────────────────────────────────────────────────────────────────────────────────────── unknown ─╮
   │ [outcome unknown]                                                                                                                                          │
@@ -115,12 +133,12 @@ Durable turn completion (F7 then returns to the transcript, asserted):
   │ exec_command in /srv/cards                                                                                                                                 │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell echo CARD_PROBE ────────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 0s ─╮
-  │ [verified]                                                                                                                                                 │
+  │ [receipt]                                                                                                                                                  │
   │ exec_command                                                                                                                                               │
   │ exit 0 · 10 B output                                                                                                                                       │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-● epoch 0 · cursor 7 · 0 open · last event 0s ago
+● epoch 1 · cursor 8 · 0 open · last event 0s ago · 1 restart(s)
 ╭─ 0%/272k ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── gpt-6-astra  low ─╮
 │                                                                                                                                                              │
 │                                                                                                                                                              │
@@ -128,22 +146,24 @@ Durable turn completion (F7 then returns to the transcript, asserted):
 ╰─ Enter send · / actions · @ paths · @@ sessions ────────────────────────────────────────────────────────────────────────────────────────────────── ◉ dev  ~ ─╯
 ~~~
 
-### 1b. Reconnect adopts the surface snapshot
+### 1b. Dropped stream, then reconnect over the surface snapshot
 
 `terminal_card_stream_adopts_the_surface_snapshot_on_reconnect`: a shell call is
-running when the stream breaks. While disconnected, the service's
-`GET /v1/agents/:id/surface` answers with the body captured from the real producer
-(`fixtures/managed/child-surface-during.json`, rebased onto this turn, clock
-shifted to now, epoch 1). On Enter-to-reconnect the TUI catches up history, then
-reads the snapshot (`ManagedClient::surface`) and applies it after the replayed
-records. The lost call is not in the snapshot and its epoch is older, so it
-settles to `unknown`; the child agent's last report is from epoch 0, so it is
-`unknown` too; the snapshot's open calls appear nested under their owners.
+running when the stream breaks.
 
-Before the disconnect:
+- While disconnected, the footer says `disconnected Ns` and keeps aging on an idle
+  terminal (asserted at 0s and 1s).
+- The service's `GET /v1/agents/:id/surface` answers with a body captured from the
+  real producer (`fixtures/managed/child-surface-during.json`), rebased onto this
+  turn, clock-shifted to now, at epoch 1.
+- On Enter-to-reconnect the TUI catches up history, then reads the snapshot
+  (`ManagedClient::surface`) and applies it after the replayed records.
+- The lost call settles to `unknown`. The child agent's last report is from epoch 0,
+  so it is `unknown` too. The snapshot's open calls appear nested under their
+  owners.
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpA2vDYg                                                                                                                                              │
+│ /tmp/.tmpGBSR09                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -159,12 +179,30 @@ Before the disconnect:
 ╰─ Enter steer · Tab queue · Esc Esc stop ────────────────────────────────────────────────────────────────────────────────────────────────────────── ◉ dev  ~ ─╯
 ~~~
 
+Stream dropped:
+~~~text
+╭─ BRAIN Workspace ─╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮──────── attached ─╮
+│ /tmp/.tmpGBSR09   │ Could not reconnect: managed request failed (503 Service Unavailable): unavailable: try again. Press Enter to retry. │                   │
+╰───────────────────╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯───────────────────╯
+╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Shell cargo test -p lost-before-restart ──────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
+  │ exec_command                                                                                                                                               │
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+▲ disconnected 1s · epoch 0 · cursor 3 · 2 open · last event 1s ago
+╭─ 0%/272k Connection lost · Enter to reconnect ──────────────────────────────────────────────────────────────────────────────────────── 1s  gpt-6-astra  low ─╮
+│                                                                                                                                                              │
+│                                                                                                                                                              │
+│                                                                                                                                                              │
+╰─ send paused · keep editing ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── ◉ dev  ~ ─╯
+~~~
+
 After reconnect and the surface snapshot:
 ~~~text
-╭─ BRAIN Workspace ─────────────────────────────────────────────────────╭─────────────╮───────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpA2vDYg                                                       │ Reconnected │                                                                        │
-╰───────────────────────────────────────────────────────────────────────╰─────────────╯────────────────────────────────────────────────────────────────────────╯
-╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+╰───────────────────────────────────────────────────────────────────────╭─────────────╮────────────────────────────────────────────────────────────────────────╯
+╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────│ Reconnected │─────────────────────────────────────────────────────────── running 1s ─╮
+│ [attempt 2]                                                           ╰─────────────╯                                                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell cargo test -p lost-before-restart ─────────────────────────────────────────────────────────────────────────────────────────────────── unknown ─╮
   │ [outcome unknown]                                                                                                                                          │
@@ -176,19 +214,20 @@ After reconnect and the surface snapshot:
   │ last report predates the runtime restart                                                                                                                   │
   │ role: Surface child                                                                                                                                        │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ TOOL Code Mode ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+    ╭─ TOOL Code Mode ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
     │ exec                                                                                                                                                     │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-      ╭─ TOOL Shell ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+      ╭─ TOOL Shell ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
       │ exec_command                                                                                                                                           │
       ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-  ╭─ TOOL Code Mode ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+  ╭─ TOOL Code Mode ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
   │ exec                                                                                                                                                       │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ TOOL Wait for agent ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+    ╭─ TOOL Wait for agent ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
     │ wait_agent                                                                                                                                               │
-● epoch 1 · cursor 4 · 5 open · last event 0s ago · 1 restart(s)
-╭─ 0%/272k Thinking… ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 0s  gpt-6-astra  low ─╮
+    ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+● epoch 1 · cursor 4 · 5 open · last event 1s ago · 1 restart(s)
+╭─ 0%/272k Thinking… ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────── 1s  gpt-6-astra  low ─╮
 │                                                                                                                                                              │
 │                                                                                                                                                              │
 │                                                                                                                                                              │
@@ -198,9 +237,10 @@ After reconnect and the surface snapshot:
 Turn completed:
 ~~~text
 ╭─ BRAIN Workspace ─────────────────────────────────────────────────────╭─────────────╮───────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpA2vDYg                                                       │ Reconnected │                                                                        │
+│ /tmp/.tmpGBSR09                                                       │ Reconnected │                                                                        │
 ╰───────────────────────────────────────────────────────────────────────╰─────────────╯────────────────────────────────────────────────────────────────────────╯
-╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 0s ─╮
+╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 1s ─╮
+│ [attempt 2]                                                                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell cargo test -p lost-before-restart ─────────────────────────────────────────────────────────────────────────────────────────────────── unknown ─╮
   │ [outcome unknown]                                                                                                                                          │
@@ -212,17 +252,16 @@ Turn completed:
   │ last report predates the runtime restart                                                                                                                   │
   │ role: Surface child                                                                                                                                        │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ TOOL Code Mode ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+    ╭─ TOOL Code Mode ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
     │ exec                                                                                                                                                     │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-      ╭─ TOOL Shell ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
+      ╭─ TOOL Shell ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
       │ exec_command                                                                                                                                           │
       ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Code Mode ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── unknown ─╮
   │ [outcome unknown]                                                                                                                                          │
   │ owner ended without a tool result                                                                                                                          │
   │ exec                                                                                                                                                       │
-  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ● epoch 1 · cursor 5 · 2 open · last event 0s ago · 1 restart(s)
 ╭─ 0%/272k ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── gpt-6-astra  low ─╮
 │                                                                                                                                                              │
@@ -233,10 +272,9 @@ Turn completed:
 
 ## 2. Fixture journeys in a real terminal (tmux)
 
-`output/runthrough/tmux-fixtures.sh` (ignored) runs the
-`nanocodex-tui-render` example `card_stream live <fixture>` in a 100x48 tmux
-session, presses `n` per step and saves `tmux capture-pane -p`. The first line
-is the example's chrome.
+`output/runthrough/tmux-fixtures.sh` (ignored) runs the `nanocodex-tui-render` example
+`card_stream live <fixture>` in a 100x48 tmux session, presses `n` per step and saves
+`tmux capture-pane -p`. The first line is the example's chrome.
 
 ### Normal turn
 ~~~text
@@ -255,7 +293,7 @@ normal-turn · step 1/2: tool running   [n]ext [j/k] scroll [q]uit
   │ exec_command in /srv/repo on paradigm                                                          │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-● epoch 1 · cursor 4 · 2 open · last event 12s ago · heartbeat 1s ago · context 18%
+● epoch 1 · cursor 3 · 2 open · last event 12s ago · heartbeat 1s ago · context 18%
 ~~~
 ~~~text
 normal-turn · step 2/2: turn completed   [n]ext [j/k] scroll [q]uit
@@ -275,7 +313,7 @@ normal-turn · step 2/2: turn completed   [n]ext [j/k] scroll [q]uit
 ╭─ TURN Turn Run the surface-state tests ──────────────────────────────────────────── done in 38s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell cargo test -p nanocodex-surface-state ─────────────────────────────── done in 29s ─╮
-  │ [verified]                                                                                     │
+  │ [receipt]                                                                                      │
   │ exec_command in /srv/repo on paradigm                                                          │
   │ exit 0 · 17 KiB output                                                                         │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -332,7 +370,7 @@ subagent-swarm · step 1/1: swarm in flight   [n]ext [j/k] scroll [q]uit
     │ exec_command in /srv/repo on paradigm                                                        │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ AGENT dogfood-reviewer ────────────────────────────────────────────────────── done in 8m 13s ─╮
-● epoch 1 · cursor 19 · 4 open · last event 1m 20s ago · heartbeat 2s ago · context 71%
+● epoch 1 · cursor 18 · 4 open · last event 1m 20s ago · heartbeat 2s ago · context 71%
 ~~~
 
 ### Runtime restart mid-tool
@@ -416,12 +454,12 @@ restart-mid-tool · step 3/3: after restart: new turn and reconciled completion 
 ╭─ TURN Turn Status? ──────────────────────────────────────────────────────────────── running 30s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-● epoch 2 · cursor 8 · 1 open · last event 20s ago · heartbeat 2s ago · context 40% · 1 restart(s)
+● epoch 2 · cursor 7 · 1 open · last event 20s ago · heartbeat 2s ago · context 40% · 1 restart(s)
 ~~~
 
 ### Reconnect
 
-Connected, then three minutes without events (liveness turns to warn):
+Connected, then three minutes without events (the liveness footer warns):
 ~~~text
 reconnect · step 1/4: connected   [n]ext [j/k] scroll [q]uit
 ╭─ TURN Turn Index the docs ───────────────────────────────────────────────────────── running 20s ─╮
@@ -433,7 +471,7 @@ reconnect · step 1/4: connected   [n]ext [j/k] scroll [q]uit
   │ exec_command in /srv/repo on paradigm                                                          │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-● epoch 1 · cursor 11 · 3 open · last event 10s ago · heartbeat 1s ago
+● epoch 1 · cursor 10 · 3 open · last event 10s ago · heartbeat 1s ago
 ~~~
 ~~~text
 reconnect · step 2/4: disconnected for 3 minutes   [n]ext [j/k] scroll [q]uit
@@ -449,7 +487,7 @@ reconnect · step 2/4: disconnected for 3 minutes   [n]ext [j/k] scroll [q]uit
   │ exec_command in /srv/repo on paradigm                                                          │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-▲ epoch 1 · cursor 11 · 3 open · last event 3m 10s ago · heartbeat 3m 1s ago
+▲ epoch 1 · cursor 10 · 3 open · last event 3m 10s ago · heartbeat 3m 1s ago
 ~~~
 
 The reconnect snapshot lists only open entities; the missing call becomes `unknown`:
@@ -476,7 +514,7 @@ reconnect · step 4/4: deltas after snapshot: replays ignored, outcome reconcile
 ╭─ TURN Turn Index the docs ────────────────────────────────────────────────────── running 3m 25s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell rg -n surface docs ────────────────────────────────────────────────── done in 55s ─╮
-  │ [verified] [outcome reconciled]                                                                │
+  │ [receipt] [outcome reconciled]                                                                 │
   │ exec_command in /srv/repo on paradigm                                                          │
   │ exit 0 · 512 B output                                                                          │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -490,7 +528,7 @@ reconnect · step 4/4: deltas after snapshot: replays ignored, outcome reconcile
 
 ### Stale-summary detection
 
-The agent summary predates three newer changes in its subtree; Hand resources are 12 minutes old; context is 93%. Then both are refreshed:
+The agent summary predates three newer changes in its subtree, the Hand's resources are 12 minutes old, and context is at 93%. The second frame shows them refreshed:
 ~~~text
 stale-summary · step 1/2: summary and resources stale   [n]ext [j/k] scroll [q]uit
 ╭─ HAND paradigm ───────────────────────────────────────────────────────────────────────── online ─╮
@@ -507,22 +545,22 @@ stale-summary · step 1/2: summary and resources stale   [n]ext [j/k] scroll [q]
   │ summary (agent-reported) from cursor 5; 3 newer change(s) through cursor 8                     │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Shell cargo test -p nanocodex-managed ──────────────────────────────── done in 1m 20s ─╮
-    │ [verified]                                                                                   │
+    │ [receipt]                                                                                    │
     │ exec_command in /srv/repo on paradigm                                                        │
     │ exit 101 · 40 KiB output                                                                     │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Shell apply_patch crates/nanocodex-managed/src/lib.rs ──────────────── done in 1m 40s ─╮
-    │ [verified]                                                                                   │
+    │ [receipt]                                                                                    │
     │ exec_command in /srv/repo on paradigm                                                        │
     │ exit 0                                                                                       │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Shell cargo test -p nanocodex-managed ──────────────────────────────── done in 7m 10s ─╮
-    │ [verified]                                                                                   │
+    │ [receipt]                                                                                    │
     │ exec_command in /srv/repo on paradigm                                                        │
     │ exit 0 · 38 KiB output                                                                       │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 
-▲ epoch 1 · cursor 9 · 2 open · last event 20s ago · heartbeat 1s ago · context 93%
+▲ epoch 1 · cursor 8 · 2 open · last event 20s ago · heartbeat 1s ago · context 93%
 ~~~
 ~~~text
 stale-summary · step 2/2: summary refreshed   [n]ext [j/k] scroll [q]uit
@@ -547,17 +585,17 @@ stale-summary · step 2/2: summary refreshed   [n]ext [j/k] scroll [q]uit
   │ summary (agent-reported) current at cursor 10                                                  │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Shell cargo test -p nanocodex-managed ──────────────────────────────── done in 1m 20s ─╮
-    │ [verified]                                                                                   │
+    │ [receipt]                                                                                    │
     │ exec_command in /srv/repo on paradigm                                                        │
     │ exit 101 · 40 KiB output                                                                     │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Shell apply_patch crates/nanocodex-managed/src/lib.rs ──────────────── done in 1m 40s ─╮
-    │ [verified]                                                                                   │
+    │ [receipt]                                                                                    │
     │ exec_command in /srv/repo on paradigm                                                        │
     │ exit 0                                                                                       │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Shell cargo test -p nanocodex-managed ──────────────────────────────── done in 7m 10s ─╮
-    │ [verified]                                                                                   │
+    │ [receipt]                                                                                    │
     │ exec_command in /srv/repo on paradigm                                                        │
     │ exit 0 · 38 KiB output                                                                       │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -567,7 +605,7 @@ stale-summary · step 2/2: summary refreshed   [n]ext [j/k] scroll [q]uit
 
 ### Orphaned tool calls
 
-The turn completes while a Code Mode cell and its nested call never reported; a late "running" replay for the nested call is rejected:
+The turn completes while a Code Mode cell and its nested call never reported results. A late "running" replay for the nested call is rejected:
 ~~~text
 orphaned-tool · step 1/2: code mode cell with nested call running   [n]ext [j/k] scroll [q]uit
 ╭─ TURN Turn Summarize the logs ───────────────────────────────────────────────────── running 20s ─╮
@@ -579,7 +617,7 @@ orphaned-tool · step 1/2: code mode cell with nested call running   [n]ext [j/k
     │ read_file                                                                                    │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell wc -l app.log ──────────────────────────────────────────────────────── done in 1s ─╮
-  │ [verified]                                                                                     │
+  │ [receipt]                                                                                      │
   │ exec_command                                                                                   │
   │ exit 0                                                                                         │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -601,7 +639,7 @@ orphaned-tool · step 2/2: turn completes without the tool results   [n]ext [j/k
     │ read_file                                                                                    │
     ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell wc -l app.log ──────────────────────────────────────────────────────── done in 1s ─╮
-  │ [verified]                                                                                     │
+  │ [receipt]                                                                                      │
   │ exec_command                                                                                   │
   │ exit 0                                                                                         │
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -609,29 +647,85 @@ orphaned-tool · step 2/2: turn completes without the tool results   [n]ext [j/k
 ● epoch 0 · cursor 6 · 0 open · last event 1s ago
 ~~~
 
+### Control frames and attempts
+
+The four frames show:
+
+1. A first-seen epoch 7 is a baseline, so no restart is counted.
+2. A heartbeat at cursor 40 does not drop a delayed completion at cursor 5.
+3. The dropped stream shows in the footer.
+4. After epoch 8 the turn resumes as attempt 2.
+~~~text
+control-frames · step 1/4: first observed epoch 7 is a baseline, not a restart   [n]ext [j/k] scroll
+╭─ TURN Turn Run the suite ─────────────────────────────────────────────────────────── running 3s ─╮
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Shell pnpm test ──────────────────────────────────────────────────────────── running 2s ─╮
+  │ exec_command                                                                                   │
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+● epoch 7 · cursor 4 · 2 open · last event 2s ago · heartbeat 4s ago · context 12%
+~~~
+~~~text
+control-frames · step 2/4: heartbeat high-water does not drop a delayed completion   [n]ext [j/k] sc
+╭─ TURN Turn Run the suite ────────────────────────────────────────────────────────── running 10s ─╮
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Shell pnpm test ──────────────────────────────────────────────────────────── done in 8s ─╮
+  │ [receipt]                                                                                      │
+  │ exec_command                                                                                   │
+  │ exit 0                                                                                         │
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+● epoch 7 · cursor 5 · 1 open · last event 1s ago · heartbeat 2s ago · context 12%
+~~~
+~~~text
+control-frames · step 3/4: stream dropped   [n]ext [j/k] scroll [q]uit
+╭─ TURN Turn Run the suite ────────────────────────────────────────────────────────── running 43s ─╮
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Shell pnpm test ──────────────────────────────────────────────────────────── done in 8s ─╮
+  │ [receipt]                                                                                      │
+  │ exec_command                                                                                   │
+  │ exit 0                                                                                         │
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+▲ disconnected 30s · epoch 7 · cursor 5 · 1 open · last event 34s ago · heartbeat 35s ago · context…
+~~~
+~~~text
+control-frames · step 4/4: reconnected after a restart: the turn resumes as attempt 2   [n]ext [j/k]
+╭─ TURN Turn Run the suite ────────────────────────────────────────────────────────── running 48s ─╮
+│ [attempt 2]                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Shell pnpm test ──────────────────────────────────────────────────────────── done in 8s ─╮
+  │ [receipt]                                                                                      │
+  │ exec_command                                                                                   │
+  │ exit 0                                                                                         │
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+● epoch 8 · cursor 7 · 1 open · last event 1s ago · heartbeat 40s ago · context 12% · 1 restart(s)
+~~~
+
 ## 3. Web render
 
 `node js/nanocodex-surface-state/scripts/render-fixtures.mjs <out> --chrome <chrome-headless-shell>`
-reduces every fixture step with the JavaScript mirror and writes standalone HTML
-(`renderCardStreamHtml` plus `styles.css`) and a headless-Chromium PNG per step:
-14 of each in this run, kept in ignored `output/surface-state-web/` rather than
-committed. The parity test also asserts every projected card id appears in the
-rendered HTML.
-
+reduces every fixture step with the JavaScript mirror. For each step it writes
+standalone HTML (`renderCardStreamHtml` plus `styles.css`) and a headless-Chromium
+PNG: 18 of each in this run, kept in ignored `output/surface-state-web/` rather
+than committed. The parity test also asserts that every projected card id appears
+in the rendered HTML.
 
 ## 4. Real producer output through the shared adapter
 
-`crates/nanocodex-surface-state/tests/managed_producer.rs` reduces history pages
-and `GET /surface` bodies captured by the managed surface-state curl recovery
-journey (protocol branch, run `2026-10-12T20-59-29.567Z-675b6ed4`), copied into
-`fixtures/managed/`, with goldens beside them. Frames below are
-`card_stream cards <golden> --width 110 --height 34` (example in
-`nanocodex-tui-render`).
+`crates/nanocodex-surface-state/tests/managed_producer.rs` reduces history pages and
+`GET /surface` bodies captured by the managed surface-state curl recovery journey
+(protocol branch, run `2026-10-12T20-59-29.567Z-675b6ed4`). The captures are copied
+into `fixtures/managed/` with their goldens. Frames below are
+`card_stream cards <golden> --width 110 --height 34`.
 
 ### Root reconnect across a runtime restart
 
 History up to cursor 10, then the real post-restart snapshot (epoch 1, cursor 13,
-no open runs or calls), then only the deltas after the snapshot cursor:
+no open runs or calls), then only the deltas after the snapshot cursor. The
+runtime re-dispatches the cell under the same call ids, and that renders as
+separate attempt cards:
 
 frame 1: connected: cell and nested shell running (110x34)
 ~~~text
@@ -650,6 +744,7 @@ frame 1: connected: cell and nested shell running (110x34)
 frame 2: reconnect: surface snapshot at epoch 1 (110x34)
 ~~~text
 ╭─ TURN Turn SURFACE_ROOT: apply S1 once. ────────────────────────────────────────────────────── running 1s ─╮
+│ [attempt 2]                                                                                                │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"curl -s -X POST https://effects.example/e…  unknown ─╮
   │ [outcome unknown]                                                                                        │
@@ -668,9 +763,21 @@ frame 2: reconnect: surface snapshot at epoch 1 (110x34)
 frame 3: deltas after the snapshot cursor (110x34)
 ~~~text
 ╭─ TURN Turn SURFACE_ROOT: apply S1 once. ────────────────────────────────────────────────────── done in 2s ─╮
+│ [attempt 2]                                                                                                │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"curl -s -X POST https://effects.example/e…  unknown ─╮
+  │ [outcome unknown]                                                                                        │
+  │ runtime restarted while disconnected                                                                     │
+  │ exec                                                                                                     │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Shell curl -s -X POST https://effects.example/effect/S1 ─────────────────────────────── unknown ─╮
+    │ [outcome unknown]                                                                                      │
+    │ runtime restarted while disconnected                                                                   │
+    │ exec_command                                                                                           │
+    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"curl -s -X POST https://effects.example/ef…  failed ─╮
-  │ [verified]                                                                                               │
+  │ [receipt]                                                                                                │
+  │ attempt 2: re-dispatched under the same call id                                                          │
   │ exec                                                                                                     │
   │ 358 B output                                                                                             │
   ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -683,14 +790,11 @@ frame 3: deltas after the snapshot cursor (110x34)
 ● epoch 1 · cursor 10 · 0 open · last event 0s ago · 1 restart(s)
 ~~~
 
-The recovered attempt's nested effect reports `outcome: unknown`
-(`CODE_MODE_CALL_INTERRUPTED`), so it stays `unknown`; the cell itself has a
-definitive failed receipt.
+The recovered attempt's nested effect reports `outcome: unknown` (`CODE_MODE_CALL_INTERRUPTED`), so it stays `unknown`. The cell attempt itself has a failed receipt.
 
 ### Child swarm from snapshots alone
 
-A surface attaching mid-swarm builds the tree from the snapshot; the post-restart
-snapshot closes the lost calls and shows the child's new work:
+A surface attaching mid-swarm builds the tree from the snapshot. The post-restart snapshot then closes the lost calls and shows the child's new work:
 
 frame 1: attach: snapshot during the swarm (110x34)
 ~~~text
@@ -722,6 +826,7 @@ frame 2: snapshot after restart: child moved on (110x34)
 │ runtime restarted while disconnected                                                                       │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ AGENT Surface child ─────────────────────────────────────────────────────────────────────── running 0s ─╮
+  │ [attempt 2]                                                                                              │
   │ role: Surface child                                                                                      │
   ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Code Mode ───────────────────────────────────────────────────────────────────────────── unknown ─╮
@@ -749,26 +854,30 @@ frame 2: snapshot after restart: child moved on (110x34)
     │ [outcome unknown]                                                                                      │
     │ runtime restarted while disconnected                                                                   │
     │ wait_agent                                                                                             │
-    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ● epoch 1 · cursor 2 · 3 open · last event 0s ago · 1 restart(s)
 ~~~
 
 ### Full captured child history (no snapshot)
 
+The child's card takes its role (`Surface child`) from the real `spawn_agent` receipt:
+
 frame 1: full child history (110x34)
 ~~~text
 ╭─ TURN Turn SURFACE_SPAWN: delegate S2 to one child. ────────────────────────────────────────── done in 2s ─╮
+│ [attempt 2]                                                                                                │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Code Mode text(await tools.spawn_agent({"role":"Surface child","task":"SURFACE_CHILD…  done in 0s ─╮
-  │ [verified]                                                                                               │
+  │ [receipt]                                                                                                │
   │ exec                                                                                                     │
   ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Spawn agent ──────────────────────────────────────────────────────────────────────── done in 0s ─╮
-    │ [verified]                                                                                             │
+    │ [receipt]                                                                                              │
     │ spawn_agent                                                                                            │
     │ 66 B output                                                                                            │
     ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-  ╭─ AGENT Agent 1 A directed message from the root agent was delivered by the sub-agent runti…  running 0s ─╮
+  ╭─ AGENT Surface child A directed message from the root agent was delivered by the sub-agent…  running 0s ─╮
+  │ [attempt 2]                                                                                              │
+  │ role: Surface child                                                                                      │
   ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"curl -s -X POST https://effects.example…  unknown ─╮
     │ [outcome unknown]                                                                                      │
@@ -781,42 +890,50 @@ frame 1: full child history (110x34)
       │ exec_command                                                                                         │
       ╰──────────────────────────────────────────────────────────────────────────────────────────────────────╯
     ╭─ TOOL Code Mode text(await tools.exec_command({cmd:"curl -s -X POST https://effects.exam…  done in 0s ─╮
-    │ [verified]                                                                                             │
+    │ [receipt]                                                                                              │
     │ exec                                                                                                   │
     ╰────────────────────────────────────────────────────────────────────────────────────────────────────────╯
       ╭─ TOOL Shell curl -s -X POST https://effects.example/effect/S3 ────────────────────────── done in 0s ─╮
-      │ [verified]                                                                                           │
+      │ [receipt]                                                                                            │
       │ exec_command                                                                                         │
-      │ exit 0 · 18 B output                                                                                 │
-      ╰──────────────────────────────────────────────────────────────────────────────────────────────────────╯
-    ╭─ TOOL Code Mode text(await tools.submit_result({output:"CHILD_RESUMED_WITHOUT_REPEAT"}));  done in 0s ─╮
-● epoch 1 · cursor 31 · 1 open · last event 0s ago · 1 restart(s)
+● epoch 1 · cursor 32 · 1 open · last event 0s ago · 1 restart(s)
 ~~~
 
 ## Adopting the shared state from Mission Control (variant A)
 
-`tui/card_stream.rs` owns the TUI's single `CardStreamView`: one shared
-`SurfaceState` plus the shared `AgentEventAdapter`, fed by `observe(&TranscriptRecord)`,
-`observe_subagent(&AgentUpdate)` and `apply_snapshot(&SurfaceSnapshot)`, and read via
-`projection(now_ms)`. Variant A's `surface.rs` maps onto it one to one:
-`SurfaceState::snapshot` becomes `apply_snapshot`, `observe`/`subagent` become
-`observe`/`observe_subagent`, `footer` becomes `projection.liveness.label`,
-`row_count`/`row_scope` become `projection.cards` (ids `agent:<n>`,
-`tool:<owner>:<call>`, `turn:<id>`), and `panel` renders those cards (pinned Status
-first, then the task tree by `depth`). Mission Control and the card stream then
-become two renderers over one projection.
+`tui/card_stream.rs` owns the TUI's single `CardStreamView`: one shared `SurfaceState`
+plus the shared `AgentEventAdapter`. It is fed by `observe(&TranscriptRecord)`,
+`observe_subagent(&AgentUpdate)`, `apply_snapshot(&SurfaceSnapshot)` and
+`connection(bool)`, and read through `projection(now_ms)`.
+
+Variant A's `surface.rs` maps onto it one to one:
+
+| Variant A `surface.rs` | Shared `CardStreamView` |
+|---|---|
+| `SurfaceState::snapshot` | `apply_snapshot` |
+| `observe` / `subagent` | `observe` / `observe_subagent` |
+| `footer` | `projection.liveness.label` |
+| `row_count` / `row_scope` | `projection.cards` (ids `turn:<id>`, `agent:<n>`, `tool:<owner>:<call>[#attempt]`) |
+| `panel` | renders those cards: pinned Status first, then the task tree by `depth` |
 
 ## Known gaps
 
 - Hand, Decision and Status cards are modeled, reduced, projected and rendered
-  (fixtures above), but the managed stream carries no Hand resources,
-  decisions or Status items yet, so the live TUI shows Turn, Agent, Tool and
-  Workspace cards.
-- The TUI reads the surface snapshot on reconnect only; first attach still
-  builds cards from the history replay. The TUI history projection drops
-  `runtime_epoch` frames (protocol branch), so live epochs arrive via the
-  snapshot's `epoch` and the unknown-outcome `tool.result`s.
-- Snapshot tool calls carry no arguments, so a call first seen in a snapshot has
-  no subject line.
-- The JavaScript package mirrors the reducer and projection; the managed
-  adapter is Rust-only so far, and no web app mounts the card stream yet.
+  (fixtures above), but the managed stream carries no Hand resources, decisions
+  or Status items yet. The live TUI shows Turn, Agent, Tool and Workspace cards.
+- First attach still builds cards from the history replay; only reconnect reads
+  the snapshot.
+- The snapshot lists open entities only, so work that finished during a gap is
+  known only from the replayed history. The TUI replays the gap before applying
+  the snapshot.
+- Producer cursors are not passed through: the adapter numbers events locally,
+  so per-agent cursor spaces cannot collide. A watermark vector is needed before
+  surfaces fence on producer cursors directly.
+- A Code Mode cell that only yields (its process is still alive) still shows
+  "owner ended without a tool result". A detached-process state needs
+  `/surface.process_sessions` wired to calls.
+- Tool calls first seen in a snapshot have no subject line, because snapshots
+  carry no arguments.
+- F7 state does not persist across re-attach.
+- The JavaScript package mirrors the reducer and projection; the managed adapter
+  is Rust-only, and no web app mounts the card stream yet.
