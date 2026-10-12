@@ -1038,6 +1038,24 @@ evidence as `managed-curl-durability`.
   or `Last-Event-ID`; same-origin browser WebSockets carry the typed
   prompt/steer/cancel protocol. Realtime calls and sideband transport have
   separate agent-scoped WebSocket routes.
+- Every open lifecycle entity reaches a terminal state, including across
+  Session loss. When a cold Session finds work the lost runtime left open
+  (tool calls, runs or accepted turns), it appends one `runtime_epoch` event
+  (`epoch`, `reason: "runtime_restarted"` and the interrupted tool calls,
+  runs and turns), then one `tool.result` per open root or child call with
+  `status: "failed"`, `outcome_unknown: true` and `structured_result`
+  `{code: "TOOL_CALL_INTERRUPTED", outcome: "unknown", reason:
+  "runtime_restarted", epoch}`, before recovery resumes. A recovered run that
+  replays the same call id publishes a new `tool.call`/`tool.result` attempt
+  after the epoch. An idle restart publishes nothing. `runtime_epoch` is sent
+  only to readers that pass `surface=1` on `/events` or `/events/history`;
+  WebSockets, turn streams and older clients never receive it, while the
+  unknown-outcome results reach every reader.
+- `GET /v1/agents/:id/surface` returns the open entities at one durable cursor:
+  `{protocol, epoch, cursor, generated_at, runtime_loaded, turns, runs, agents,
+  tool_calls, process_sessions}`. Reconnecting clients render it, then resume
+  `/events?cursor=<cursor>&surface=1` for deltas. `agents` holds each child's
+  latest reported state with the epoch it was reported in.
 - API key resolution validates live account membership, scope, and authorization
   epoch inside the key object. This avoids serial edge-to-account round trips;
   raw-key resolution never caches authority. Short-lived signed snapshots above
