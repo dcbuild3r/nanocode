@@ -1,0 +1,72 @@
+/* Card stream for nanocodex-surface-state projections (renderCardStreamHtml). */
+.ncs-stream {
+  --ncs-bg: #0f1115;
+  --ncs-card: #171a21;
+  --ncs-border: #2a2f3a;
+  --ncs-text: #e6e8ee;
+  --ncs-muted: #8b93a7;
+  --ncs-info: #7aa2f7;
+  --ncs-live: #2ac3de;
+  --ncs-ok: #9ece6a;
+  --ncs-warn: #e0af68;
+  --ncs-error: #f7768e;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--ncs-bg);
+  color: var(--ncs-text);
+  font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.ncs-card {
+  margin-left: calc(var(--ncs-depth, 0) * 20px);
+  padding: 8px 12px;
+  border: 1px solid var(--ncs-border);
+  border-left: 3px solid var(--ncs-tone, var(--ncs-border));
+  border-radius: 10px;
+  background: var(--ncs-card);
+}
+.ncs-card.ncs-pinned { box-shadow: 0 0 0 1px var(--ncs-tone, var(--ncs-border)) inset; }
+.ncs-card header { display: flex; align-items: baseline; gap: 8px; min-height: 22px; }
+.ncs-kind {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ncs-muted);
+}
+.ncs-title { font-weight: 600; }
+.ncs-subject {
+  flex: 1;
+  overflow: hidden;
+  color: var(--ncs-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ncs-state { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--ncs-tone); white-space: nowrap; }
+.ncs-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.ncs-badge {
+  padding: 0 6px;
+  border: 1px solid var(--ncs-tone);
+  border-radius: 999px;
+  color: var(--ncs-tone);
+  font-size: 11px;
+}
+.ncs-lines { margin: 4px 0 0; padding: 0; list-style: none; }
+.ncs-line { color: var(--ncs-tone); white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.ncs-liveness {
+  padding: 6px 12px;
+  border-top: 1px solid var(--ncs-border);
+  color: var(--ncs-tone);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.ncs-tone-text { --ncs-tone: var(--ncs-text); }
+.ncs-tone-muted { --ncs-tone: var(--ncs-muted); }
+.ncs-tone-info { --ncs-tone: var(--ncs-info); }
+.ncs-tone-live { --ncs-tone: var(--ncs-live); }
+.ncs-tone-ok { --ncs-tone: var(--ncs-ok); }
+.ncs-tone-warn { --ncs-tone: var(--ncs-warn); }
+.ncs-tone-error { --ncs-tone: var(--ncs-error); }
