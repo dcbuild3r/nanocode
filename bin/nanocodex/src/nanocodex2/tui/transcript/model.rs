@@ -639,10 +639,16 @@ impl TranscriptModel {
             "reasoning.summary.delta" => self.reasoning_delta(record),
             "run.started" => {
                 let scope = RunScope::new(record);
+                // Process sessions belong to their host, not the run that polls them.
+                let background = self.background_shell_ids();
                 let unfinished = self
                     .tool_owners
                     .iter()
-                    .filter(|(_, owner)| owner.turn == scope.turn && owner.child == scope.child)
+                    .filter(|(id, owner)| {
+                        !background.contains(id)
+                            && owner.turn == scope.turn
+                            && owner.child == scope.child
+                    })
                     .map(|(id, _)| *id)
                     .collect::<Vec<_>>();
                 self.settle_unfinished_tools(&unfinished);
@@ -667,10 +673,16 @@ impl TranscriptModel {
             }),
             "run.unknown" => {
                 let scope = RunScope::new(record);
+                // Process sessions belong to their host, not the run that polls them.
+                let background = self.background_shell_ids();
                 let unfinished = self
                     .tool_owners
                     .iter()
-                    .filter(|(_, owner)| owner.turn == scope.turn && owner.child == scope.child)
+                    .filter(|(id, owner)| {
+                        !background.contains(id)
+                            && owner.turn == scope.turn
+                            && owner.child == scope.child
+                    })
                     .map(|(id, _)| *id)
                     .collect::<Vec<_>>();
                 self.settle_unfinished_tools(&unfinished);

@@ -65,3 +65,33 @@ logic in one change.
   no live running timer for that Shell. Inspected `context-overflow.txt`: footer
   visibly contains `context 108% WARNING >100%`.
 - `git diff --check`: passed. Existing compiler warnings remain unchanged.
+
+## Alignment with proposed `surface_state_v1` (spec PR #986)
+
+Reviewed `docs/surface-state/DESIGN.md` at `71dc128e6` after initial publication.
+This branch is explicitly a **legacy / best-effort** projection, now labeled in
+the pinned card; it does not advertise v1 capability. Tree execution states
+refer to assignments/runs, not the permanent lifetime of reusable Agents.
+ProcessSession ownership remains with the host: new-run and run-unknown
+fallbacks exempt retained background process cards. Approval, cancel requests,
+completion delivery and external effects stay in separate existing paths;
+this panel adds no approval, retry or cancellation actions.
+
+Intentional draft divergences pending the upstream ledger:
+
+- Legacy events lack canonical run/attempt IDs and entity revisions. The panel
+  shows the latest assignment per agent, not a v1 attempt ledger. Unknown stops
+  activity but legacy results can refine it without `surface.reconciled`; this
+  is not versioned authoritative reconciliation. Canonical v1 unknown must be
+  terminal per attempt, with resumed execution receiving a new attempt ID.
+- Epoch consumption is defensive legacy fallback, not producer-fenced recovery.
+  An epoch alone cannot certify external effect settlement.
+- No snapshot is requested/applied. Replay is not a consistent snapshot: v1
+  must atomically bind entities to `through_cursor` (or a multi-stream watermark
+  vector), buffer later deltas and replace only a complete authorized scope.
+- Stale report is an age observation, not dependency-revision-aware summary
+  invalidation. Status lacks canonical revisions and evidence references and
+  never labels work verified.
+
+These divergences keep this reviewable UI alternative independent of concurrent
+producer/protocol changes. They are integration gates, not claims of v1 support.

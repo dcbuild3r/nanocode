@@ -207,7 +207,7 @@ impl SurfaceState {
             .filter(|e| e.state == "completed")
             .count();
         let mut text = format!(
-            "Status · event evidence\nDone: {completed} (not verified)\nIn progress: {running}\nBlocked/unknown: {unknown}\nNext: inspect unknown receipts\n\nTask tree\n"
+            "Status · legacy / best-effort\nDone: {completed} (not verified)\nIn progress: {running}\nBlocked/unknown: {unknown}\nNext: inspect unknown receipts\n\nTask tree · assignment states\n"
         );
         for (id, e) in &self.entities {
             let age = now.saturating_sub(e.at) / 1000;
