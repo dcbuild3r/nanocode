@@ -674,12 +674,13 @@ orphaned-tool · step 2/2: turn completes without the tool results   [n]ext [j/k
 
 ### Control frames and attempts
 
-The four frames show:
+The five frames show:
 
 1. A first-seen epoch 7 is a baseline, so no restart is counted.
 2. A heartbeat at cursor 40 does not drop a delayed completion at cursor 5.
 3. The dropped stream shows in the footer.
 4. After epoch 8 the turn resumes as attempt 2.
+5. A yielded Code Mode cell leaves its nested shell detached (still running), not unknown, and a Hand observation does not refresh the last-event age.
 ~~~text
 control-frames · step 1/5: first observed epoch 7 is a baseline, not a restart   [n]ext [j/k] scroll
 ╭─ TURN Turn Run the suite ─────────────────────────────────────────────────────────── running 3s ─╮
@@ -726,6 +727,30 @@ control-frames · step 4/5: reconnected after a restart: the turn resumes as att
   ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ● epoch 8 · cursor 7 · 1 open · last event 1s ago · heartbeat 40s ago · context 12% · 1 restart(s)
+~~~
+~~~text
+control-frames · step 5/5: cell yields: nested call detached; hand observation is not an event   [n]
+╭─ HAND paradigm ───────────────────────────────────────────────────────────────────────── online ─╮
+│ CPU 9% · observed 1s ago                                                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ TURN Turn Run the suite ─────────────────────────────────────────────────────── running 1m 18s ─╮
+│ [attempt 2]                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Shell pnpm test ──────────────────────────────────────────────────────────── done in 8s ─╮
+  │ [receipt]                                                                                      │
+  │ exec_command                                                                                   │
+  │ exit 0                                                                                         │
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ╭─ TOOL Code Mode await tools.exec_command({cmd: 'sleep 600'}) ───────────────────── done in 6s ─╮
+  │ [receipt]                                                                                      │
+  │ exec                                                                                           │
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────╯
+    ╭─ TOOL Shell sleep 600 ───────────────────────────────────────────────────────── running 27s ─╮
+    │ [detached]                                                                                   │
+    │ exec_command                                                                                 │
+    ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+
+● epoch 8 · cursor 11 · 2 open · last event 22s ago · heartbeat 1m 10s ago · context 12% · 1 restar…
 ~~~
 
 ## 3. Web render
@@ -1046,9 +1071,12 @@ Variant A's `surface.rs` maps onto it one to one:
 - Producer cursors are not passed through: the adapter numbers events locally,
   so per-agent cursor spaces cannot collide. A watermark vector is needed before
   surfaces fence on producer cursors directly.
-- A Code Mode cell that only yields (its process is still alive) still shows
-  "owner ended without a tool result". A detached-process state needs
-  `/surface.process_sessions` wired to calls.
+- A yielded cell's nested call shows `detached` while its turn runs. If the turn
+  ends with the call still unreported, the call settles to `unknown` even if its
+  process lives on. Wiring `/surface.process_sessions` to calls would tell
+  these apart.
+- Resumed turns and agents keep one card with an `attempt N` badge (same id,
+  newer epoch). Re-dispatched tool calls get separate attempt cards.
 - Tool calls first seen in a snapshot have no subject line, because snapshots
   carry no arguments.
 - F7 state does not persist across re-attach.
