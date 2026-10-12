@@ -823,6 +823,9 @@ fn mission_control_journey() {
         let fingerprint = harness.fingerprint();
         harness.render();
         assert_eq!(fingerprint, harness.fingerprint());
+        save_frame(name, &harness);
+    }
+    fn save_frame(name: &str, harness: &Harness) {
         let buffer = harness.terminal.backend().buffer();
         let frame = buffer
             .content()
@@ -861,6 +864,44 @@ fn mission_control_journey() {
         "swarm",
         records.clone(),
         &["claude", "shell-1", "Task tree"],
+    );
+    let mut navigation_records = records.clone();
+    for id in 8..20 {
+        navigation_records.push(record(
+            id,
+            "run.started",
+            json!({"model":"gpt-6-astra","family":"codex"}),
+            Some(id),
+        ));
+    }
+    let mut navigation = Harness::from_records(navigation_records, 140, 48);
+    navigation.key_update(KeyCode::F(6), KeyModifiers::NONE);
+    navigation.key_update(KeyCode::End, KeyModifiers::NONE);
+    navigation.render();
+    assert!(navigation.screen_text().contains("row 15"));
+    save_frame("tree-scrolled", &navigation);
+    navigation.key_update(KeyCode::Home, KeyModifiers::NONE);
+    navigation.key_update(KeyCode::Enter, KeyModifiers::NONE);
+    navigation.render();
+    assert!(
+        navigation.screen_text().contains("#10"),
+        "{}",
+        navigation.screen_text()
+    );
+    save_frame("selected-agent", &navigation);
+    let mut evidence_records = records.clone();
+    evidence_records.push(record(4, "tool.result", json!({"call_id":"shell-1", "tool":"exec_command", "status":"completed", "duration_ns":1, "result":"fixture receipt", "structured_result":{"evidence":{"kind":"test_build"}}}),None));
+    capture(
+        "test-build",
+        evidence_records,
+        &["test-build", "agent-reported"],
+    );
+    let mut evidence_records = records.clone();
+    evidence_records.push(record(4, "tool.result", json!({"call_id":"shell-1", "tool":"exec_command", "status":"completed", "duration_ns":1, "result":"fixture receipt"}),None));
+    capture(
+        "verified-receipt",
+        evidence_records,
+        &["verified: receipt only"],
     );
     records.push(record(4, "runtime.epoch", json!({"epoch":2}), None));
     capture(

@@ -468,6 +468,8 @@ pub(crate) enum DraftReset {
 
 /// Owns layout and routing so future screen components do not widen the event loop.
 pub(crate) struct RootNode {
+    mission_focused: bool,
+    mission_selected: usize,
     capabilities: crate::nanocodex2::tui::backend::Capabilities,
     transcript: Node<Transcript>,
     composer: Node<Composer>,
@@ -604,6 +606,8 @@ impl RootNode {
             confirmed_queue_edit: None,
             theme_mode: ThemeMode::Auto,
             preferred_reasoning_mode: ReasoningMode::Standard,
+            mission_focused: false,
+            mission_selected: 0,
             subagents,
             surface: Default::default(),
             pending_recent_prompts: false,
@@ -1053,12 +1057,36 @@ impl RootNode {
             height: area.height.saturating_sub(1),
             ..area
         };
+        self.mission_selected = self
+            .mission_selected
+            .min(self.surface.row_count().saturating_sub(1));
+        if area.width < 100 && self.mission_focused {
+            frame.render_widget(
+                Paragraph::new(self.surface.panel(
+                    now,
+                    self.mission_selected,
+                    true,
+                    usize::from(area.height.saturating_sub(13) / 6).max(1),
+                ))
+                .wrap(Wrap { trim: false })
+                .block(
+                    ratatui::widgets::Block::bordered().title(" Mission Control · F6/Esc back "),
+                ),
+                area,
+            );
+            return;
+        }
         if area.width >= 100 {
             let side = Rect::new(area.right().saturating_sub(38), area.y, 38, area.height);
             frame.render_widget(
-                Paragraph::new(self.surface.panel(now))
-                    .wrap(Wrap { trim: false })
-                    .block(ratatui::widgets::Block::bordered().title(" Mission Control ")),
+                Paragraph::new(self.surface.panel(
+                    now,
+                    self.mission_selected,
+                    self.mission_focused,
+                    usize::from(side.height.saturating_sub(13) / 6).max(1),
+                ))
+                .wrap(Wrap { trim: false })
+                .block(ratatui::widgets::Block::bordered().title(" Mission Control ")),
                 side,
             );
             area.width = area.width.saturating_sub(38);
@@ -1353,6 +1381,48 @@ impl RootNode {
     fn update_terminal(&mut self, event: Event) -> ComponentUpdate<RootEffect> {
         if let Some(writable) = self.shared_thread {
             return self.shared_terminal(event, writable);
+        }
+        if self.overlay.is_none()
+            && let Event::Key(key) = &event
+            && key.kind == KeyEventKind::Press
+        {
+            if key.code == KeyCode::F(6) {
+                self.mission_focused = !self.mission_focused;
+                return ComponentUpdate::render(RenderRequest::Immediate);
+            }
+            if self.mission_focused {
+                let last = self.surface.row_count().saturating_sub(1);
+                match key.code {
+                    KeyCode::Down => {
+                        self.mission_selected = self.mission_selected.saturating_add(1).min(last)
+                    }
+                    KeyCode::Up => self.mission_selected = self.mission_selected.saturating_sub(1),
+                    KeyCode::PageDown => {
+                        self.mission_selected = self.mission_selected.saturating_add(5).min(last)
+                    }
+                    KeyCode::PageUp => {
+                        self.mission_selected = self.mission_selected.saturating_sub(5)
+                    }
+                    KeyCode::Home => self.mission_selected = 0,
+                    KeyCode::End => self.mission_selected = last,
+                    KeyCode::Esc => self.mission_focused = false,
+                    KeyCode::Enter => {
+                        if let Some(scope) = self.surface.row_scope(self.mission_selected) {
+                            if scope == "root" {
+                                self.mission_focused = false;
+                            } else if let Ok(id) = scope.parse::<AgentId>()
+                                && self.subagents.contains(id)
+                            {
+                                self.overlay =
+                                    Some(Overlay::Subagents(SubagentOverlay::Transcript(id)));
+                                self.mission_focused = false;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                return ComponentUpdate::render(RenderRequest::Immediate);
+            }
         }
         if self.voice_status.is_some() && is_control_key(&event, 'x') {
             if matches!(&event, Event::Key(key) if key.kind != KeyEventKind::Press) {

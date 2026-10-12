@@ -47,10 +47,10 @@ verification. A missing upstream epoch event remains visibly unreported.
 
 This variant consumes existing transcript and child updates. It does not add
 snapshot/delta transport, heartbeat production, authoritative process-session
-ownership, persisted evidence-backed plans, or task-tree keyboard navigation.
+ownership, or persisted evidence-backed plans.
 Status is derived event evidence, not an agent-authored verified/next plan.
-The side pane has no independent scroll control yet; large trees clip to the
-available height. Ages advance on normal TUI redraws, not a separate heartbeat.
+The side pane scrolls by selected row; F6 focuses it, arrows/page keys move,
+Home/End jump, Enter opens the selected agent transcript, and Esc/F6 exits. Ages advance on normal TUI redraws, not a separate heartbeat.
 Family is unknown when the runtime supplies no family field. The historical
 transcript reducer still owns card layout and existing completion rules; the new
 reducer owns the Mission Control projection, rather than replacing all history
@@ -95,3 +95,374 @@ Intentional draft divergences pending the upstream ledger:
 
 These divergences keep this reviewable UI alternative independent of concurrent
 producer/protocol changes. They are integration gates, not claims of v1 support.
+
+
+## Round 2: keyboard navigation and provenance
+
+F6 focuses the task pane. Up/Down, PageUp/PageDown and Home/End navigate a
+window over loaded rows; the pinned Status remains visible while rows scroll.
+Enter focuses the selected child transcript using the existing SubagentTree
+viewer. Selecting root returns to the root transcript. Escape/F6 returns focus
+to the composer. On narrow terminals, focused Mission Control uses the whole
+content area rather than accepting keys against an invisible pane.
+
+Provenance is explicitly scoped: ordinary agent/run reports say `agent-reported`;
+a received tool result says `verified: receipt only`, not verified external effect
+or completed engineering work. Structured test-build evidence is labeled
+`test-build · agent-reported`, never deployment/installation. Unknown outcome
+receipts say `runtime receipt · effect unknown`. No agent-selected verified flag
+is interpreted as authoritative verification.
+
+The fixture journey now drives actual F6/End/Home/Enter events over a 15-row
+swarm and asserts that selecting agent 10 opens the #10 transcript. Additional
+captures assert test-build and receipt-only provenance.
+
+Protocol integration remains conditional on publication of
+`feat/surface-state-protocol`: at this round's inspection `git ls-remote` returned
+no published branch, and the producer status still listed curl recovery E2E and
+Rust client support outstanding. Its working tree currently uses `runtime_epoch`
+and GET `/surface` (`protocol`, `epoch`, `cursor`, `generated_at`, `turns`, `runs`,
+`agents`, `tool_calls`, `process_sessions`), not the proposed dotted event or
+`through_cursor`. This draft does not silently claim consumption of those
+unpublished names, nor invent a fixture labeled as real protocol output.
+
+## Captured terminal excerpts (round 2)
+
+These are actual fixture-renderer captures, not design sketches. Right-pane
+crops and the footer are retained below; blank rows are omitted. The selected
+agent frame retains its full-width nonblank rows. Full frames remain in ignored
+`output/mission-control/`.
+
+### normal
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 0 (not verified)              │
+│In progress: 1                      │
+│Blocked/unknown: 0                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│1 loaded · row 1                    │
+│root [running] · NO SIGNAL          │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+└────────────────────────────────────┘
+stream offline/replay | epoch unreported | event 99s ago | context ?
+```
+
+### swarm
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 0 (not verified)              │
+│In progress: 3                      │
+│Blocked/unknown: 0                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 loaded · row 1                    │
+│root → 7 [running] · NO SIGNAL      │
+│  claude / claude-opus-4-6          │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root [running] · NO SIGNAL          │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/shell-1 [running] · NO SIGNAL  │
+│  family ? / model ?                │
+│  exec_command · 99s                │
+│  agent-reported                    │
+└────────────────────────────────────┘
+stream offline/replay | epoch unreported | event 99s ago | context ?
+```
+
+### restart
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 0 (not verified)              │
+│In progress: 0                      │
+│Blocked/unknown: 3                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 loaded · row 1                    │
+│root → 7 [unknown] · stale report   │
+│  claude / claude-opus-4-6          │
+│  runtime restarted; outcome unknown│
+│· 99s                               │
+│  agent-reported                    │
+│root [unknown] · stale report       │
+│  codex / gpt-6-astra               │
+│  runtime restarted; outcome unknown│
+│· 99s                               │
+│  agent-reported                    │
+│root/shell-1 [unknown] · stale      │
+│report                              │
+│  family ? / model ?                │
+│  runtime restarted; outcome unknown│
+│· 99s                               │
+│  agent-reported                    │
+└────────────────────────────────────┘
+    └── ? Shell   … · completion unknown · outcome unknown · tool call ended without a terminal result
+stream offline/replay | epoch 2 | event 99s ago | context ?
+```
+
+### reconnect
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 0 (not verified)              │
+│In progress: 1                      │
+│Blocked/unknown: 2                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 loaded · row 1                    │
+│root → 7 [unknown] · stale report   │
+│  claude / claude-opus-4-6          │
+│  runtime restarted; outcome unknown│
+│· 99s                               │
+│  agent-reported                    │
+│root [running] · NO SIGNAL          │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/shell-1 [unknown] · stale      │
+│report                              │
+│  family ? / model ?                │
+│  runtime restarted; outcome unknown│
+│· 99s                               │
+│  agent-reported                    │
+└────────────────────────────────────┘
+    └── ? Shell   … · completion unknown · outcome unknown · tool call ended without a terminal result
+stream offline/replay | epoch 2 | event 99s ago | context ?
+```
+
+### stale-summary
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 1                      │
+│Blocked/unknown: 1                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 loaded · row 1                    │
+│root → 7 [completed] · stale report │
+│  claude / claude-opus-4-6          │
+│  run.completed · 99s               │
+│  agent-reported                    │
+│root [running] · NO SIGNAL          │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/shell-1 [unknown] · stale      │
+│report                              │
+│  family ? / model ?                │
+│  runtime restarted; outcome unknown│
+│· 99s                               │
+│  agent-reported                    │
+└────────────────────────────────────┘
+    └── ? Shell   … · completion unknown · outcome unknown · tool call ended without a terminal result
+stream offline/replay | epoch 2 | event 99s ago | context ?
+```
+
+### fallback
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 0 (not verified)              │
+│In progress: 1                      │
+│Blocked/unknown: 1                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│2 loaded · row 1                    │
+│root [running] · NO SIGNAL          │
+│  family ? / model ?                │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/fallback-shell [unknown] ·     │
+│stale report                        │
+│  family ? / model ?                │
+│  new run; no terminal receipt · 99s│
+│  agent-reported                    │
+└────────────────────────────────────┘
+    └── ? Shell   … · completion unknown · outcome unknown · tool call ended without a terminal result
+stream offline/replay | epoch unreported | event 99s ago | context ?
+```
+
+### context-overflow
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 1                      │
+│Blocked/unknown: 1                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 loaded · row 1                    │
+│root → 7 [completed] · stale report │
+│  claude / claude-opus-4-6          │
+│  run.completed · 99s               │
+│  agent-reported                    │
+│root [running] · NO SIGNAL          │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/shell-1 [unknown] · stale      │
+│report                              │
+│  family ? / model ?                │
+│  runtime restarted; outcome unknown│
+│· 99s                               │
+│  agent-reported                    │
+└────────────────────────────────────┘
+    └── ? Shell   … · completion unknown · outcome unknown · tool call ended without a terminal result
+stream offline/replay | epoch 2 | event 99s ago | context 108% WARNING >100%
+```
+
+### tree-scrolled
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 0 (not verified)              │
+│In progress: 15                     │
+│Blocked/unknown: 0                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│15 loaded · row 15                  │
+│root → 7 [running] · NO SIGNAL      │
+│  claude / claude-opus-4-6          │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root → 8 [running] · NO SIGNAL      │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root → 9 [running] · NO SIGNAL      │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root [running] · NO SIGNAL          │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│> root/shell-1 [running] · NO SIGNAL│
+│  family ? / model ?                │
+│  exec_command · 99s                │
+│  agent-reported                    │
+└────────────────────────────────────┘
+stream offline/replay | epoch unreported | event 99s ago | context ?
+```
+
+### selected-agent
+
+```text
+╭────────────────────────────────────── Agent 10 · Astra · #10 ──────────────────────────────────────╮┌ Mission Control ───────────────────┐
+│                                                                                                    ││Status · legacy / best-effort       │
+│                                                                                                    ││Done: 0 (not verified)              │
+│                                                                                                    ││In progress: 15                     │
+│                                                                                                    ││Blocked/unknown: 0                  │
+│                                                                                                    ││Next: inspect unknown receipts      │
+│                                                                                                    ││Task tree · assignment states       │
+│                                                                                                    ││F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│                                                                                                    ││15 loaded · row 1                   │
+│                                                                                                    ││root → 10 [running] · NO SIGNAL     │
+│                                                                                                    ││  codex / gpt-6-astra               │
+│                                                                                                    ││  run.started · 99s                 │
+│                                                                                                    ││  agent-reported                    │
+│                                                                                                    ││root → 11 [running] · NO SIGNAL     │
+│                                                                                                    ││  codex / gpt-6-astra               │
+│                                                                                                    ││  run.started · 99s                 │
+│                                                                                                    ││  agent-reported                    │
+│                                            ▓▓██  ██░░░░                                            ││root → 12 [running] · NO SIGNAL     │
+│                                      ▒▒▓▓                ░░░░                                      ││  codex / gpt-6-astra               │
+│                                    ▒▒                        ░░                                    ││  run.started · 99s                 │
+│                                  ░░                            ░░                                  ││  agent-reported                    │
+│                                  ░░         nanocodex          ░░                                  ││root → 13 [running] · NO SIGNAL     │
+│                                  ░░                            ░░                                  ││  codex / gpt-6-astra               │
+│                                    ░░                        ░░                                    ││  run.started · 99s                 │
+│                                      ░░░░                ░░░░                                      ││  agent-reported                    │
+│                                            ░░░░  ░░░░░░                                            ││root → 14 [running] · NO SIGNAL     │
+│                                                                                                    ││  codex / gpt-6-astra               │
+│                                                                                                    ││  run.started · 99s                 │
+│                                                                                                    ││  agent-reported                    │
+│                   pgup/pgdn scroll · ctrl+home/end · ctrl+o expand all · esc back                  ││                                    │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────╯└────────────────────────────────────┘
+stream offline/replay | epoch unreported | event 99s ago | context ?
+```
+
+### test-build
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 2                      │
+│Blocked/unknown: 0                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 loaded · row 1                    │
+│root → 7 [running] · NO SIGNAL      │
+│  claude / claude-opus-4-6          │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root [running] · NO SIGNAL          │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/shell-1 [completed] · stale    │
+│report                              │
+│  family ? / model ?                │
+│  exec_command · 99s                │
+│  test-build · agent-reported       │
+└────────────────────────────────────┘
+    └── × Shell  $ echo fixture · completion unknown · 0ms
+stream offline/replay | epoch unreported | event 99s ago | context ?
+```
+
+### verified-receipt
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 2                      │
+│Blocked/unknown: 0                  │
+│Next: inspect unknown receipts      │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 loaded · row 1                    │
+│root → 7 [running] · NO SIGNAL      │
+│  claude / claude-opus-4-6          │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root [running] · NO SIGNAL          │
+│  codex / gpt-6-astra               │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/shell-1 [completed] · stale    │
+│report                              │
+│  family ? / model ?                │
+│  exec_command · 99s                │
+│  verified: receipt only            │
+└────────────────────────────────────┘
+    └── × Shell  $ echo fixture · completion unknown · fixture receipt · 0ms
+stream offline/replay | epoch unreported | event 99s ago | context ?
+```

@@ -22,6 +22,7 @@ struct Entity {
     step: String,
     at: u64,
     tool: bool,
+    evidence: String,
 }
 impl SurfaceState {
     pub(crate) fn observe(&mut self, record: &TranscriptRecord) {
@@ -92,6 +93,7 @@ impl SurfaceState {
             step: String::new(),
             at,
             tool,
+            evidence: "agent-reported".into(),
         });
         if at < entity.at {
             return;
@@ -110,6 +112,16 @@ impl SurfaceState {
             .or_else(|| p["name"].as_str())
             .unwrap_or(kind)
             .into();
+        if kind == "tool.result" {
+            entity.evidence = if p["outcome_unknown"] == true {
+                "runtime receipt · effect unknown"
+            } else if p["structured_result"]["evidence"]["kind"] == "test_build" {
+                "test-build · agent-reported"
+            } else {
+                "verified: receipt only"
+            }
+            .into();
+        }
         entity.state = match kind {
             "run.started" | "tool.call" => "running",
             "run.completed" => "completed",
@@ -148,6 +160,7 @@ impl SurfaceState {
                     step: d.role.clone(),
                     at,
                     tool: false,
+                    evidence: "agent-reported".into(),
                 });
             }
             AgentUpdate::Event { id, event } => {
@@ -190,7 +203,16 @@ impl SurfaceState {
             self.epoch.as_deref().unwrap_or("unreported")
         )
     }
-    pub(crate) fn panel(&self, now: u64) -> String {
+    pub(crate) fn row_count(&self) -> usize {
+        self.entities.len()
+    }
+    pub(crate) fn row_scope(&self, selected: usize) -> Option<&str> {
+        self.entities
+            .values()
+            .nth(selected)
+            .map(|e| e.scope.as_str())
+    }
+    pub(crate) fn panel(&self, now: u64, selected: usize, focused: bool, limit: usize) -> String {
         let running = self
             .entities
             .values()
@@ -209,7 +231,13 @@ impl SurfaceState {
         let mut text = format!(
             "Status · legacy / best-effort\nDone: {completed} (not verified)\nIn progress: {running}\nBlocked/unknown: {unknown}\nNext: inspect unknown receipts\n\nTask tree · assignment states\n"
         );
-        for (id, e) in &self.entities {
+        let first = selected.saturating_sub(limit.saturating_sub(1));
+        text.push_str(&format!(
+            "F6 tree · ↑↓/PgUp/PgDn · Enter\n{} loaded · row {}\n",
+            self.entities.len(),
+            selected.saturating_add(1).min(self.entities.len())
+        ));
+        for (index, (id, e)) in self.entities.iter().enumerate().skip(first).take(limit) {
             let age = now.saturating_sub(e.at) / 1000;
             let stale = if age > 60 && e.state == "running" {
                 " · NO SIGNAL"
@@ -219,7 +247,12 @@ impl SurfaceState {
                 ""
             };
             text.push_str(&format!(
-                "{}{} [{}]{}\n  {} / {}\n  {} · {age}s\n",
+                "{}{}{} [{}]{}\n  {} / {}\n  {} · {age}s\n  {}\n",
+                if index == selected && focused {
+                    "> "
+                } else {
+                    ""
+                },
                 if e.scope == "root" {
                     "".into()
                 } else {
@@ -230,7 +263,8 @@ impl SurfaceState {
                 stale,
                 e.family,
                 e.model,
-                e.step
+                e.step,
+                e.evidence
             ));
         }
         text
