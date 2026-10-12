@@ -993,9 +993,14 @@ pub enum ManagedEventData {
         /// Stream failure detail.
         error: String,
     },
-    /// The durable runtime restarted and began a new epoch. Delivered only to
-    /// surface-state readers. Every tool call it lists is also closed by an
-    /// ordinary unknown-outcome tool.result event that follows it.
+    /// Transport-ready observation; never advances the durable event cursor.
+    SurfaceReady {
+        /// Epoch observed in the transport ready frame (not a durable event).
+        epoch: u64,
+        /// Runtime construction counter; compare only with an earlier observation.
+        runtime_generation: u64,
+    },
+    /// Durable recovery marker with interrupted entity identities.
     RuntimeEpoch {
         /// Monotonic runtime epoch for this agent.
         epoch: u64,
@@ -1269,6 +1274,18 @@ impl ManagedEventData {
                 let value: StreamFailed = decode_raw(raw)?;
                 Ok(Self::StreamFailed { error: value.error })
             }
+            "surface_ready" => {
+                #[derive(Deserialize)]
+                struct SurfaceReady {
+                    epoch: u64,
+                    runtime_generation: u64,
+                }
+                let value: SurfaceReady = decode_raw(raw)?;
+                Ok(Self::SurfaceReady {
+                    epoch: value.epoch,
+                    runtime_generation: value.runtime_generation,
+                })
+            }
             "runtime_epoch" => {
                 let value: RuntimeEpoch = decode_raw(raw)?;
                 Ok(Self::RuntimeEpoch {
@@ -1320,7 +1337,8 @@ impl ManagedEventData {
             Self::AgentCreated { .. }
             | Self::Event { .. }
             | Self::StreamFailed { .. }
-            | Self::RuntimeEpoch { .. } => None,
+            | Self::RuntimeEpoch { .. }
+            | Self::SurfaceReady { .. } => None,
         }
     }
 
@@ -1358,6 +1376,7 @@ impl ManagedEventData {
             Self::Event { .. } => "event",
             Self::StreamFailed { .. } => "stream_failed",
             Self::RuntimeEpoch { .. } => "runtime_epoch",
+            Self::SurfaceReady { .. } => "surface_ready",
         }
     }
 }

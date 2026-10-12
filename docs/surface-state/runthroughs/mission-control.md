@@ -16,7 +16,7 @@ Esc/F6 exits. Narrow terminals use a full-content focused task pane. Context is
 first in the footer so an overflow warning is not hidden behind stream text.
 
 Evidence labels are deliberately scoped: `agent-reported`, `test-build ·
-agent-reported`, `verified: receipt only`, and `runtime receipt · effect unknown`.
+agent-reported`, `receipt`, and `runtime receipt · effect unknown`.
 No receipt proves deployment, installation or an external effect. Age alone
 never marks legitimate slow tools failed, stale or no-signal. The stream says
 `observed (health unconfirmed)` or `unconfirmed/replay`; neither claims a live
@@ -84,13 +84,13 @@ The typed snapshot adapter consumes `protocol`, `epoch`, `cursor`, `generated_at
 `runs`, `agents`, and `tool_calls`; the consumer fixture hydrates cursor 10 then
 applies later real deltas. **Full live panel snapshot replacement, process/turn
 resource hydration, and snapshot/replay race equivalence are not shipped here.**
-`ready.surface.runtime_generation` is not yet bound to retained process health.
+`ready.surface.runtime_generation` is now bound to retained process/cell observations
+across reconnects; see the host-generation run below.
 This is partial integration, not full `surface_state_v1` conformance.
 
-Latest validation: 351 TUI tests passed (2 ignored), 62 managed-client tests
-passed, native binary build passed. The new websocket/attempt revision has not
-independently undergone a fresh real-workerd SIGKILL run here; the older real
-producer fixture and deterministic renderer journeys are the captured evidence.
+Latest validation: 351 TUI tests passed (2 ignored), 63 managed-client tests
+passed, native binary build passed. The host-generation revision also underwent
+a fresh isolated real-workerd SIGKILL run, captured below.
 
 `bin/nanocodex/fixtures/surface-state/README.md` records exact producer capture
 provenance. The test replays actual curl output from agent 2's workerd recovery
@@ -126,6 +126,7 @@ has an unknown receipt. With no epoch authority (for example legacy loopback
 `/surface` 404), the footer says `recovery unobservable`. This cannot infer that
 a process died merely because it vanished from a partial list or a socket broke;
 without host-generation evidence, retained/unconfirmed is the honest state.
+With a later observed generation or epoch, those bindings now settle unknown.
 
 Reviewer agent 5 independently ran both variants on the protocol workerd stack
 and reported epoch 1/2/3 arriving through Mission Control's SSE path. That is
@@ -390,6 +391,7 @@ context ? | event 99s ago | epoch unreported; recovery unobservable | stream unc
 │                                                                                                    ││Blocked/unknown: 0                  │
 │                                                                                                    ││Retained calls: 0 (unconfirmed)     │
 │                                                                                                    ││Next: inspect task evidence         │
+│                                                                                                    ││                                    │
 │                                                                                                    ││Task tree · assignment states       │
 │                                                                                                    ││F6 tree · ↑↓/PgUp/PgDn · Enter      │
 │                                                                                                    ││5 shown / 15 loaded · row 2         │
@@ -413,6 +415,20 @@ context ? | event 99s ago | epoch unreported; recovery unobservable | stream unc
 │                                                                                                    ││  codex / gpt-6-astra               │
 │                                                                                                    ││  run.started · 99s                 │
 │                                                                                                    ││  agent-reported                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
+│                                                                                                    ││                                    │
 │                   pgup/pgdn scroll · ctrl+home/end · ctrl+o expand all · esc back                  ││                                    │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────╯└────────────────────────────────────┘
 context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
@@ -472,7 +488,7 @@ context ? | event 99s ago | epoch unreported; recovery unobservable | stream unc
 │root/shell-1 [completed]            │
 │  family ? / model ?                │
 │  exec_command · 99s                │
-│  verified: receipt only            │
+│  receipt                           │
 └────────────────────────────────────┘
     └── × Shell  $ echo fixture · completion unknown · fixture receipt · 0ms
 context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
@@ -583,14 +599,17 @@ context ? | event 99s ago | epoch unreported; recovery unobservable | stream unc
 │  agent-reported                    │
 │root/surface-root-cell [unknown]    │
 │  family ? / model ?                │
-│  exec · 0s                         │
+│  runtime restarted; reconcile      │
+│receipt · 0s                        │
 │  runtime receipt · effect unknown  │
 │root/surface-root-cell/code-1       │
 │[unknown]                           │
 │  family ? / model ?                │
-│  exec_command · 0s                 │
+│  runtime restarted; reconcile      │
+│receipt · 0s                        │
 │  runtime receipt · effect unknown  │
 └────────────────────────────────────┘
+    └── ? Shell   … · completion unknown · outcome unknown · tool call ended without a terminal result
 context ? | event 0s ago | epoch 1 | stream unconfirmed/replay
 ```
 
@@ -648,7 +667,7 @@ context ? | event 99s ago | epoch unreported; recovery unobservable | stream unc
 │  family ? / model ?                │
 │  runtime restarted; reconcile      │
 │receipt · 99s                       │
-│  yielded · liveness unconfirmed    │
+│  runtime receipt · effect unknown  │
 │root/cell [retained] · liveness     │
 │unconfirmed                         │
 │  family ? / model ?                │
@@ -695,10 +714,164 @@ has a distinct completed card. Captured by the production TestBackend journey.
 │root/a2/retry [completed]           │
 │  family ? / model ?                │
 │  exec_command · 99s                │
-│  verified: receipt only            │
+│  receipt                           │
 └────────────────────────────────────┘
-  ▶ ? Tools  2 calls · 1 outcome unknown · 0ms
     ├── ? Shell  $ echo attempt1 · completion unknown · 0ms
-    └── ✓ Shell  $ echo attempt2 · exit 0 · 0ms
 context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
+
+## Host generation follow-up
+
+`ready.surface` is decoded into a local `SurfaceReady` observation. It carries
+the current durable cursor, does **not** advance that cursor, and is delivered
+before reconnect replay. A first observation only establishes a baseline. A
+later generation increase or known epoch increase invalidates retained process
+and Code Mode bindings, including open nested children: `unknown`, reason
+`host runtime lost`. Successful completed child calls are not reopened. This is
+loss of the runtime binding, not proof the external OS process was killed.
+Legacy servers without metadata remain explicitly unconfirmed.
+
+The managed-client websocket integration test reconnects at the same cursor,
+observes generation 1 then 2 with unchanged epoch 0, and asserts observations do
+not consume/skip either following durable event. The production-renderer journey
+captures the no-change first baseline and idle generation-only invalidation.
+
+On 2026-10-12 this agent ran a separate instance of reviewer's real workerd
+harness (producer checkout `20c486203`, port 43830, task-owned stack directory),
+attached the newly built TUI, and submitted scripted `SLEEP 180`. Before owner
+loss the Code Mode/shell bindings were retained. SIGKILL and same-port restart
+at 21:49:19–21:49:24 yielded two unknown rows and zero retained calls, with the
+transcript reporting `host runtime lost; process outcome unknown`. This was
+real transport + persisted SQLite/R2 + scripted model, not a deployed account.
+No reviewer-owned process was killed. The task-owned workerd and tmux sessions
+were stopped after capturing. Full frames: swarm output/mission-generation-live.
+
+### host-runtime-lost
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 1                      │
+│Blocked/unknown: 1                  │
+│Retained calls: 0 (unconfirmed)     │
+│Next: inspect task evidence         │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 shown / 3 loaded · row 1          │
+│root [completed] · 1 unresolved     │
+│calls                               │
+│  codex / gpt-6-astra               │
+│  run.completed · 99s               │
+│  agent-reported                    │
+│root → 7 [running]                  │
+│  claude / claude-opus-4-6          │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/shell-1 [unknown]              │
+│  family ? / model ?                │
+│  host runtime lost · 99s           │
+│  runtime receipt · effect unknown  │
+└────────────────────────────────────┘
+    └── ? Shell … · session 42 · completion unknown · host runtime lost; process outcome unknown · 0ms
+context ? | event 99s ago | epoch 0 | stream unconfirmed/replay
+```
+
+### Live before/after owner loss
+
+before
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 0                      │
+│Blocked/unknown: 0                  │
+│Retained calls: 2 (unconfirmed)     │
+│Next: inspect task evidence         │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 shown / 3 loaded · row 1          │
+│root [completed]                    │
+│  family ? / gpt-6.1-sol            │
+│  run.completed · 12s               │
+│  agent-reported                    │
+│root/sleep-49b8d2 [retained] ·      │
+│liveness unconfirmed                │
+│  family ? / model ?                │
+│  exec · 12s                        │
+│  yield receipt · completion        │
+│unconfirmed                         │
+│root/sleep-49b8d2/code-1 [retained] │
+│· liveness unconfirmed              │
+│  family ? / model ?                │
+│  exec_command · 23s                │
+│  yielded · liveness unconfirmed    │
+└────────────────────────────────────┘
+    └── ◌ Shell  $ echo starting; sleep 180; echo finished · 23.5s
+context 0% | event 12s ago | epoch 0 | stream observed (health unconfirmed)
+```
+
+after
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 0                      │
+│Blocked/unknown: 2                  │
+│Retained calls: 0 (unconfirmed)     │
+│Next: inspect task evidence         │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 shown / 3 loaded · row 1          │
+│root [completed] · 2 unresolved     │
+│calls                               │
+│  family ? / gpt-6.1-sol            │
+│  run.completed · 21s               │
+│  agent-reported                    │
+│root/sleep-49b8d2 [unknown]         │
+│  family ? / model ?                │
+│  host runtime lost · 21s           │
+│  runtime receipt · effect unknown  │
+│root/sleep-49b8d2/code-1 [unknown]  │
+│  family ? / model ?                │
+│  host runtime lost · 32s           │
+│  runtime receipt · effect unknown  │
+└────────────────────────────────────┘
+    └── ? Shell  $ echo starting;  … · completion unknown · host runtime lost; process outcome unknown
+context 0% | event 4s ago | epoch 1 | stream observed (health unconfirmed)
+```
+
+## Shared reducer adoption assessment (#988)
+
+Recommendation: adopt `nanocodex-surface-state` as the single lifecycle reducer
+under this layout, not merge Card Stream's layout. Inspected its serde-only
+crate at `4f467534d`: `AgentEventAdapter` handles managed history/snapshots,
+`SurfaceState::apply` fences deltas and settles epochs, and `Projection.cards`
+provides stable IDs, depth, pinned status, badges and semantic tone. These map
+naturally to the current side pane; keep F6/tree scrolling/transcript focus as
+presentation-only state and change selection from index to stable card ID.
+
+Before replacing the current reducer:
+1. Carry producer-supplied attempt IDs through the adapter/snapshot, rather than
+   deriving attempts from arrival order. Preserve authoritative terminal unknown
+   per attempt; allow refinement only for explicitly inferred uncertainty.
+2. Add the generation observation as transport metadata (no manufactured durable
+   cursor), and bind retained process/cell entities. Do not equate generation
+   with epoch or a socket timeout with process death.
+3. Route a watermark-consistent live snapshot + deltas into one reducer; keep
+   partial snapshots from retiring unrelated entities. Separate durable producer
+   cursor from local adapter bookkeeping and preserve replay order.
+4. Feed shared cards/liveness into Mission Control and remove its duplicate
+   BTreeMap lifecycle state. Keep historical transcript formatting, but drive
+   lifecycle presentation from the same entity IDs rather than a second truth.
+5. Gate the swap on common fixtures for idle generation change, same-call retry,
+   cross-agent ID collision, unknown terminals, reconnect gaps and 30-child
+   navigation. Repeat this live retained-process owner-loss run against both
+   layouts; compare projections, not screenshot cosmetics.
+
+This is an evaluated adoption plan, not a claim the dependency was integrated.
+The inspected adapter snapshot shape omitted generation and explicit attempt,
+and its reconciliation policy needs alignment with the terminal-per-attempt
+contract. Wholesale swapping it now would regress fixes demonstrated here.

@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 #[derive(Clone, Default)]
 pub(crate) struct SurfaceState {
     pub(crate) epoch: Option<String>,
+    runtime_generation: Option<u64>,
     pub(crate) last_event: Option<u64>,
     pub(crate) connected: bool,
     entities: BTreeMap<String, Entity>,
@@ -37,6 +38,7 @@ impl SurfaceState {
         }
         let mut next = Self::default();
         next.epoch = Some(snapshot.epoch.to_string());
+        next.runtime_generation = Some(snapshot.runtime_generation);
         for run in &snapshot.runs {
             let scope = run
                 .agent_id
@@ -101,11 +103,43 @@ impl SurfaceState {
         *self = next;
         Some(snapshot.cursor.clone())
     }
+    fn lose_retained_host(&mut self) {
+        for entity in self.entities.values_mut().filter(|e| e.retained) {
+            entity.retained = false;
+            entity.state = "unknown".into();
+            entity.step = "host runtime lost".into();
+            entity.evidence = "runtime receipt · effect unknown".into();
+        }
+    }
     pub(crate) fn observe(&mut self, record: &TranscriptRecord) {
         let kind = record.kind();
         let p = record.decode_payload::<Value>().unwrap_or(Value::Null);
         let at = record.recorded_at_unix_ms();
         self.last_event = Some(self.last_event.unwrap_or(0).max(at));
+        if kind == "surface_ready" {
+            let generation = p["runtime_generation"].as_u64();
+            let epoch = p["epoch"].as_u64();
+            let changed = generation
+                .zip(self.runtime_generation)
+                .is_some_and(|(next, old)| next > old)
+                || epoch
+                    .zip(self.epoch.as_ref().and_then(|v| v.parse::<u64>().ok()))
+                    .is_some_and(|(next, old)| next > old);
+            if changed {
+                self.lose_retained_host();
+            }
+            self.runtime_generation = generation.or(self.runtime_generation);
+            self.epoch = p.get("epoch").map(identity).or(self.epoch.clone());
+            return;
+        }
+        if kind == "runtime_epoch"
+            && p["epoch"]
+                .as_u64()
+                .zip(self.epoch.as_ref().and_then(|v| v.parse::<u64>().ok()))
+                .is_some_and(|(next, old)| next > old)
+        {
+            self.lose_retained_host();
+        }
         let scope = record
             .managed_agent_id()
             .map_or_else(|| "root".into(), |id| id.to_string());
@@ -268,7 +302,7 @@ impl SurfaceState {
             } else if p["structured_result"]["evidence"]["kind"] == "test_build" {
                 "test-build · agent-reported"
             } else {
-                "verified: receipt only"
+                "receipt"
             }
             .into();
         }

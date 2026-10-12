@@ -37,6 +37,7 @@ impl Received {
             ManagedEventData::TurnFailed { .. } => ("turn.failed", true, 0),
             ManagedEventData::Event { event, .. } => ("agent.event", false, event.get().len()),
             ManagedEventData::StreamFailed { .. } => ("stream.failed", false, 0),
+            ManagedEventData::SurfaceReady { .. } => ("surface.ready", false, 0),
             ManagedEventData::RuntimeEpoch { .. } => ("runtime.epoch", false, 0),
         };
         Self {

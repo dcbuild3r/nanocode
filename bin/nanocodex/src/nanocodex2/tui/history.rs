@@ -218,6 +218,13 @@ pub(super) fn live_managed_projection(
             })?;
             (record, None)
         }
+        ManagedEventData::SurfaceReady {
+            epoch,
+            runtime_generation,
+        } => (
+            TranscriptRecord::surface_ready(*next_sequence, timestamp, epoch, runtime_generation),
+            None,
+        ),
         ManagedEventData::RuntimeEpoch {
             epoch,
             reason,
@@ -356,6 +363,18 @@ pub(super) fn history_projection_with_sequences(
                     })?;
                     Ok(Some((Arc::new(record), None)))
                 }
+                ManagedEventData::SurfaceReady {
+                    epoch,
+                    runtime_generation,
+                } => Ok(Some((
+                    Arc::new(TranscriptRecord::surface_ready(
+                        sequence,
+                        timestamp,
+                        *epoch,
+                        *runtime_generation,
+                    )),
+                    None,
+                ))),
                 ManagedEventData::RuntimeEpoch {
                     epoch,
                     reason,

@@ -899,11 +899,7 @@ fn mission_control_journey() {
     );
     let mut evidence_records = records.clone();
     evidence_records.push(record(4, "tool.result", json!({"call_id":"shell-1", "tool":"exec_command", "status":"completed", "duration_ns":1, "result":"fixture receipt"}),None));
-    capture(
-        "verified-receipt",
-        evidence_records,
-        &["verified: receipt only"],
-    );
+    capture("verified-receipt", evidence_records, &["receipt"]);
     let mut baseline = records.clone();
     baseline.push(record(4, "runtime.epoch", json!({"epoch":"7"}), None));
     capture("epoch-baseline", baseline, &["In progress: 2", "epoch 7"]);
@@ -922,8 +918,35 @@ fn mission_control_journey() {
     retained.push(record(5, "run.completed", json!({}), None));
     capture(
         "retained-process",
-        retained,
+        retained.clone(),
         &["[retained]", "Blocked/unknown: 0", "unconfirmed"],
+    );
+    retained.push(record(
+        6,
+        "surface_ready",
+        json!({"epoch":0,"runtime_generation":1}),
+        None,
+    ));
+    capture(
+        "host-baseline",
+        retained.clone(),
+        &["[retained]", "Blocked/unknown: 0"],
+    );
+    retained.push(record(
+        7,
+        "surface_ready",
+        json!({"epoch":0,"runtime_generation":2}),
+        None,
+    ));
+    capture(
+        "host-runtime-lost",
+        retained,
+        &[
+            "host runtime lost",
+            "[unknown]",
+            "Retained calls: 0",
+            "completion unknown",
+        ],
     );
     records.push(record(
         4,

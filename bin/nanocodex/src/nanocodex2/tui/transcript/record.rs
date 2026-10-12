@@ -187,6 +187,27 @@ impl TranscriptRecord {
         Some(record)
     }
 
+    pub(crate) fn surface_ready(
+        sequence: u64,
+        at: u64,
+        epoch: u64,
+        runtime_generation: u64,
+    ) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            sequence,
+            recorded_at_unix_ms: at,
+            source: "managed".into(),
+            kind: "surface_ready".into(),
+            agent: None,
+            payload: to_raw_value(
+                &serde_json::json!({"epoch":epoch,"runtime_generation":runtime_generation}),
+            )
+            .expect("serializable ready")
+            .into(),
+        }
+    }
+
     pub(crate) fn runtime_epoch(
         sequence: u64,
         at: u64,

@@ -30,6 +30,7 @@ const HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(45);
 type Socket = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 
 struct ConnectedSocket {
+    surface: Option<SurfaceReady>,
     socket: Socket,
     replay_through: String,
     preparation_accepted: bool,
@@ -134,8 +135,16 @@ struct MessageKind {
     kind: String,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+struct SurfaceReady {
+    epoch: u64,
+    runtime_generation: u64,
+}
+
 #[derive(Deserialize)]
 struct ReadyMessage {
+    #[serde(default)]
+    surface: Option<SurfaceReady>,
     #[serde(rename = "type")]
     kind: String,
     session_id: String,
@@ -287,7 +296,9 @@ impl ManagedEventSource for ManagedSocketEvents {
                 .recv()
                 .await
                 .ok_or_else(|| live_error("managed WebSocket event stream stopped"))??;
-            if !self.cursor.observe(event.cursor.clone())? {
+            if !matches!(event.data, ManagedEventData::SurfaceReady { .. })
+                && !self.cursor.observe(event.cursor.clone())?
+            {
                 return Err(live_error("managed WebSocket emitted a stale event"));
             }
             Ok(event)
@@ -332,6 +343,28 @@ async fn run(
             }
         }
         let mut live = connected.take().expect("socket was connected above");
+        // Transport observation: deliver before replay so it retires retained
+        // bindings from the previous connection, not newly replayed work. It
+        // carries the existing cursor and must never advance the durable fence.
+        if let Some(surface) = live.surface.take() {
+            let event = ManagedEvent {
+                cursor: cursor.clone(),
+                created_at: Some(
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as f64,
+                ),
+                turn_id: None,
+                data: ManagedEventData::SurfaceReady {
+                    epoch: surface.epoch,
+                    runtime_generation: surface.runtime_generation,
+                },
+            };
+            if events.send(Ok(event)).await.is_err() {
+                return;
+            }
+        }
         if !live.preparation_accepted && !preparation_fallback_started {
             // Older Workers ignore the upgrade opt-in. Keep their best-effort
             // HTTP preparation, once per driver, without delaying submission.
@@ -676,6 +709,7 @@ async fn connect_endpoint(
             }
             Ok((
                 ConnectedSocket {
+                    surface: ready.surface.clone(),
                     socket,
                     replay_through: ready.latest_event_cursor.clone(),
                     preparation_accepted: response
@@ -811,6 +845,66 @@ mod tests {
                 .cursor,
             "2"
         );
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn ready_generation_survives_reconnect_without_advancing_cursor() {
+        use crate::{
+            EventCursor, ManagedApiKey, ManagedClient, ManagedEventData, ManagedEventSource,
+        };
+        use futures_util::SinkExt;
+        use tokio_tungstenite::tungstenite::Message;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            for generation in 1..=2 {
+                let (stream, _) = listener.accept().await.unwrap();
+                let mut socket = tokio_tungstenite::accept_hdr_async(stream, |_: &tokio_tungstenite::tungstenite::handshake::server::Request, mut response: tokio_tungstenite::tungstenite::handshake::server::Response| {
+                    response.headers_mut().insert(super::PREPARE_HEADER, super::PREPARE_ACTIVE_CONVERSATION.parse().unwrap());
+                    Ok(response)
+                }).await.unwrap();
+                let ready = json!({"type":"ready", "session_id":"agent-1", "restored":true,
+                    "active_turns":[], "latest_event_cursor":generation.to_string(),
+                    "surface":{"epoch":0,"runtime_generation":generation},
+                    "capabilities":{"durable_turns":true,"resumable_events":true,"workspace":"cloud",
+                    "execution_environments":true,"execution_namespace":"cwd-root-v1","native_cross_mounts":false},
+                    "settings":{"model":"gpt-6-astra","thinking":"low","reasoning_mode":"standard","fast_mode":false}});
+                socket
+                    .send(Message::Text(ready.to_string().into()))
+                    .await
+                    .unwrap();
+                socket.send(Message::Text(json!({"cursor":generation.to_string(), "type":"turn_cancelled", "id":"turn-1"}).to_string().into())).await.unwrap();
+                socket.close(None).await.unwrap();
+            }
+        });
+        let client = ManagedClient::new(
+            format!("http://{address}"),
+            ManagedApiKey::parse(format!("ncx_live_{}_{}", "a".repeat(12), "b".repeat(43)))
+                .unwrap(),
+        )
+        .unwrap();
+        let (_socket, mut events) = super::ManagedSocket::open(
+            client,
+            "agent-1".into(),
+            EventCursor::parse("0").unwrap(),
+            None,
+        )
+        .await
+        .unwrap();
+        for generation in 1..=2 {
+            let ready = tokio::time::timeout(std::time::Duration::from_secs(5), events.next())
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(
+                matches!(ready.data, ManagedEventData::SurfaceReady { epoch: 0, runtime_generation } if runtime_generation == generation)
+            );
+            assert_eq!(events.cursor().as_str(), (generation - 1).to_string());
+            let event = events.next().await.unwrap();
+            assert_eq!(event.cursor, generation.to_string());
+            assert_eq!(events.cursor().as_str(), generation.to_string());
+        }
         server.await.unwrap();
     }
 

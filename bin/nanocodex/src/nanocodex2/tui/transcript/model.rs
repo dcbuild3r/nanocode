@@ -50,6 +50,7 @@ pub(crate) struct ModelChange {
 #[derive(Default)]
 pub(crate) struct TranscriptModel {
     runtime_epoch: Option<String>,
+    runtime_generation: Option<u64>,
     entries: Vec<TranscriptEntry>,
     entry_indices: HashMap<EntryId, usize>,
     next_entry_id: usize,
@@ -354,8 +355,47 @@ impl TranscriptModel {
     pub(crate) fn apply(&mut self, record: &TranscriptRecord) -> ModelChange {
         let scoped = record.scoped_tool_identity();
         let record = scoped.as_ref().unwrap_or(record);
+        if record.kind() == "surface_ready" {
+            if let Ok(p) = record.decode_payload::<Value>() {
+                let generation = p["runtime_generation"].as_u64();
+                let epoch = p["epoch"].as_u64();
+                if generation
+                    .zip(self.runtime_generation)
+                    .is_some_and(|(next, old)| next > old)
+                    || epoch
+                        .zip(
+                            self.runtime_epoch
+                                .as_ref()
+                                .and_then(|v| v.parse::<u64>().ok()),
+                        )
+                        .is_some_and(|(next, old)| next > old)
+                {
+                    self.lose_retained_host();
+                }
+                self.runtime_generation = generation.or(self.runtime_generation);
+                self.runtime_epoch = p
+                    .get("epoch")
+                    .map(Value::to_string)
+                    .or(self.runtime_epoch.clone());
+            }
+            return ModelChange {
+                changed: true,
+                ..ModelChange::default()
+            };
+        }
         if record.kind() == "runtime_epoch" {
             if let Ok(p) = record.decode_payload::<Value>() {
+                if p["epoch"]
+                    .as_u64()
+                    .zip(
+                        self.runtime_epoch
+                            .as_ref()
+                            .and_then(|v| v.parse::<u64>().ok()),
+                    )
+                    .is_some_and(|(next, old)| next > old)
+                {
+                    self.lose_retained_host();
+                }
                 let ids = p["interrupted"]["tool_calls"]
                     .as_array()
                     .into_iter()
@@ -1679,6 +1719,46 @@ impl TranscriptModel {
             .copied()
             .collect::<Vec<_>>();
         self.settle_unfinished_tools(&unfinished);
+    }
+
+    fn lose_retained_host(&mut self) {
+        let mut ids: Vec<_> = self
+            .shell_sessions
+            .values()
+            .chain(self.code_cells.values())
+            .copied()
+            .collect();
+        for parent in self.code_cells.values() {
+            if let Some(children) = self.code_children.get(parent) {
+                ids.extend(
+                    children
+                        .iter()
+                        .copied()
+                        .filter(|id| self.running_tools.contains(id)),
+                );
+            }
+        }
+        self.settle_unfinished_tools(&ids);
+        for id in &ids {
+            self.update(*id, |kind| {
+                if let EntryKind::Tool(tool) = kind {
+                    let result = tool.result.get_or_insert_with(|| serde_json::json!({}));
+                    if let Value::Object(result) = result {
+                        result.insert(
+                            "message".into(),
+                            Value::String("host runtime lost; process outcome unknown".into()),
+                        );
+                    }
+                }
+            });
+        }
+        self.settled_calls.extend(
+            self.tools
+                .iter()
+                .filter(|(_, id)| ids.contains(id))
+                .map(|(call, _)| call.clone()),
+        );
+        self.code_cells.retain(|_, id| !ids.contains(id));
     }
 
     /// Calls still running when their turn, run or Code Mode cell ends never
