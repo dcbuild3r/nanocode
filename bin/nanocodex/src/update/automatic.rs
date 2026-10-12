@@ -435,8 +435,28 @@ mod linux {
         Ok(())
     }
 
+    fn foreign_owner(root: &Path) -> Result<Option<u32>> {
+        use std::os::unix::fs::MetadataExt as _;
+        let owner = match fs::metadata(root) {
+            Ok(metadata) => metadata.uid(),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error.into()),
+        };
+        Ok((owner != nix::unistd::geteuid().as_raw()).then_some(owner))
+    }
+
     pub(super) fn ensure_default(root: &Path, nightly: bool) -> Result<()> {
         if entry_exists(&opt_out_path(root))? {
+            return Ok(());
+        }
+        // A default schedule belongs to the installation's owner. Running a
+        // CLI from another account (for example root provisioning over SSH)
+        // must not create that account's timer for someone else's files.
+        if let Some(owner) = foreign_owner(root)? {
+            eprintln!(
+                "Automatic updates were not enabled for {}: it belongs to uid {owner}, not this user. Run nanocodex as that user to manage its updates.",
+                root.display()
+            );
             return Ok(());
         }
         let home = home()?;

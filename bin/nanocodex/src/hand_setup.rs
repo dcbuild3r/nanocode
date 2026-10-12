@@ -327,19 +327,17 @@ impl Destination {
         {
             return Ok(());
         }
-        if !matches!(self, Self::Local) || !self.command("sudo", &["-v"]).status().await?.success()
-        {
-            bail!(
-                "{} needs {}sudo access to install the Hand service",
-                self.label(),
-                if matches!(self, Self::Ssh { .. }) {
-                    "passwordless "
-                } else {
-                    ""
-                }
-            );
-        }
-        Ok(())
+        let failure = match self {
+            Self::Ssh { .. } => SudoFailure::RemoteNeedsPassword,
+            // Without a controlling terminal sudo cannot ask for a password;
+            // report that directly instead of running a prompt that must fail.
+            Self::Local if !has_controlling_terminal() => SudoFailure::NoTerminal,
+            Self::Local if self.command("sudo", &["-v"]).status().await?.success() => {
+                return Ok(());
+            }
+            Self::Local => SudoFailure::Rejected,
+        };
+        bail!("{}", sudo_failure_message(self, failure))
     }
 
     async fn upload(&self, local: &std::path::Path, remote: &str) -> Result<()> {
@@ -369,6 +367,55 @@ impl Destination {
     async fn cleanup(&self, remote: &str) {
         let _ = self.command("rm", &["-f", "--", remote]).status().await;
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SudoFailure {
+    /// This machine needs a sudo password, but no terminal can ask for it.
+    NoTerminal,
+    /// sudo asked for a password and authentication failed or was refused.
+    Rejected,
+    /// The SSH login has no passwordless sudo on the target.
+    RemoteNeedsPassword,
+}
+
+fn has_controlling_terminal() -> bool {
+    fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")
+        .is_ok()
+}
+
+/// Stage, cause, resulting state and safe retry commands for a sudo failure.
+/// Never suggests weakening sudo policy.
+fn sudo_failure_message(destination: &Destination, failure: SudoFailure) -> String {
+    let (cause, retry) = match (destination, failure) {
+        (Destination::Ssh { target, port }, _) => {
+            let port = port.map(|port| format!(" --port {port}")).unwrap_or_default();
+            let host = target.rsplit_once('@').map_or(target.as_str(), |(_, host)| host);
+            (
+                format!(
+                    "{target} requires a sudo password for this SSH login; remote setup runs without a terminal and needs root or passwordless sudo"
+                ),
+                format!(
+                    "  - over SSH as root: nanocodex hand install --target root@{host}{port}\n  - or in an interactive terminal on {host}: nanocodex setup"
+                ),
+            )
+        }
+        (Destination::Local, SudoFailure::NoTerminal) => (
+            "sudo needs a password, but this session has no terminal to ask for it (non-interactive shell, pipe, or ssh without -t)".to_owned(),
+            "  - in an interactive terminal on this machine: nanocodex setup\n  - over SSH with a terminal: ssh -t HOST nanocodex setup\n  - from another signed-in machine with root SSH here: nanocodex hand install --target root@HOST".to_owned(),
+        ),
+        (Destination::Local, _) => (
+            "sudo authentication failed or this account may not use sudo".to_owned(),
+            "  - rerun and enter this account's sudo password: nanocodex setup\n  - or from another signed-in machine with root SSH here: nanocodex hand install --target root@HOST".to_owned(),
+        ),
+    };
+    format!(
+        "Hand setup stopped at stage administrator access on {}: {cause}.\nState: the Hand service was not installed or changed.\nRetryable: yes, setup is idempotent. Next, one of:\n{retry}",
+        destination.label()
+    )
 }
 
 async fn install_linux(destination: Destination, artifacts: Option<PathBuf>) -> Result<()> {
@@ -1142,6 +1189,35 @@ async fn keep_awake(setting: Option<&str>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sudo_failures_name_stage_state_and_safe_retries() {
+        let local = sudo_failure_message(&Destination::Local, SudoFailure::NoTerminal);
+        assert!(
+            local.starts_with("Hand setup stopped at stage administrator access on this device:")
+        );
+        assert!(local.contains("no terminal to ask for it"));
+        assert!(local.contains("State: the Hand service was not installed or changed."));
+        assert!(local.contains("Retryable: yes"));
+        assert!(local.contains("ssh -t HOST nanocodex setup"));
+        assert!(local.contains("nanocodex hand install --target root@HOST"));
+        let rejected = sudo_failure_message(&Destination::Local, SudoFailure::Rejected);
+        assert!(rejected.contains("sudo authentication failed"));
+        let remote = sudo_failure_message(
+            &Destination::Ssh {
+                target: "gakonst@omarchy".into(),
+                port: Some(2222),
+            },
+            SudoFailure::RemoteNeedsPassword,
+        );
+        assert!(remote.contains("gakonst@omarchy requires a sudo password"));
+        assert!(remote.contains("nanocodex hand install --target root@omarchy --port 2222"));
+        assert!(remote.contains("in an interactive terminal on omarchy: nanocodex setup"));
+        for message in [local, rejected, remote] {
+            assert!(!message.to_lowercase().contains("sudoers"), "{message}");
+            assert!(!message.contains("NOPASSWD"), "{message}");
+        }
+    }
     use clap::Parser;
 
     #[derive(Parser)]
