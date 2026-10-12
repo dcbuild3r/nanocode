@@ -70,7 +70,7 @@ controlled managed service, press F7, and print the `vt100` screen (160x32).
 3. The durable turn completion.
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpNeA4SF                                                                                                                                              │
+│ /tmp/.tmpBJBzBM                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_STREAM_JOURNEY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -94,7 +94,7 @@ controlled managed service, press F7, and print the `vt100` screen (160x32).
 Restart receipt: the card settles to `unknown`, and the epoch named by the receipt advances the footer:
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpNeA4SF                                                                                                                                              │
+│ /tmp/.tmpBJBzBM                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_STREAM_JOURNEY ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── unknown ─╮
 │ [outcome unknown]                                                                                                                                            │
@@ -122,7 +122,7 @@ Restart receipt: the card settles to `unknown`, and the epoch named by the recei
 Durable turn completion (F7 then returns to the transcript, asserted):
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpNeA4SF                                                                                                                                              │
+│ /tmp/.tmpBJBzBM                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_STREAM_JOURNEY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 0s ─╮
 │ [outcome reconciled]                                                                                                                                         │
@@ -139,11 +139,11 @@ Durable turn completion (F7 then returns to the transcript, asserted):
   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ● epoch 1 · cursor 8 · 0 open · last event 0s ago · 1 restart(s)
-╭─ 0%/272k ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── gpt-6-astra  low ─╮
+╭─ 0%/272k Thinking… ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── gpt-6-astra  low ─╮
 │                                                                                                                                                              │
 │                                                                                                                                                              │
 │                                                                                                                                                              │
-╰─ Enter send · / actions · @ paths · @@ sessions ────────────────────────────────────────────────────────────────────────────────────────────────── ◉ dev  ~ ─╯
+╰─ Enter steer · Tab queue · Esc Esc stop ────────────────────────────────────────────────────────────────────────────────────────────────────────── ◉ dev  ~ ─╯
 ~~~
 
 ### 1b. Dropped stream, then reconnect over the surface snapshot
@@ -163,7 +163,7 @@ running when the stream breaks.
   owners.
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpyuCv3s                                                                                                                                              │
+│ /tmp/.tmpN8KtV2                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -182,7 +182,7 @@ running when the stream breaks.
 Stream dropped:
 ~~~text
 ╭─ BRAIN Workspace ─╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮──────── attached ─╮
-│ /tmp/.tmpyuCv3s   │ Could not reconnect: managed request failed (503 Service Unavailable): unavailable: try again. Press Enter to retry. │                   │
+│ /tmp/.tmpN8KtV2   │ Could not reconnect: managed request failed (503 Service Unavailable): unavailable: try again. Press Enter to retry. │                   │
 ╰───────────────────╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯───────────────────╯
 ╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 1s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -237,7 +237,7 @@ After reconnect and the surface snapshot:
 Turn completed:
 ~~~text
 ╭─ BRAIN Workspace ─────────────────────────────────────────────────────╭─────────────╮───────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpyuCv3s                                                       │ Reconnected │                                                                        │
+│ /tmp/.tmpN8KtV2                                                       │ Reconnected │                                                                        │
 ╰───────────────────────────────────────────────────────────────────────╰─────────────╯────────────────────────────────────────────────────────────────────────╯
 ╭─ TURN Turn CARD_RECONNECT_JOURNEY ────────────────────────────────────────────────────────────────────────────────────────────────────────────── done in 1s ─╮
 │ [attempt 2]                                                                                                                                                  │
@@ -275,7 +275,7 @@ Turn completed:
 `terminal_card_stream_reads_the_surface_snapshot_on_first_attach`: the service already sits at epoch 1 with a child at work (the real `child-surface-moved-on.json` body, clock-shifted). Attach reads `/surface` after history, so the view opens at epoch 1 with the open entities and no spurious restart (asserted). End and Home jump to the newest and oldest cards.
 ~~~text
 ╭─ BRAIN Workspace ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── attached ─╮
-│ /tmp/.tmpOd36ND                                                                                                                                              │
+│ /tmp/.tmpoV35tv                                                                                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ AGENT Surface child ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── running 0s ─╮
 │ role: Surface child                                                                                                                                          │
@@ -681,7 +681,7 @@ The four frames show:
 3. The dropped stream shows in the footer.
 4. After epoch 8 the turn resumes as attempt 2.
 ~~~text
-control-frames · step 1/4: first observed epoch 7 is a baseline, not a restart   [n]ext [j/k] scroll
+control-frames · step 1/5: first observed epoch 7 is a baseline, not a restart   [n]ext [j/k] scroll
 ╭─ TURN Turn Run the suite ─────────────────────────────────────────────────────────── running 3s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell pnpm test ──────────────────────────────────────────────────────────── running 2s ─╮
@@ -691,7 +691,7 @@ control-frames · step 1/4: first observed epoch 7 is a baseline, not a restart 
 ● epoch 7 · cursor 4 · 2 open · last event 2s ago · heartbeat 4s ago · context 12%
 ~~~
 ~~~text
-control-frames · step 2/4: heartbeat high-water does not drop a delayed completion   [n]ext [j/k] sc
+control-frames · step 2/5: heartbeat high-water does not drop a delayed completion   [n]ext [j/k] sc
 ╭─ TURN Turn Run the suite ────────────────────────────────────────────────────────── running 10s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell pnpm test ──────────────────────────────────────────────────────────── done in 8s ─╮
@@ -703,7 +703,7 @@ control-frames · step 2/4: heartbeat high-water does not drop a delayed complet
 ● epoch 7 · cursor 5 · 1 open · last event 1s ago · heartbeat 2s ago · context 12%
 ~~~
 ~~~text
-control-frames · step 3/4: stream dropped   [n]ext [j/k] scroll [q]uit
+control-frames · step 3/5: stream dropped   [n]ext [j/k] scroll [q]uit
 ╭─ TURN Turn Run the suite ────────────────────────────────────────────────────────── running 43s ─╮
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
   ╭─ TOOL Shell pnpm test ──────────────────────────────────────────────────────────── done in 8s ─╮
@@ -715,7 +715,7 @@ control-frames · step 3/4: stream dropped   [n]ext [j/k] scroll [q]uit
 ▲ disconnected 30s · epoch 7 · cursor 5 · 1 open · last event 34s ago · heartbeat 35s ago · context…
 ~~~
 ~~~text
-control-frames · step 4/4: reconnected after a restart: the turn resumes as attempt 2   [n]ext [j/k]
+control-frames · step 4/5: reconnected after a restart: the turn resumes as attempt 2   [n]ext [j/k]
 ╭─ TURN Turn Run the suite ────────────────────────────────────────────────────────── running 48s ─╮
 │ [attempt 2]                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
