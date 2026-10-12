@@ -15,6 +15,9 @@ struct Config {
     x11: bool,
     display: bool,
     wtype: bool,
+    /// Use wtype when present because this user's input method (fcitx5,
+    /// ibus) owns input-method-v2, so Waymote IME commits would be dropped.
+    wtype_auto: bool,
     path: OsString,
 }
 impl Config {
@@ -23,6 +26,8 @@ impl Config {
             x11: std::env::var("NANOCODEX_WAYLAND_TEXT_X11").as_deref() == Ok("1"),
             display: std::env::var_os("DISPLAY").is_some_and(|v| !v.is_empty()),
             wtype: std::env::var("NANOCODEX_WAYLAND_TEXT_WTYPE").as_deref() == Ok("1"),
+            wtype_auto: std::env::var_os("NANOCODEX_WAYLAND_TEXT_WTYPE").is_none()
+                && same_user_input_method(),
             path: std::env::var_os("PATH").unwrap_or_default(),
         }
     }
@@ -48,6 +53,25 @@ impl Config {
     }
 }
 
+/// Whether an input-method daemon runs as this user. Only same-owner process
+/// names are inspected; other users' sessions are never examined.
+fn same_user_input_method() -> bool {
+    use std::os::unix::fs::MetadataExt as _;
+    let uid = nix::unistd::geteuid().as_raw();
+    let Ok(entries) = std::fs::read_dir("/proc") else {
+        return false;
+    };
+    entries.flatten().any(|entry| {
+        entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.bytes().all(|b| b.is_ascii_digit()))
+            && entry.metadata().is_ok_and(|meta| meta.uid() == uid)
+            && std::fs::read_to_string(entry.path().join("comm"))
+                .is_ok_and(|comm| matches!(comm.trim(), "fcitx5" | "fcitx" | "ibus-daemon"))
+    })
+}
+
 pub(super) async fn type_text(text: &str) -> io::Result<bool> {
     type_with(&Config::environment(), text).await
 }
@@ -68,10 +92,17 @@ async fn type_with(config: &Config, text: &str) -> io::Result<bool> {
             successful(result)?;
             return Ok(true);
         }
-        if config.wtype {
-            let executable = config
-                .executable("wtype")?
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "wtype is unavailable"))?;
+        let executable =
+            if config.wtype {
+                Some(config.executable("wtype")?.ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::NotFound, "wtype is unavailable")
+                })?)
+            } else if config.wtype_auto {
+                config.executable("wtype")?
+            } else {
+                None
+            };
+        if let Some(executable) = executable {
             successful(run(&executable, &["-"], text.as_bytes(), Duration::from_secs(5)).await?)?;
             return Ok(true);
         }
@@ -229,6 +260,7 @@ mod tests {
                 x11,
                 display,
                 wtype,
+                wtype_auto: false,
                 path: self.dir.path().as_os_str().into(),
             }
         }
@@ -325,6 +357,19 @@ mod tests {
             );
             assert_eq!(f.log("text"), "🙂".as_bytes());
         }
+    }
+    #[tokio::test]
+    async fn input_method_owner_uses_wtype_only_when_present() {
+        let f = Fixture::new();
+        let auto = Config {
+            wtype_auto: true,
+            ..f.config(false, false, false)
+        };
+        // Absent wtype keeps the default Waymote IME path instead of failing.
+        assert!(!type_with(&auto, "IME").await.unwrap());
+        f.script("wtype", "/bin/cat > text");
+        assert!(type_with(&auto, "héllo").await.unwrap());
+        assert_eq!(f.log("text"), "héllo".as_bytes());
     }
     #[tokio::test]
     async fn broken_probe_never_falls_back() {
