@@ -1,7 +1,7 @@
 // Types mirror crates/nanocodex-surface-state (serde snake_case wire shape).
 
 export type Lifecycle = "admitted" | "running" | "completed" | "failed" | "cancelled" | "unknown";
-export type Provenance = "verified" | "agent_reported" | "test_build";
+export type Provenance = "verified" | "receipt" | "agent_reported" | "test_build";
 export type EntityKind =
   | "agent"
   | "turn"
@@ -78,7 +78,8 @@ export type SurfaceEvent =
   | { type: "snapshot"; epoch: number; cursor: number; at_ms: number; entities: Entity[] }
   | { type: "upsert"; cursor: number; at_ms: number; entity: Entity }
   | { type: "runtime_epoch"; epoch: number; cursor: number; at_ms: number; reason: string }
-  | { type: "heartbeat"; cursor: number; at_ms: number; context_pct?: number };
+  | { type: "heartbeat"; cursor: number; at_ms: number; context_pct?: number }
+  | { type: "connection"; connected: boolean; at_ms: number };
 
 export interface Badge {
   text: string;

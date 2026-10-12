@@ -1,0 +1,131 @@
+{
+  "name": "control-frames",
+  "description": "Control frames and attempts: a first-seen epoch is a baseline, a heartbeat never fences a delayed delta, a dropped stream shows in liveness, and a turn resumed by a newer epoch is attempt 2.",
+  "steps": [
+    {
+      "label": "first observed epoch 7 is a baseline, not a restart",
+      "now_ms": 1791820805000,
+      "events": [
+        {
+          "type": "heartbeat",
+          "cursor": 10,
+          "at_ms": 1791820801000,
+          "context_pct": 12
+        },
+        {
+          "type": "runtime_epoch",
+          "epoch": 7,
+          "cursor": 2,
+          "at_ms": 1791820801000,
+          "reason": "runtime restarted"
+        },
+        {
+          "type": "upsert",
+          "cursor": 3,
+          "at_ms": 1791820802000,
+          "entity": {
+            "id": "t1",
+            "kind": "turn",
+            "epoch": 7,
+            "state": "running",
+            "title": "Turn",
+            "subject": "Run the suite",
+            "started_at_ms": 1791820802000,
+            "updated_at_ms": 1791820802000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 4,
+          "at_ms": 1791820803000,
+          "entity": {
+            "id": "t1.c1",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 7,
+            "state": "running",
+            "title": "Shell",
+            "subject": "pnpm test",
+            "tool": "exec_command",
+            "started_at_ms": 1791820803000,
+            "updated_at_ms": 1791820803000
+          }
+        }
+      ]
+    },
+    {
+      "label": "heartbeat high-water does not drop a delayed completion",
+      "now_ms": 1791820812000,
+      "events": [
+        {
+          "type": "heartbeat",
+          "cursor": 40,
+          "at_ms": 1791820810000
+        },
+        {
+          "type": "upsert",
+          "cursor": 5,
+          "at_ms": 1791820811000,
+          "entity": {
+            "id": "t1.c1",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 7,
+            "state": "completed",
+            "title": "Shell",
+            "subject": "pnpm test",
+            "tool": "exec_command",
+            "started_at_ms": 1791820803000,
+            "updated_at_ms": 1791820811000,
+            "exit_code": 0,
+            "provenance": "receipt"
+          }
+        }
+      ]
+    },
+    {
+      "label": "stream dropped",
+      "now_ms": 1791820845000,
+      "events": [
+        {
+          "type": "connection",
+          "connected": false,
+          "at_ms": 1791820815000
+        }
+      ]
+    },
+    {
+      "label": "reconnected after a restart: the turn resumes as attempt 2",
+      "now_ms": 1791820850000,
+      "events": [
+        {
+          "type": "connection",
+          "connected": true,
+          "at_ms": 1791820848000
+        },
+        {
+          "type": "runtime_epoch",
+          "epoch": 8,
+          "cursor": 6,
+          "at_ms": 1791820848000,
+          "reason": "runtime restarted"
+        },
+        {
+          "type": "upsert",
+          "cursor": 7,
+          "at_ms": 1791820849000,
+          "entity": {
+            "id": "t1",
+            "kind": "turn",
+            "epoch": 8,
+            "state": "running",
+            "title": "Turn",
+            "subject": "Run the suite",
+            "started_at_ms": 1791820802000,
+            "updated_at_ms": 1791820849000
+          }
+        }
+      ]
+    }
+  ]
+}

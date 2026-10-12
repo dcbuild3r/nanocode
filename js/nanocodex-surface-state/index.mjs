@@ -15,8 +15,13 @@ const SECTIONS = [
   ["blocked", "Blocked", "error"],
   ["next", "Next", "text"],
 ];
-const PROVENANCE_LABEL = { verified: "verified", agent_reported: "agent-reported", test_build: "test-build" };
-const PROVENANCE_TONE = { verified: "ok", agent_reported: "info", test_build: "warn" };
+const PROVENANCE_LABEL = {
+  verified: "verified",
+  receipt: "receipt",
+  agent_reported: "agent-reported",
+  test_build: "test-build",
+};
+const PROVENANCE_TONE = { verified: "ok", receipt: "muted", agent_reported: "info", test_build: "warn" };
 
 export const isTerminal = (state) => state !== "admitted" && state !== "running";
 export const isDefinitive = (state) =>
@@ -52,6 +57,9 @@ export class SurfaceState {
   replaysIgnored = 0;
   regressionsIgnored = 0;
   restarts = [];
+  // Whether a runtime epoch was observed; the first observation is a baseline.
+  epochKnown = false;
+  disconnectedAtMs = undefined;
 
   entity(id) {
     return this.entities.get(id)?.entity;
@@ -64,6 +72,18 @@ export class SurfaceState {
   apply(event) {
     if (event.type === "snapshot") {
       this.#applySnapshot(event);
+      return;
+    }
+    // Control frames never fence deltas.
+    if (event.type === "heartbeat") {
+      if (this.lastHeartbeatAtMs === undefined || event.at_ms >= this.lastHeartbeatAtMs) {
+        this.lastHeartbeatAtMs = event.at_ms;
+        if (event.context_pct !== undefined) this.contextPct = event.context_pct;
+      }
+      return;
+    }
+    if (event.type === "connection") {
+      this.disconnectedAtMs = event.connected ? undefined : (this.disconnectedAtMs ?? event.at_ms);
       return;
     }
     if (event.cursor <= this.cursor) {
@@ -79,14 +99,13 @@ export class SurfaceState {
         this.#settleEpoch(event.epoch, event.cursor, event.at_ms, event.reason);
         this.#advance(event.cursor, event.at_ms);
         break;
-      case "heartbeat":
-        this.lastHeartbeatAtMs = event.at_ms;
-        if (event.context_pct !== undefined) this.contextPct = event.context_pct;
-        this.cursor = event.cursor;
-        break;
       default:
         throw new TypeError(`unknown surface event type: ${event.type}`);
     }
+  }
+
+  #hasBaseline() {
+    return this.epochKnown || this.cursor > 0;
   }
 
   #advance(cursor, atMs) {
@@ -99,7 +118,7 @@ export class SurfaceState {
       this.replaysIgnored += 1;
       return;
     }
-    if (this.cursor > 0 && epoch > this.epoch) {
+    if (this.#hasBaseline() && epoch > this.epoch) {
       this.#settleEpoch(epoch, cursor, atMs, "runtime restarted while disconnected");
     }
     const open = new Set(entities.map((entity) => entity.id));
@@ -118,6 +137,7 @@ export class SurfaceState {
     }
     for (const entity of entities) this.#upsert(entity, cursor, atMs);
     this.epoch = Math.max(this.epoch, epoch);
+    this.epochKnown = true;
     this.#advance(cursor, atMs);
   }
 
@@ -131,6 +151,7 @@ export class SurfaceState {
         lastEventAtMs: atMs,
         settledLocally: false,
         reconciled: false,
+        attempt: 1,
       });
       this.nextSeq += 1;
       return;
@@ -146,6 +167,7 @@ export class SurfaceState {
       this.regressionsIgnored += 1;
       return;
     }
+    if (isTerminal(previous) && !isTerminal(next)) tracked.attempt += 1;
     if (tracked.settledLocally && isDefinitive(next)) tracked.reconciled = true;
     if (!isTerminal(next) || isDefinitive(next)) tracked.settledLocally = false;
     tracked.entity = structuredClone(entity);
@@ -196,8 +218,9 @@ export class SurfaceState {
         settled += 1;
       }
     }
-    this.restarts.push({ epoch, at_ms: atMs, reason, settled });
+    if (this.#hasBaseline() || settled > 0) this.restarts.push({ epoch, at_ms: atMs, reason, settled });
     this.epoch = epoch;
+    this.epochKnown = true;
   }
 
   /**
@@ -246,7 +269,11 @@ export class SurfaceState {
     const eventAge = this.lastEventAtMs === undefined ? undefined : sub(nowMs, this.lastEventAtMs);
     const heartbeatAge =
       this.lastHeartbeatAtMs === undefined ? undefined : sub(nowMs, this.lastHeartbeatAtMs);
-    const parts = [`epoch ${this.epoch}`, `cursor ${this.cursor}`, `${open} open`];
+    const parts = [];
+    if (this.disconnectedAtMs !== undefined) {
+      parts.push(`disconnected ${formatDuration(sub(nowMs, this.disconnectedAtMs))}`);
+    }
+    parts.push(`epoch ${this.epoch}`, `cursor ${this.cursor}`, `${open} open`);
     if (eventAge !== undefined) parts.push(`last event ${formatDuration(eventAge)} ago`);
     if (heartbeatAge !== undefined) parts.push(`heartbeat ${formatDuration(heartbeatAge)} ago`);
     if (this.contextPct !== undefined) parts.push(`context ${this.contextPct}%`);
@@ -262,7 +289,12 @@ export class SurfaceState {
       replays_ignored: this.replaysIgnored,
       regressions_ignored: this.regressionsIgnored,
       label: parts.join(" · "),
-      tone: stalled || (this.contextPct !== undefined && this.contextPct >= 90) ? "warn" : "ok",
+      tone:
+        this.disconnectedAtMs !== undefined
+          ? "error"
+          : stalled || (this.contextPct !== undefined && this.contextPct >= 90)
+            ? "warn"
+            : "ok",
     };
     if (this.contextPct !== undefined) liveness.context_pct = this.contextPct;
     return liveness;
@@ -321,6 +353,7 @@ export class SurfaceState {
     }
     if (entity.state === "unknown") badges.push(badge("outcome unknown", "warn"));
     if (tracked.reconciled) badges.push(badge("outcome reconciled", "info"));
+    if (tracked.attempt > 1) badges.push(badge(`attempt ${tracked.attempt}`, "info"));
     let latestEvent = 0;
     this.#walk(tracked, children, (node) => {
       latestEvent = Math.max(latestEvent, node.lastEventAtMs);

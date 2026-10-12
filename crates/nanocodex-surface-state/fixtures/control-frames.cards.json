@@ -1,0 +1,234 @@
+[
+  {
+    "label": "first observed epoch 7 is a baseline, not a restart",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3s",
+          "subject": "Run the suite",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 2s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "context_pct": 12,
+        "cursor": 4,
+        "epoch": 7,
+        "label": "epoch 7 · cursor 4 · 2 open · last event 2s ago · heartbeat 4s ago · context 12%",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820805000
+    }
+  },
+  {
+    "label": "heartbeat high-water does not drop a delayed completion",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 10s",
+          "subject": "Run the suite",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 8s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "context_pct": 12,
+        "cursor": 5,
+        "epoch": 7,
+        "label": "epoch 7 · cursor 5 · 1 open · last event 1s ago · heartbeat 2s ago · context 12%",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820812000
+    }
+  },
+  {
+    "label": "stream dropped",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 43s",
+          "subject": "Run the suite",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 8s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "context_pct": 12,
+        "cursor": 5,
+        "epoch": 7,
+        "label": "disconnected 30s · epoch 7 · cursor 5 · 1 open · last event 34s ago · heartbeat 35s ago · context 12%",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "error"
+      },
+      "now_ms": 1791820845000
+    }
+  },
+  {
+    "label": "reconnected after a restart: the turn resumes as attempt 2",
+    "projection": {
+      "cards": [
+        {
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 48s",
+          "subject": "Run the suite",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 8s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "context_pct": 12,
+        "cursor": 7,
+        "epoch": 8,
+        "label": "epoch 8 · cursor 7 · 1 open · last event 1s ago · heartbeat 40s ago · context 12% · 1 restart(s)",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 1,
+        "tone": "ok"
+      },
+      "now_ms": 1791820850000
+    }
+  }
+]

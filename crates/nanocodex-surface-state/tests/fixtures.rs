@@ -82,3 +82,8 @@ fn stale_summary() {
 fn orphaned_tool() {
     run("orphaned-tool");
 }
+
+#[test]
+fn control_frames() {
+    run("control-frames");
+}
