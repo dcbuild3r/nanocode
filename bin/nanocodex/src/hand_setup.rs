@@ -444,6 +444,12 @@ fn launcher() -> String {
 /// Never suggests weakening sudo policy.
 /// The supported unattended route on this machine: root reuses this user's
 /// saved login (never printed) and keeps the service under this user.
+#[cfg(not(unix))]
+fn root_one_shot() -> Option<String> {
+    None
+}
+
+#[cfg(unix)]
 fn root_one_shot() -> Option<String> {
     let user = nix::unistd::User::from_uid(nix::unistd::geteuid()).ok()??;
     if user.uid.is_root() {
