@@ -299,7 +299,11 @@ pub(crate) async fn authorize() -> Result<()> {
     }
     if !std::io::stdin().is_terminal() {
         bail!(
-            "Device administrator authorization is required to update the system Hand; background updates only stage the verified bundle"
+            "Hand update stopped at stage administrator access: sudo needs a password, but this session has no terminal to ask for it.
+State: the running Hand is unchanged; a verified update remains staged.
+Retryable: yes. Next, one of:
+  - in an interactive terminal on this machine: nanocodex update --apply --restart-hand
+  - over SSH with a terminal: ssh -t HOST nanocodex update --apply --restart-hand"
         );
     }
     if !Command::new("/usr/bin/sudo")
@@ -308,7 +312,11 @@ pub(crate) async fn authorize() -> Result<()> {
         .await?
         .success()
     {
-        bail!("Device administrator authorization was not granted");
+        bail!(
+            "Hand update stopped at stage administrator access: sudo authentication failed or this account may not use sudo.
+State: the running Hand is unchanged; a verified update remains staged.
+Retryable: yes: nanocodex update --apply --restart-hand"
+        );
     }
     Ok(())
 }
