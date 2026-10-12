@@ -26,6 +26,7 @@
 //! `fixtures/` are checked against one golden projection by both
 //! implementations.
 
+pub mod agent_events;
 mod model;
 mod project;
 mod reduce;
