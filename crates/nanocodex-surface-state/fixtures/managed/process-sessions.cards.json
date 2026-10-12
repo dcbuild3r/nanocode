@@ -1,0 +1,341 @@
+[
+  {
+    "label": "call returned; process keeps running",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:turn-p",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 1s",
+          "subject": "start the dev server",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:serve",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "5 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "pnpm dev",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 2,
+          "id": "process:7",
+          "kind": "process_session",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 1s",
+          "subject": "pnpm dev",
+          "title": "Process 7",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 4,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 4 · 2 open · last event 1s ago",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791840002000
+    }
+  },
+  {
+    "label": "snapshot lists the process (generation 3)",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:turn-p",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3s",
+          "subject": "start the dev server",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:serve",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "5 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "pnpm dev",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 2,
+          "id": "process:7",
+          "kind": "process_session",
+          "lines": [
+            {
+              "text": "on hand-a",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running",
+          "subject": "pnpm dev",
+          "title": "Process 7",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 5,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 5 · 2 open · last event 0s ago",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791840003000
+    }
+  },
+  {
+    "label": "runtime generation 4: retained process unverified",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:turn-p",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 9s",
+          "subject": "start the dev server",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:serve",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "5 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "pnpm dev",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "process:7",
+          "kind": "process_session",
+          "lines": [
+            {
+              "text": "runtime replaced (generation 4); process may belong to the lost runtime",
+              "tone": "warn"
+            },
+            {
+              "text": "on hand-a",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "pnpm dev",
+          "title": "Process 7",
+          "tone": "warn"
+        }
+      ],
+      "liveness": {
+        "cursor": 6,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 6 · 1 open · last event 0s ago",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791840009000
+    }
+  },
+  {
+    "label": "write_stdin reports exit 0",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:turn-p",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 10s",
+          "subject": "start the dev server",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:serve",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "5 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "pnpm dev",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "process:7",
+          "kind": "process_session",
+          "lines": [
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "pnpm dev",
+          "title": "Process 7",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:write_stdin-5",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "write_stdin",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Process input",
+          "tone": "ok"
+        }
+      ],
+      "liveness": {
+        "cursor": 9,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 9 · 1 open · last event 0s ago",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791840010000
+    }
+  }
+]

@@ -267,3 +267,134 @@ fn swarm_children_show_their_reported_outcome() {
     );
     journey.check("swarm.cards.json");
 }
+
+/// Real hosted-stack history at the attempt-aware protocol: the call killed
+/// mid-shell keeps attempt 1 as unknown and the producer's `attempt: 2` replay
+/// is its own card; the epoch-2 snapshot reports child state from epoch 1.
+#[test]
+fn producer_attempts_are_separate_cards() {
+    let events = history("attempts-history.json");
+    let last = events
+        .last()
+        .and_then(|event| event["created_at"].as_u64())
+        .unwrap();
+    let mut journey = Journey::new();
+    journey.events(&events);
+    let replayed = journey.frame("history with producer attempts", last);
+    let first = card(&replayed, "tool:root:sleep-9a47a7");
+    let second = card(&replayed, "tool:root:sleep-9a47a7#2");
+    assert_eq!(first.state, Lifecycle::Unknown, "{first:#?}");
+    assert!(
+        first
+            .lines
+            .iter()
+            .any(|line| line.text == "runtime restarted"),
+        "{first:#?}"
+    );
+    assert!(second.state.is_terminal(), "{second:#?}");
+    assert!(second.lines[0].text.starts_with("attempt 2"), "{second:#?}");
+    assert_eq!(
+        card(&replayed, "tool:root:sleep-9a47a7/code-1#2").depth,
+        first.depth + 1
+    );
+    assert_eq!(replayed.liveness.epoch, 2);
+
+    let snapshot = journey.snapshot("attempts-surface.json");
+    let settled = journey.frame("snapshot at epoch 2, generation 3", snapshot.generated_at);
+    for agent in &snapshot.agents {
+        let worker = card(&settled, &format!("agent:{}", agent.agent_id));
+        assert_eq!(worker.state, Lifecycle::Unknown, "{worker:#?}");
+        assert!(
+            worker
+                .lines
+                .iter()
+                .any(|line| line.text.contains("predates the runtime restart"))
+        );
+    }
+    journey.check("attempts.cards.json");
+}
+
+/// A shell that outlives its call reports a process session; the process is
+/// its own card under the call, the surface snapshot keeps it open, a new
+/// runtime generation makes it unknown, and an exit code settles it.
+#[test]
+fn process_sessions_follow_shell_results_and_runtime_generation() {
+    let mut journey = Journey::new();
+    let event = |cursor: u64, at: u64, kind: &str, payload: Value| {
+        json!({"cursor": cursor.to_string(), "created_at": at, "turn_id": "turn-p", "type": "event",
+            "event": {"protocol_version": 1, "request_id": "r", "seq": cursor, "type": kind, "payload": payload}})
+    };
+    let base = 1_791_840_000_000_u64;
+    journey.events(&[
+        event(1, base, "input.accepted", json!({"input": "start the dev server"})),
+        event(2, base + 10, "run.started", json!({})),
+        event(3, base + 20, "tool.call", json!({"call_id": "serve", "tool": "exec_command", "arguments": {"cmd": "pnpm dev"}})),
+        event(4, base + 1_000, "tool.result", json!({"call_id": "serve", "tool": "exec_command", "status": "completed",
+            "result": "Process running with session ID 7", "structured_result": {"session_id": 7, "output": "ready"}})),
+    ]);
+    let running = journey.frame("call returned; process keeps running", base + 2_000);
+    let process = card(&running, "process:7");
+    assert_eq!(
+        (process.state, process.depth),
+        (
+            Lifecycle::Running,
+            card(&running, "tool:root:serve").depth + 1
+        )
+    );
+
+    let snapshot = |generation: u64, at: u64| -> ManagedSnapshot {
+        serde_json::from_value(json!({"protocol": 1, "epoch": 0, "runtime_generation": generation,
+            "cursor": "4", "generated_at": at, "runtime_loaded": true, "turns": [{"id": "turn-p", "state": "accepted",
+            "attempt_count": 0, "retry_at": null, "created_at": base as f64, "updated_at": base as f64}],
+            "runs": [{"agent_id": null, "turn_id": "turn-p", "state": "running", "started_cursor": "2", "started_at": base}],
+            "agents": [], "tool_calls": [],
+            "process_sessions": [{"id": 7, "machine_id": "hand-a", "provider_session_id": 42}]}))
+        .unwrap()
+    };
+    let first = snapshot(3, base + 3_000);
+    let event = journey.adapter.snapshot(&first);
+    journey.state.apply(&event);
+    let listed = journey.frame("snapshot lists the process (generation 3)", base + 3_000);
+    assert_eq!(card(&listed, "process:7").state, Lifecycle::Running);
+
+    let replaced = snapshot(4, base + 9_000);
+    let event = journey.adapter.snapshot(&replaced);
+    journey.state.apply(&event);
+    let lost = journey.frame(
+        "runtime generation 4: retained process unverified",
+        base + 9_000,
+    );
+    let process = card(&lost, "process:7");
+    assert_eq!(process.state, Lifecycle::Unknown, "{process:#?}");
+    assert!(
+        process.lines[0].text.contains("generation 4"),
+        "{process:#?}"
+    );
+
+    journey.events(&event_with(5, base + 10_000, "write_stdin", 7, Some(0)));
+    let exited = journey.frame("write_stdin reports exit 0", base + 10_000);
+    assert_eq!(card(&exited, "process:7").state, Lifecycle::Completed);
+    journey.check("process-sessions.cards.json");
+}
+
+/// A `write_stdin`-style call and its result reporting a process session.
+fn event_with(cursor: u64, at: u64, tool: &str, session: u64, exit: Option<i64>) -> Vec<Value> {
+    let call = format!("{tool}-{cursor}");
+    let envelope = |cursor: u64, kind: &str, payload: Value| {
+        json!({"cursor": cursor.to_string(), "created_at": at, "turn_id": "turn-p", "type": "event",
+            "event": {"protocol_version": 1, "request_id": "r", "seq": cursor, "type": kind, "payload": payload}})
+    };
+    vec![
+        envelope(
+            cursor,
+            "tool.call",
+            json!({"call_id": call, "tool": tool, "arguments": {"session_id": session}}),
+        ),
+        envelope(
+            cursor + 1,
+            "tool.result",
+            json!({"call_id": call, "tool": tool, "status": "completed",
+            "structured_result": {"session_id": session, "exit_code": exit}}),
+        ),
+    ]
+}

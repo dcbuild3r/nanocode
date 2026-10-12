@@ -1,0 +1,46 @@
+{
+  "protocol": 1,
+  "epoch": 2,
+  "runtime_generation": 3,
+  "cursor": "113",
+  "generated_at": 1791842225843,
+  "runtime_loaded": false,
+  "turns": [],
+  "runs": [],
+  "agents": [
+    {
+      "agent_id": 1,
+      "parent_agent_id": null,
+      "role": "Worker 1",
+      "state": "running",
+      "updated_at": 1791842199898,
+      "reported_epoch": 1
+    },
+    {
+      "agent_id": 2,
+      "parent_agent_id": null,
+      "role": "Worker 2",
+      "state": "running",
+      "updated_at": 1791842199914,
+      "reported_epoch": 1
+    },
+    {
+      "agent_id": 3,
+      "parent_agent_id": null,
+      "role": "Worker 3",
+      "state": "running",
+      "updated_at": 1791842199931,
+      "reported_epoch": 1
+    },
+    {
+      "agent_id": 4,
+      "parent_agent_id": null,
+      "role": "Worker 4",
+      "state": "running",
+      "updated_at": 1791842199947,
+      "reported_epoch": 1
+    }
+  ],
+  "tool_calls": [],
+  "process_sessions": []
+}

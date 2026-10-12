@@ -28,6 +28,10 @@ pub struct EventScope<'a> {
 #[derive(Clone, Debug, Deserialize)]
 pub struct ManagedSnapshot {
     pub epoch: u64,
+    /// Cold constructions of the session runtime, idle restarts included. A
+    /// change means retained processes belong to a lost runtime.
+    #[serde(default)]
+    pub runtime_generation: u64,
     pub cursor: String,
     pub generated_at: u64,
     #[serde(default)]
@@ -79,6 +83,9 @@ pub struct ManagedToolCall {
     pub turn_id: Option<String>,
     pub parent_call_id: Option<String>,
     pub started_at: u64,
+    /// Producer attempt (1 first; replays after a runtime epoch count up).
+    #[serde(default)]
+    pub attempt: Option<u64>,
 }
 
 /// A durable Hand process session that has not finished.
@@ -93,6 +100,10 @@ pub struct ManagedProcessSession {
 pub struct AgentEventAdapter {
     cursor: u64,
     epoch: u64,
+    /// Last seen `runtime_generation` from a snapshot.
+    generation: Option<u64>,
+    /// Process session id to the tool card that started it.
+    process_parents: HashMap<u64, String>,
     turns: u64,
     root_turn: Option<String>,
     entities: HashMap<String, Entity>,
@@ -108,6 +119,23 @@ pub struct AgentEventAdapter {
     spawn_tasks: HashMap<String, String>,
     /// Agents whose card subject is their assigned task.
     tasked: std::collections::HashSet<String>,
+}
+
+/// A producer attempt card id: attempt 1 is the bare call id.
+fn attempt_card(base: &str, attempt: u64) -> String {
+    if attempt <= 1 {
+        base.to_owned()
+    } else {
+        format!("{base}#{attempt}")
+    }
+}
+
+/// `structured_result` as an object (some producers send it as JSON text).
+fn structured_value(value: &Value) -> Value {
+    value
+        .as_str()
+        .and_then(|text| serde_json::from_str(text).ok())
+        .unwrap_or_else(|| value.clone())
 }
 
 /// A tool result's machine-readable body: the structured result, or the JSON
@@ -548,16 +576,23 @@ impl AgentEventAdapter {
                     .filter(|parent| self.entities.contains_key(parent))
                     .or_else(|| self.scope_parent(scope));
                 let base = format!("tool:{owner}:{call_id}");
-                let (id, attempt) = match self.attempts.get(&base) {
-                    Some((current, attempt))
-                        if self.entities.get(current).is_some_and(|entity| {
-                            entity.state.is_terminal() || entity.epoch < self.epoch
-                        }) =>
-                    {
-                        (format!("{base}#{}", attempt + 1), attempt + 1)
-                    }
-                    Some((current, attempt)) => (current.clone(), *attempt),
-                    None => (base.clone(), 1),
+                let producer_attempt = payload["attempt"].as_u64();
+                let (id, attempt) = match (producer_attempt, self.attempts.get(&base)) {
+                    (Some(attempt), _) => (
+                        attempt_card(&base, attempt),
+                        u32::try_from(attempt).unwrap_or(u32::MAX),
+                    ),
+                    (None, current) => match current {
+                        Some((current, attempt))
+                            if self.entities.get(current).is_some_and(|entity| {
+                                entity.state.is_terminal() || entity.epoch < self.epoch
+                            }) =>
+                        {
+                            (format!("{base}#{}", attempt + 1), attempt + 1)
+                        }
+                        Some((current, attempt)) => (current.clone(), *attempt),
+                        None => (base.clone(), 1),
+                    },
                 };
                 self.attempts.insert(base, (id.clone(), attempt));
                 if tool == "spawn_agent"
@@ -605,11 +640,19 @@ impl AgentEventAdapter {
                 let Some(call_id) = payload["call_id"].as_str() else {
                     return Vec::new();
                 };
-                let id = self.tool_card(&format!("tool:{}:{call_id}", owner_key(scope.agent_id)));
+                let base = format!("tool:{}:{call_id}", owner_key(scope.agent_id));
+                let structured_owned = structured_value(&payload["structured_result"]);
+                let structured = &structured_owned;
+                let id = payload["attempt"]
+                    .as_u64()
+                    .or_else(|| structured["attempt"].as_u64())
+                    .map_or_else(
+                        || self.tool_card(&base),
+                        |attempt| attempt_card(&base, attempt),
+                    );
                 let Some(mut entity) = self.entities.get(&id).cloned() else {
                     return Vec::new();
                 };
-                let structured = &payload["structured_result"];
                 let mut events = Vec::new();
                 // The restart receipt names the epoch that settled the call;
                 // surfaces whose stream omits `runtime_epoch` learn it here.
@@ -663,7 +706,20 @@ impl AgentEventAdapter {
                         .map(|text| text.len() as u64);
                 }
                 let task = self.spawn_tasks.remove(&entity.id);
+                // A shell that keeps running past its call returns a process
+                // session; that process becomes its own card under the call.
+                let process = (!unknown)
+                    .then(|| structured["session_id"].as_u64())
+                    .flatten()
+                    .map(|session| (session, structured["exit_code"].as_i64()));
+                let call_card = entity.id.clone();
+                let command = entity.subject.clone();
                 events.push(self.upsert(entity, at_ms));
+                if let Some((session, exit_code)) = process {
+                    events.extend(
+                        self.process_report(session, exit_code, &call_card, command, at_ms),
+                    );
+                }
                 let reporting = matches!(
                     payload["tool"].as_str(),
                     Some(
@@ -793,7 +849,17 @@ impl AgentEventAdapter {
         }
         for call in &snapshot.tool_calls {
             let owner = owner_key(call.agent_id);
-            let id = self.tool_card(&format!("tool:{owner}:{}", call.call_id));
+            let base = format!("tool:{owner}:{}", call.call_id);
+            let id = call.attempt.map_or_else(
+                || self.tool_card(&base),
+                |attempt| attempt_card(&base, attempt),
+            );
+            if let Some(attempt) = call.attempt {
+                self.attempts.insert(
+                    base,
+                    (id.clone(), u32::try_from(attempt).unwrap_or(u32::MAX)),
+                );
+            }
             let previous = self.entities.get(&id);
             let parent_id = call
                 .parent_call_id
@@ -825,18 +891,35 @@ impl AgentEventAdapter {
                 id,
             });
         }
+        // A new runtime generation means retained processes belong to a lost
+        // runtime: they are listed, but nothing proves they still run.
+        let replaced = self
+            .generation
+            .is_some_and(|known| snapshot.runtime_generation > known);
+        self.generation = Some(snapshot.runtime_generation);
         for process in &snapshot.process_sessions {
             let id = format!("process:{}", process.id);
+            let previous = self.entities.get(&id);
             entities.push(Entity {
-                subject: self
-                    .entities
-                    .get(&id)
-                    .and_then(|entity| entity.subject.clone()),
-                parent_id: None,
+                subject: previous.and_then(|entity| entity.subject.clone()),
+                parent_id: self
+                    .process_parents
+                    .get(&process.id)
+                    .cloned()
+                    .or_else(|| previous.and_then(|entity| entity.parent_id.clone())),
                 epoch,
-                state: Lifecycle::Running,
-                title: "Process".to_owned(),
-                reason: None,
+                state: if replaced {
+                    Lifecycle::Unknown
+                } else {
+                    Lifecycle::Running
+                },
+                title: format!("Process {}", process.id),
+                reason: replaced.then(|| {
+                    format!(
+                        "runtime replaced (generation {}); process may belong to the lost runtime",
+                        snapshot.runtime_generation
+                    )
+                }),
                 started_at_ms: None,
                 updated_at_ms: at_ms,
                 provenance: None,
@@ -856,6 +939,54 @@ impl AgentEventAdapter {
             at_ms,
             entities,
         }
+    }
+
+    /// A process session reported by a shell call result: running while no exit
+    /// code is known, then completed or failed with it.
+    fn process_report(
+        &mut self,
+        session: u64,
+        exit_code: Option<i64>,
+        call_card: &str,
+        command: Option<String>,
+        at_ms: u64,
+    ) -> Option<SurfaceEvent> {
+        let id = format!("process:{session}");
+        let parent = self
+            .process_parents
+            .entry(session)
+            .or_insert_with(|| call_card.to_owned())
+            .clone();
+        let previous = self.entities.get(&id);
+        let state = match exit_code {
+            None => Lifecycle::Running,
+            Some(0) => Lifecycle::Completed,
+            Some(_) => Lifecycle::Failed,
+        };
+        let entity = Entity {
+            subject: previous
+                .and_then(|entity| entity.subject.clone())
+                .or(command),
+            parent_id: Some(parent),
+            epoch: self.epoch,
+            state,
+            title: format!("Process {session}"),
+            reason: None,
+            started_at_ms: previous
+                .and_then(|entity| entity.started_at_ms)
+                .or(Some(at_ms)),
+            updated_at_ms: at_ms,
+            provenance: exit_code.map(|_| Provenance::Receipt),
+            body: Body::ProcessSession {
+                hand_id: None,
+                exit_code,
+            },
+            id,
+        };
+        if previous.is_some_and(|previous| previous.state == entity.state) && exit_code.is_none() {
+            return None;
+        }
+        Some(self.upsert(entity, at_ms))
     }
 
     /// Apply one subagent lifecycle report (`{agent_id, role, status: {state,
