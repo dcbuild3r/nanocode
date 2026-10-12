@@ -893,3 +893,48 @@ Mission Control currently uses the websocket path, so its footer deliberately
 still says health unconfirmed; merging this API does not falsely make that label
 connected or demonstrate heartbeat consumption. Shared-reducer adoption should
 wire real transport observations, not infer heartbeat from UI redraws.
+
+## Replay yield follow-up (reviewer round 6)
+
+Reviewer comment 6133318527 found fresh-attach divergence: stale child states
+and retained observations survived replay. Fixed one concrete consumer cause:
+the historical transcript's `settled_calls` set treated a yielded shell/cell
+receipt as final and discarded a later explicit unknown receipt for that same
+attempt. Yield now keeps the attempt open; authoritative unknown still closes
+it. The deterministic replay below needs no live generation signal to settle.
+The TUI suite (351 passed, 2 ignored) and native build passed again.
+
+This does **not** claim full fresh-attach parity: loading a current authoritative
+snapshot and excluding stale `agents[].reported_epoch` is still necessary.
+Previously captured live recovery is not evidence of fresh replay equivalence.
+
+### retained-unknown-replay
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 1                      │
+│Blocked/unknown: 1                  │
+│Retained calls: 0 (unconfirmed)     │
+│Next: inspect task evidence         │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 shown / 3 loaded · row 1          │
+│root [completed] · 1 unresolved     │
+│calls                               │
+│  codex / gpt-6-astra               │
+│  run.completed · 99s               │
+│  agent-reported                    │
+│root → 7 [running]                  │
+│  claude / claude-opus-4-6          │
+│  run.started · 99s                 │
+│  agent-reported                    │
+│root/shell-1 [unknown]              │
+│  family ? / model ?                │
+│  exec_command · 99s                │
+│  runtime receipt · effect unknown  │
+└────────────────────────────────────┘
+    └── ? Shell  $ echo fixture · completion unknown · outcome unknown · runtime restarted · 0ms
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
+```

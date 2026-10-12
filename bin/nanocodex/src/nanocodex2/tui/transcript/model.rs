@@ -1283,7 +1283,9 @@ impl TranscriptModel {
         };
         // Legacy inferred uncertainty can be refined. A producer-issued unknown
         // receipt is terminal for this attempt; replay requires a new attempt.
-        if state == ToolState::Unknown && payload.outcome_unknown != Some(true) {
+        if state == ToolState::Yielded
+            || (state == ToolState::Unknown && payload.outcome_unknown != Some(true))
+        {
             self.settled_calls.remove(&payload.call_id);
         }
         let entry_state = if resumed_shell.is_some() && state == ToolState::Yielded {
@@ -1434,6 +1436,8 @@ impl TranscriptModel {
             self.tool_owners.remove(&id);
         }
         if let Some(cell_id) = running_code_cell {
+            // A yielded cell is not a terminal receipt for retained execution.
+            self.settled_calls.remove(&payload.call_id);
             self.code_cells.insert(cell_id, id);
         }
         if let Some(cell_id) = observed_code_cell

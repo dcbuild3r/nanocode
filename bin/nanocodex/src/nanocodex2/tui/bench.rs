@@ -921,6 +921,17 @@ fn mission_control_journey() {
         retained.clone(),
         &["[retained]", "Blocked/unknown: 0", "unconfirmed"],
     );
+    let mut unknown_replay = retained.clone();
+    unknown_replay.push(record(6, "tool.result", json!({"call_id":"shell-1","tool":"exec_command","status":"failed","outcome_unknown":true,"duration_ns":1,"result":{"message":"runtime restarted"}}), None));
+    capture(
+        "retained-unknown-replay",
+        unknown_replay,
+        &[
+            "root/shell-1 [unknown]",
+            "Retained calls: 0",
+            "completion unknown",
+        ],
+    );
     retained.push(record(
         6,
         "surface_ready",
