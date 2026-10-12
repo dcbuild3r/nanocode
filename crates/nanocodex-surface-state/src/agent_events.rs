@@ -475,6 +475,8 @@ impl AgentEventAdapter {
                     .or_else(|| args["file_path"].as_str())
                     .or_else(|| args["path"].as_str())
                     .or_else(|| args["query"].as_str())
+                    // Freeform tools (Code Mode) carry their source as a string.
+                    .or_else(|| args.as_str())
                     .map(|text| first_line(text, 120));
                 let entity = Entity {
                     id: format!("tool:{owner}:{call_id}"),

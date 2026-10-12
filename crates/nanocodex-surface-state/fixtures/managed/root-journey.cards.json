@@ -30,6 +30,7 @@
           "pinned": false,
           "state": "running",
           "state_label": "running 0s",
+          "subject": "text(await tools.exec_command({cmd:\"curl -s -X POST https://effects.example/effect/S1\"}));",
           "title": "Code Mode",
           "tone": "live"
         },
@@ -105,6 +106,7 @@
           "pinned": false,
           "state": "unknown",
           "state_label": "unknown",
+          "subject": "text(await tools.exec_command({cmd:\"curl -s -X POST https://effects.example/effect/S1\"}));",
           "title": "Code Mode",
           "tone": "warn"
         },
@@ -189,6 +191,7 @@
           "pinned": false,
           "state": "failed",
           "state_label": "failed",
+          "subject": "text(await tools.exec_command({cmd:\"curl -s -X POST https://effects.example/effect/S1\"}));",
           "title": "Code Mode",
           "tone": "error"
         },

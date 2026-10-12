@@ -35,6 +35,7 @@
           "pinned": false,
           "state": "completed",
           "state_label": "done in 0s",
+          "subject": "text(await tools.spawn_agent({\"role\":\"Surface child\",\"task\":\"SURFACE_CHILD_TASK: apply effect S2 once, then submit_resu…",
           "title": "Code Mode",
           "tone": "ok"
         },
@@ -100,6 +101,7 @@
           "pinned": false,
           "state": "unknown",
           "state_label": "unknown",
+          "subject": "text(await tools.exec_command({cmd:\"curl -s -X POST https://effects.example/effect/S2\"}));",
           "title": "Code Mode",
           "tone": "warn"
         },
@@ -149,6 +151,7 @@
           "pinned": false,
           "state": "completed",
           "state_label": "done in 0s",
+          "subject": "text(await tools.exec_command({cmd:\"curl -s -X POST https://effects.example/effect/S3\"}));",
           "title": "Code Mode",
           "tone": "ok"
         },
@@ -198,6 +201,7 @@
           "pinned": false,
           "state": "completed",
           "state_label": "done in 0s",
+          "subject": "text(await tools.submit_result({output:\"CHILD_RESUMED_WITHOUT_REPEAT\"}));",
           "title": "Code Mode",
           "tone": "ok"
         },
@@ -250,6 +254,7 @@
           "pinned": false,
           "state": "failed",
           "state_label": "failed",
+          "subject": "text(await tools.wait_agent({agent_ids:[1],timeout_ms:20000}));",
           "title": "Code Mode",
           "tone": "error"
         },
