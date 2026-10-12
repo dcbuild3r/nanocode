@@ -2177,7 +2177,10 @@ struct OpenRun {
 }
 
 fn parent_call_id(call_id: &str) -> Option<&str> {
-    call_id.rfind("/code-").filter(|index| *index > 0).map(|index| &call_id[..index])
+    call_id
+        .rfind("/code-")
+        .filter(|index| *index > 0)
+        .map(|index| &call_id[..index])
 }
 
 /// Tool calls without a terminal result and runs without a terminal event.
@@ -2215,7 +2218,10 @@ fn open_entities(db: &Connection, agent: &str) -> ApiResult<(Vec<OpenCall>, Vec<
                     calls.push(OpenCall {
                         agent_id: child,
                         call_id: call_id.to_owned(),
-                        tool: event["payload"]["tool"].as_str().unwrap_or("unknown").to_owned(),
+                        tool: event["payload"]["tool"]
+                            .as_str()
+                            .unwrap_or("unknown")
+                            .to_owned(),
                         turn_id: row.turn_id.clone(),
                         cursor: row.cursor,
                         started_at: row.created_at,
@@ -2253,7 +2259,9 @@ fn interrupted_attempts(
 /// Tags a call replayed after a runtime epoch (and its result) with its attempt.
 fn annotate_attempt(db: &Connection, agent: &str, body: &mut Value) -> ApiResult<()> {
     let event = &body["event"];
-    if body["type"] != "event" || !matches!(event["type"].as_str(), Some("tool.call" | "tool.result")) {
+    if body["type"] != "event"
+        || !matches!(event["type"].as_str(), Some("tool.call" | "tool.result"))
+    {
         return Ok(());
     }
     let Some(call_id) = event["payload"]["call_id"].as_str().map(str::to_owned) else {

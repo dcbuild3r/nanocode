@@ -1558,7 +1558,8 @@ impl DurableSession {
     /// whose tools reconcile their own effects (a Code Mode effect journal)
     /// leave this off.
     pub fn interrupt_lost_tool_effects(&self) {
-        self.interrupt_lost_tool_effects.store(true, Ordering::Release);
+        self.interrupt_lost_tool_effects
+            .store(true, Ordering::Release);
     }
 
     /// Loads and validates a durable session, then spawns its owning driver.

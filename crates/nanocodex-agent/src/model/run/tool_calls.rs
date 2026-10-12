@@ -25,7 +25,6 @@ pub(super) struct ActiveNestedToolCall {
     pub(super) started_at: Instant,
 }
 
-
 /// Model-visible result of a tool call a lost runtime started and never settled.
 const INTERRUPTED_TOOL_CALL: &str = "The runtime restarted before a terminal result for this tool call, so its outcome is unknown. It was not run again. Inspect external state before retrying any effect.";
 
