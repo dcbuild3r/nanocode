@@ -1719,6 +1719,7 @@ struct Service {
     session_list_gate: Arc<tokio::sync::Semaphore>,
     history_requests: Arc<Mutex<Vec<u64>>>,
     history: Arc<Mutex<Vec<Value>>>,
+    surface: Arc<Mutex<Option<Value>>>,
     connected: mpsc::UnboundedSender<mpsc::UnboundedSender<Value>>,
     submitted: mpsc::UnboundedSender<Value>,
     steered: mpsc::UnboundedSender<(Value, oneshot::Sender<bool>)>,
@@ -1928,6 +1929,18 @@ async fn serve(mut socket: WebSocket, service: Service, cursor: u64, agent: Stri
             }
         }
     }
+}
+
+async fn surface_snapshot(
+    State(service): State<Service>,
+) -> Result<Json<Value>, axum::http::StatusCode> {
+    service
+        .surface
+        .lock()
+        .unwrap()
+        .clone()
+        .map(Json)
+        .ok_or(axum::http::StatusCode::NOT_FOUND)
 }
 
 async fn state(
@@ -2154,6 +2167,8 @@ struct Fixture {
     events: mpsc::UnboundedSender<Value>,
     connections: mpsc::UnboundedReceiver<mpsc::UnboundedSender<Value>>,
     history: Arc<Mutex<Vec<Value>>>,
+    /// Body served by \`GET /v1/agents/:id/surface\`; absent answers 404.
+    surface: Arc<Mutex<Option<Value>>>,
     submissions: mpsc::UnboundedReceiver<Value>,
     steers: mpsc::UnboundedReceiver<(Value, oneshot::Sender<bool>)>,
     rejections: mpsc::UnboundedReceiver<Value>,
@@ -2263,6 +2278,7 @@ impl Fixture {
         let (rejected, rejections) = mpsc::unbounded_channel();
         let (cancelled, cancellations) = mpsc::unbounded_channel();
         let history = Arc::new(Mutex::new(initial_history));
+        let surface = Arc::new(Mutex::new(None));
         let state_available = Arc::new(AtomicBool::new(true));
         let settings = Arc::new(Mutex::new(
             json!({"model": "gpt-6-astra", "thinking": "low", "reasoning_mode": "standard", "fast_mode": false}),
@@ -2340,6 +2356,7 @@ impl Fixture {
             .route("/v1/agents/{agent}", get(state))
             .route("/v1/agents/{agent}/ws", get(socket))
             .route("/v1/agents/{agent}/events/history", get(event_history))
+            .route("/v1/agents/{agent}/surface", get(surface_snapshot))
             .route("/v1/agents/{agent}/routing", post(enable_routing))
             .route("/v1/agents/{agent}/settings", patch(patch_settings))
             .route("/v1/agents/{agent}/turns", post(submit))
@@ -2367,6 +2384,7 @@ impl Fixture {
                 session_list_gate: session_list_gate.clone(),
                 history_requests: history_requests.clone(),
                 history: history.clone(),
+                surface: surface.clone(),
                 connected,
                 submitted,
                 steered,
@@ -2418,6 +2436,7 @@ impl Fixture {
             events,
             connections,
             history,
+            surface,
             submissions,
             steers,
             rejections,
@@ -9232,6 +9251,11 @@ async fn terminal_card_stream_settles_tools_from_runtime_receipts() {
     let mut fixture = Fixture::start().await;
     fixture.terminal.prompt("CARD_STREAM_JOURNEY", "\r");
     let turn = fixture.submission("CARD_STREAM_JOURNEY").await;
+    fixture.nested(
+        &turn,
+        "input.accepted",
+        json!({"kind": "prompt", "request_id": turn, "input": "CARD_STREAM_JOURNEY"}),
+    );
     fixture.nested(&turn, "run.started", json!({"model": "gpt-card-stream"}));
     fixture.nested(&turn, "tool.call", json!({"call_id": "cards-build", "tool": "exec_command",
         "arguments": {"cmd": "cargo build --release -p card-stream-journey", "workdir": "/srv/cards"}}));
@@ -9278,14 +9302,18 @@ async fn terminal_card_stream_settles_tools_from_runtime_receipts() {
     );
 
     fixture.complete(&turn);
-    wait_line(&fixture.terminal, &["TURN Turn gpt-card-stream", "done in"]).await;
+    wait_line(
+        &fixture.terminal,
+        &["TURN Turn CARD_STREAM_JOURNEY", "done in"],
+    )
+    .await;
     capture(&fixture.terminal, "card stream: turn completed");
 
     // F7 returns to the transcript, which kept receiving the same records.
     fixture.terminal.input("\x1b[18~");
     fixture
         .terminal
-        .wait_no_text("TURN Turn gpt-card-stream")
+        .wait_no_text("TURN Turn CARD_STREAM_JOURNEY")
         .await;
     fixture.terminal.wait_text("Enter send").await;
 }
@@ -9293,4 +9321,124 @@ async fn terminal_card_stream_settles_tools_from_runtime_receipts() {
 fn capture(terminal: &Terminal, label: &str) {
     let contents = terminal.screen.lock().unwrap().screen().contents();
     eprintln!("=== {label}\n{contents}\n=== end");
+}
+
+/// Reconnect journey: after a disconnect spanning a runtime restart, the card
+/// stream adopts the service's surface snapshot (shape captured from the real
+/// producer) instead of inferring state from the replayed gap.
+#[tokio::test]
+async fn terminal_card_stream_adopts_the_surface_snapshot_on_reconnect() {
+    let mut fixture = Fixture::start().await;
+    fixture.terminal.prompt("CARD_RECONNECT_JOURNEY", "\r");
+    let turn = fixture.submission("CARD_RECONNECT_JOURNEY").await;
+    fixture.nested(&turn, "input.accepted", json!({"kind": "prompt", "request_id": turn,
+        "input": "CARD_RECONNECT_JOURNEY\n\n<current_request_context>\nservice context\n</current_request_context>"}));
+    fixture.nested(&turn, "run.started", json!({"model": "gpt-card-stream"}));
+    fixture.nested(
+        &turn,
+        "tool.call",
+        json!({"call_id": "cards-lost", "tool": "exec_command",
+        "arguments": {"cmd": "cargo test -p lost-before-restart"}}),
+    );
+    fixture.terminal.input("\x1b[18~");
+    wait_line(
+        &fixture.terminal,
+        &["TURN Turn CARD_RECONNECT_JOURNEY", "running"],
+    )
+    .await;
+    wait_line(
+        &fixture.terminal,
+        &["cargo test -p lost-before-restart", "running"],
+    )
+    .await;
+    capture(
+        &fixture.terminal,
+        "card stream reconnect: before the disconnect",
+    );
+
+    // A real GET /surface body (surface-state curl journey, child swarm during
+    // the run) rebased onto this turn and reported after the restart.
+    let mut snapshot: Value = serde_json::from_str(include_str!(
+        "../../../crates/nanocodex-surface-state/fixtures/managed/child-surface-during.json"
+    ))
+    .unwrap();
+    snapshot["epoch"] = json!(1);
+    snapshot["turns"][0]["id"] = json!(turn);
+    for list in ["runs", "tool_calls"] {
+        for entry in snapshot[list].as_array_mut().unwrap() {
+            entry["turn_id"] = json!(turn);
+        }
+    }
+    // Shift the captured service clock to now so ages read as live.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    let shift = now - snapshot["generated_at"].as_i64().unwrap();
+    fn rebase(value: &mut Value, shift: i64) {
+        match value {
+            Value::Object(map) => {
+                for (key, value) in map.iter_mut() {
+                    match key.as_str() {
+                        "generated_at" | "created_at" | "updated_at" | "started_at" => {
+                            if let Some(at) = value.as_i64() {
+                                *value = json!(at + shift);
+                            }
+                        }
+                        _ => rebase(value, shift),
+                    }
+                }
+            }
+            Value::Array(items) => items.iter_mut().for_each(|item| rebase(item, shift)),
+            _ => {}
+        }
+    }
+    rebase(&mut snapshot, shift);
+    fixture.state_available.store(false, Ordering::SeqCst);
+    fixture.break_stream();
+    fixture.terminal.wait_text("Connection lost").await;
+    *fixture.surface.lock().unwrap() = Some(snapshot);
+    fixture.state_available.store(true, Ordering::SeqCst);
+    fixture.terminal.input("\r");
+    fixture.replacement_connection().await;
+    fixture.terminal.wait_text("Reconnected").await;
+    wait_line(
+        &fixture.terminal,
+        &["cargo test -p lost-before-restart", "unknown"],
+    )
+    .await;
+    fixture
+        .terminal
+        .wait_text("runtime restarted while disconnected")
+        .await;
+    wait_line(&fixture.terminal, &["AGENT Surface child", "unknown"]).await;
+    fixture
+        .terminal
+        .wait_text("last report predates the runtime restart")
+        .await;
+    wait_line(
+        &fixture.terminal,
+        &["TURN Turn CARD_RECONNECT_JOURNEY", "running"],
+    )
+    .await;
+    capture(
+        &fixture.terminal,
+        "card stream reconnect: after the surface snapshot",
+    );
+    // The snapshot's open calls sit below the fold; PgDn scrolls the stream.
+    fixture.terminal.input("\x1b[6~");
+    wait_line(&fixture.terminal, &["TOOL Wait for agent", "running"]).await;
+    capture(
+        &fixture.terminal,
+        "card stream reconnect: snapshot calls (PgDn)",
+    );
+    fixture.terminal.input("\x1b[5~");
+
+    fixture.complete(&turn);
+    wait_line(
+        &fixture.terminal,
+        &["TURN Turn CARD_RECONNECT_JOURNEY", "done in"],
+    )
+    .await;
+    capture(&fixture.terminal, "card stream reconnect: turn completed");
 }
