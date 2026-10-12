@@ -166,6 +166,7 @@ pub(crate) enum RootEvent {
         reasoning_mode: ReasoningMode,
     },
     AgentReconnectFailed(String),
+    SurfaceSnapshot(Box<nanocodex_managed::SurfaceSnapshot>),
     Subagent(AgentUpdate),
     ReplaceDraft(String),
     HandoffFinished(String),
@@ -1364,6 +1365,14 @@ impl RootNode {
                 }
                 KeyCode::PageUp if self.card_stream.is_open() => {
                     self.card_stream.scroll_by(-10);
+                    true
+                }
+                KeyCode::End if self.card_stream.is_open() => {
+                    self.card_stream.follow();
+                    true
+                }
+                KeyCode::Home if self.card_stream.is_open() => {
+                    self.card_stream.scroll_to_top();
                     true
                 }
                 _ => false,
@@ -4569,6 +4578,10 @@ impl Component for RootNode {
                 self.reconnecting = Some(false);
                 self.notification = Some(Notification::plain(error, Color::Red));
                 self.reconnection_status("Connection lost · Enter to reconnect")
+            }
+            RootEvent::SurfaceSnapshot(snapshot) => {
+                self.card_stream.apply_snapshot(&snapshot);
+                ComponentUpdate::render(RenderRequest::Immediate)
             }
             RootEvent::Subagent(update) => self.apply_subagent_update(update),
             RootEvent::ReplaceDraft(draft) => {

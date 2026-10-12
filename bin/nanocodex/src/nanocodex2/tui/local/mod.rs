@@ -107,6 +107,7 @@ impl super::DriverRuntime {
                         error: nanocodex_managed::ManagedError::Configuration(error),
                         retry: super::RetryTarget::Default,
                     }),
+                surface: None,
             }
         })
     }

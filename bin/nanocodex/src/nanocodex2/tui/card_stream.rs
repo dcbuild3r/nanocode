@@ -161,6 +161,15 @@ impl CardStreamView {
         self.open = false;
     }
 
+    /// Jump to the newest cards and keep following them.
+    pub(crate) const fn follow(&mut self) {
+        self.scroll = None;
+    }
+
+    pub(crate) fn scroll_to_top(&mut self) {
+        self.scroll = (self.max_scroll.get() > 0).then_some(0);
+    }
+
     /// Page the stream; paging past the end resumes following new cards.
     pub(crate) fn scroll_by(&mut self, rows: isize) {
         let max = self.max_scroll.get();

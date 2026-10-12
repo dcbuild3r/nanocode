@@ -9446,3 +9446,44 @@ async fn terminal_card_stream_adopts_the_surface_snapshot_on_reconnect() {
     .await;
     capture(&fixture.terminal, "card stream reconnect: turn completed");
 }
+
+/// First attach reads the service's surface snapshot: a session opened at
+/// producer epoch 1 shows that epoch and the open child work at once, rather
+/// than an empty epoch-0 view rebuilt from history.
+#[tokio::test]
+async fn terminal_card_stream_reads_the_surface_snapshot_on_first_attach() {
+    let gate = Arc::new(tokio::sync::Semaphore::new(0));
+    let mut fixture = Fixture::launch_with_history(false, true, Vec::new(), gate.clone()).await;
+    fixture.terminal.wait_text("Connecting").await;
+    let mut snapshot: Value = serde_json::from_str(include_str!(
+        "../../../crates/nanocodex-surface-state/fixtures/managed/child-surface-moved-on.json"
+    ))
+    .unwrap();
+    let shift = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+        - snapshot["generated_at"].as_i64().unwrap();
+    for (list, field) in [
+        ("runs", "started_at"),
+        ("agents", "updated_at"),
+        ("tool_calls", "started_at"),
+    ] {
+        for entry in snapshot[list].as_array_mut().unwrap() {
+            entry[field] = json!(entry[field].as_i64().unwrap() + shift);
+        }
+    }
+    snapshot["generated_at"] = json!(snapshot["generated_at"].as_i64().unwrap() + shift);
+    *fixture.surface.lock().unwrap() = Some(snapshot);
+    gate.add_permits(64);
+    fixture.terminal.wait_text("Enter send").await;
+    fixture.terminal.input("\x1b[18~");
+    wait_line(&fixture.terminal, &["AGENT Surface child", "running"]).await;
+    wait_line(&fixture.terminal, &["TOOL Code Mode", "running"]).await;
+    wait_line(&fixture.terminal, &["epoch 1", "3 open"]).await;
+    capture(&fixture.terminal, "card stream attach: surface snapshot");
+    // End jumps to (and follows) the newest cards; Home returns to the top.
+    fixture.terminal.input("\x1b[F");
+    fixture.terminal.input("\x1b[H");
+    wait_line(&fixture.terminal, &["BRAIN Workspace"]).await;
+}

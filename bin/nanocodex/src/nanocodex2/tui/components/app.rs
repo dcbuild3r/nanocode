@@ -68,6 +68,11 @@ pub(crate) enum AppEvent {
         pane: PaneId,
         error: String,
     },
+    /// The service's surface snapshot read at attach.
+    SurfaceSnapshot {
+        pane: PaneId,
+        snapshot: Box<nanocodex_managed::SurfaceSnapshot>,
+    },
     Subagent {
         pane: PaneId,
         update: AgentUpdate,
@@ -390,6 +395,9 @@ impl AppNode {
                     reasoning_mode,
                 },
             ),
+            AppEvent::SurfaceSnapshot { pane, snapshot } => {
+                self.update_root(pane, RootEvent::SurfaceSnapshot(snapshot))
+            }
             AppEvent::AgentReconnectFailed { pane, error } => {
                 self.update_root(pane, RootEvent::AgentReconnectFailed(error))
             }

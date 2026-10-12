@@ -516,6 +516,8 @@ enum ConnectionResult {
     Agent {
         purpose: ConnectionPurpose,
         result: Result<ConnectedAgent, ConnectionFailure>,
+        /// Open lifecycle entities at attach, when the service provides them.
+        surface: Option<Box<nanocodex_managed::SurfaceSnapshot>>,
     },
     Sessions {
         pane: PaneId,
@@ -1870,7 +1872,11 @@ impl DriverRuntime {
                         error: ManagedError::Configuration(error),
                         retry: target,
                     });
-                ConnectionResult::Agent { purpose, result }
+                ConnectionResult::Agent {
+                    purpose,
+                    result,
+                    surface: None,
+                }
             });
             return;
         }
@@ -1884,8 +1890,16 @@ impl DriverRuntime {
             // The hosted live endpoint and this initial view share AgentSettings
             // defaults. Catalog discovery only populates the optional model picker;
             // it must never delay connecting or submitting the first prompt.
-            let result = connect_agent(client, agent_id, settings).await;
-            ConnectionResult::Agent { purpose, result }
+            let result = connect_agent(client.clone(), agent_id, settings).await;
+            let surface = match &result {
+                Ok(connected) => client.surface(&connected.2).await.ok().map(Box::new),
+                Err(_) => None,
+            };
+            ConnectionResult::Agent {
+                purpose,
+                result,
+                surface,
+            }
         });
     }
 
@@ -3554,7 +3568,7 @@ async fn run_inner(
                             };
                             stopping = apply_update(update, &mut app, &mut runtime, &mut terminal, &mut scheduler).await?;
                         }
-                        ConnectionResult::Agent { purpose, result: Ok((agent, managed_events, agent_id, workspace, history, warning, settings, created, active_turns)) } => {
+                        ConnectionResult::Agent { purpose, result: Ok((agent, managed_events, agent_id, workspace, history, warning, settings, created, active_turns)), surface } => {
                             if let Some(local) = &mut runtime.local {
                                 local.adopt();
                                 if let Some(root) = app.root_mut(PaneId::Main) {
@@ -3700,6 +3714,9 @@ async fn run_inner(
                                 }
                             };
                             request_render(update, &mut scheduler);
+                            if let Some(snapshot) = surface {
+                                request_render(app.update(AppEvent::SurfaceSnapshot { pane, snapshot }), &mut scheduler);
+                            }
                             if matches!(purpose, ConnectionPurpose::Bug(_)) {
                                 request_render(app.update(AppEvent::NotifySuccess {
                                     pane,
@@ -3744,7 +3761,7 @@ async fn run_inner(
                             }
                             runtime.start_history_prefetch(pane);
                         }
-                        ConnectionResult::Agent { purpose, result: Err(failure) } => {
+                        ConnectionResult::Agent { purpose, result: Err(failure), .. } => {
                             // A failed relaunch keeps the running agent; a newer
                             // queued selection still holds its prompts.
                             let relaunch_queued = runtime.queued_relaunch.is_some();
@@ -5711,14 +5728,22 @@ async fn apply_update(
                         }
                         let client = runtime.client.clone();
                         let resume = runtime.connection.spawn(async move {
-                            ConnectionResult::Agent {
-                                purpose: ConnectionPurpose::Resume(pane),
-                                result: connect_agent(
-                                    client,
-                                    Some(agent_id),
+                            {
+                                let result = connect_agent(
+                                    client.clone(),
+                                    Some(agent_id.clone()),
                                     AgentSettings::default(),
                                 )
-                                .await,
+                                .await;
+                                let surface = match &result {
+                                    Ok(_) => client.surface(&agent_id).await.ok().map(Box::new),
+                                    Err(_) => None,
+                                };
+                                ConnectionResult::Agent {
+                                    purpose: ConnectionPurpose::Resume(pane),
+                                    result,
+                                    surface,
+                                }
                             }
                         });
                         runtime.pending_resume = Some((resume, pane));
@@ -5749,6 +5774,7 @@ async fn apply_update(
                             ConnectionResult::Agent {
                                 purpose: ConnectionPurpose::Bug(pane),
                                 result: bug::launch(client, settings, prompt).await,
+                                surface: None,
                             }
                         });
                         runtime.pending_resume = Some((task, pane));
