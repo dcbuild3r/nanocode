@@ -43,6 +43,11 @@ use tokio::{
 const DEFAULT_BIND: &str = "127.0.0.1:8788";
 const DEFAULT_WEBSOCKET_URL: &str = "wss://api.openai.com/v1/responses";
 const EVENT_PAGE: usize = 256;
+/// Durable message marking a new runtime epoch; only surface readers get it.
+const RUNTIME_EPOCH_KIND: &str = "runtime_epoch";
+const INTERRUPTED_TOOL_CALL_ERROR: &str = "The session runtime restarted before a terminal result for this tool call, so its outcome is unknown. Inspect external state before retrying any effect.";
+/// Liveness frames on surface event streams, so clients can show disconnects.
+const SURFACE_HEARTBEAT: Duration = Duration::from_secs(5);
 
 #[derive(Args)]
 pub(crate) struct ManagedServer {
@@ -110,6 +115,20 @@ impl ManagedServer {
             .await
             .wrap_err_with(|| format!("failed to bind managed-server to {}", self.bind))?;
         state
+            .database
+            .begin_generation()
+            .await
+            .map_err(|error| eyre!(error.message))?;
+        // Settle what the lost process left open before recovery can replay it.
+        for agent in state
+            .database
+            .recover_runtime_epochs()
+            .await
+            .map_err(|error| eyre!(error.message))?
+        {
+            drop(state.changed.send(agent));
+        }
+        state
             .recover_all()
             .await
             .map_err(|error| eyre!(error.message))?;
@@ -142,6 +161,7 @@ fn router(state: AppState) -> Router {
         .route("/v1/agents/{agent}/events", get(events))
         .route("/v1/agents/{agent}/ws", get(agent_socket))
         .route("/v1/agents/{agent}/events/history", get(event_history))
+        .route("/v1/agents/{agent}/surface", get(surface_snapshot))
         .route("/v1/agents/{agent}/tool-host", get(tool_host))
         .with_state(state)
 }
@@ -223,6 +243,9 @@ impl AppState {
         )
         .await
         .map_err(ApiError::internal)?;
+        // A tool effect the previous process started and never settled (for
+        // example a running shell command) is settled as unknown, never re-run.
+        durable.interrupt_lost_tool_effects();
         let openai = OpenAi::builder(self.openai_api_key.to_string())
             .websocket_url(self.openai_websocket_url.to_string())
             .websocket_warmup(false)
@@ -679,6 +702,8 @@ impl Database {
     ) -> ApiResult<()> {
         let agent = self.agent_for_turn(turn).await?;
         let db = self.0.lock().await;
+        let mut body = body;
+        annotate_attempt(&db, &agent, &mut body)?;
         append_event(&db, &agent, Some(turn), kind, &body, Some(dedupe_key)).map(|_| ())
     }
 
@@ -1041,11 +1066,20 @@ struct SteerWithdrawal {
 #[derive(Deserialize)]
 struct EventQuery {
     cursor: Option<String>,
+    surface: Option<String>,
 }
 #[derive(Deserialize)]
 struct HistoryQuery {
     before: Option<String>,
     limit: Option<usize>,
+    surface: Option<String>,
+}
+fn surface_opt_in(value: Option<&str>) -> ApiResult<bool> {
+    match value {
+        None => Ok(false),
+        Some("1") => Ok(true),
+        Some(_) => Err(ApiError::bad("invalid_request", "surface must be 1")),
+    }
 }
 enum TurnReservation {
     New(TurnRow),
@@ -1290,9 +1324,10 @@ async fn event_history(
         ));
     }
     let before = query.before.as_deref().map(parse_cursor).transpose()?;
+    let surface = surface_opt_in(query.surface.as_deref())?;
     let (rows, has_more, latest) = state.database.history(&agent, before, limit).await?;
     Ok(Json(
-        json!({"data":rows.iter().map(StoredEvent::envelope).collect::<Vec<_>>(),"has_more":has_more,"latest_cursor":latest}),
+        json!({"data":rows.iter().filter(|row| surface || row.kind != RUNTIME_EPOCH_KIND).map(StoredEvent::envelope).collect::<Vec<_>>(),"has_more":has_more,"latest_cursor":latest}),
     ))
 }
 async fn agent_socket(
@@ -1317,6 +1352,11 @@ async fn agent_socket(
     };
     ready["type"] = json!("ready");
     ready["restored"] = ready["has_snapshot"].clone();
+    let surface = surface_opt_in(query.surface.as_deref())?;
+    if surface {
+        let (epoch, generation) = state.database.epoch_and_generation(&agent).await?;
+        ready["surface"] = json!({"epoch": epoch, "runtime_generation": generation});
+    }
     // Retain the existing database counter for either durable-event transport.
     state.database.note_sse_connection(&agent).await?;
     let changed = state.changed.subscribe();
@@ -1324,7 +1364,7 @@ async fn agent_socket(
     Ok(upgrade
         .on_upgrade(move |socket| async move {
             let _ = serve_agent_socket(
-                socket, state, agent, headers, cursor, ready, changed, shutdown,
+                socket, state, agent, headers, cursor, ready, changed, shutdown, surface,
             )
             .await;
         })
@@ -1341,6 +1381,7 @@ async fn serve_agent_socket(
     ready: Value,
     mut changed: broadcast::Receiver<String>,
     mut shutdown: watch::Receiver<bool>,
+    surface: bool,
 ) -> ApiResult<()> {
     socket
         .send(Message::Text(ready.to_string().into()))
@@ -1357,6 +1398,9 @@ async fn serve_agent_socket(
         if !rows.is_empty() {
             for row in rows {
                 cursor = row.cursor;
+                if !surface && row.kind == RUNTIME_EPOCH_KIND {
+                    continue;
+                }
                 socket
                     .send(Message::Text(row.envelope().to_string().into()))
                     .await
@@ -1457,6 +1501,7 @@ async fn events(
         ));
     }
     state.database.note_sse_connection(&agent).await?;
+    let surface = surface_opt_in(query.surface.as_deref())?;
     let mut cursor = match query.cursor.as_deref().unwrap_or("latest") {
         "latest" => state
             .database
@@ -1486,6 +1531,9 @@ async fn events(
                         cursor = row.cursor;
                         if *shutdown.borrow() {
                             return;
+                        }
+                        if !surface && row.kind == RUNTIME_EPOCH_KIND {
+                            continue;
                         }
                         tokio::select! {
                             result = tx.send(row) => {
@@ -1520,8 +1568,49 @@ async fn events(
             (Ok::<_, Infallible>(event), rx)
         })
     });
+    let stream: futures_util::stream::BoxStream<'static, Result<Event, Infallible>> = if surface {
+        // Cursorless heartbeat frames prove the server is alive while idle.
+        let heartbeat = futures_util::stream::unfold(
+            (
+                state.database.clone(),
+                agent.clone(),
+                state.shutdown.subscribe(),
+                tokio::time::interval(SURFACE_HEARTBEAT),
+            ),
+            |(database, agent, shutdown, mut interval)| async move {
+                interval.tick().await;
+                if *shutdown.borrow() {
+                    return None;
+                }
+                let value = database.heartbeat(&agent).await.ok()?;
+                Some((
+                    Ok(Event::default().event("heartbeat").data(value.to_string())),
+                    (database, agent, shutdown, interval),
+                ))
+            },
+        );
+        futures_util::stream::select(stream, heartbeat).boxed()
+    } else {
+        stream.boxed()
+    };
     Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15))))
 }
+async fn surface_snapshot(
+    State(state): State<AppState>,
+    Path(agent): Path<String>,
+    headers: HeaderMap,
+) -> ApiResult<Json<Value>> {
+    state.authorize(&headers)?;
+    if !state.database.agent_exists(&agent).await? {
+        return Err(ApiError::not_found(
+            "agent_not_found",
+            "managed agent does not exist",
+        ));
+    }
+    let loaded = state.runtimes.lock().await.contains_key(&agent);
+    Ok(Json(state.database.surface(&agent, loaded).await?))
+}
+
 async fn tool_host(
     State(state): State<AppState>,
     Path(agent): Path<String>,
@@ -2065,4 +2154,318 @@ mod tests {
         assert!(matches!(parse_cursor("0"), Ok(0)));
         assert!(parse_cursor("01").is_err());
     }
+}
+
+/// Open tool call reconstructed from durable events.
+struct OpenCall {
+    agent_id: Option<i64>,
+    call_id: String,
+    tool: String,
+    turn_id: Option<String>,
+    cursor: i64,
+    started_at: f64,
+    attempt: u64,
+    event: Value,
+}
+
+/// Open run reconstructed from durable events.
+struct OpenRun {
+    agent_id: Option<i64>,
+    turn_id: Option<String>,
+    cursor: i64,
+    started_at: f64,
+}
+
+fn parent_call_id(call_id: &str) -> Option<&str> {
+    call_id.rfind("/code-").filter(|index| *index > 0).map(|index| &call_id[..index])
+}
+
+/// Tool calls without a terminal result and runs without a terminal event.
+fn open_entities(db: &Connection, agent: &str) -> ApiResult<(Vec<OpenCall>, Vec<OpenRun>)> {
+    let mut statement = db
+        .prepare("SELECT cursor,turn_id,created_at,kind,body_json FROM local_managed_events WHERE agent_id=?1 AND kind='event' ORDER BY cursor")
+        .map_err(ApiError::internal)?;
+    let rows = statement
+        .query_map([agent], map_event)
+        .map_err(ApiError::internal)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(ApiError::internal)?;
+    let mut calls: Vec<OpenCall> = Vec::new();
+    let mut runs: Vec<OpenRun> = Vec::new();
+    for row in rows {
+        let event = &row.body["event"];
+        let child = row.body["agent_id"].as_i64();
+        match event["type"].as_str() {
+            Some("run.started") => {
+                runs.retain(|run| run.agent_id != child);
+                runs.push(OpenRun {
+                    agent_id: child,
+                    turn_id: row.turn_id.clone(),
+                    cursor: row.cursor,
+                    started_at: row.created_at,
+                });
+            }
+            Some("run.completed" | "run.failed") => runs.retain(|run| run.agent_id != child),
+            Some(kind @ ("tool.call" | "tool.result")) => {
+                let Some(call_id) = event["payload"]["call_id"].as_str() else {
+                    continue;
+                };
+                calls.retain(|call| !(call.agent_id == child && call.call_id == call_id));
+                if kind == "tool.call" {
+                    calls.push(OpenCall {
+                        agent_id: child,
+                        call_id: call_id.to_owned(),
+                        tool: event["payload"]["tool"].as_str().unwrap_or("unknown").to_owned(),
+                        turn_id: row.turn_id.clone(),
+                        cursor: row.cursor,
+                        started_at: row.created_at,
+                        attempt: event["payload"]["attempt"].as_u64().unwrap_or(1),
+                        event: event.clone(),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok((calls, runs))
+}
+
+/// Unknown-outcome results a runtime epoch already published for this call.
+fn interrupted_attempts(
+    db: &Connection,
+    agent: &str,
+    child: Option<i64>,
+    call_id: &str,
+) -> ApiResult<u64> {
+    db.query_row(
+        "SELECT COUNT(*) FROM local_managed_events WHERE agent_id=?1 AND kind='event'
+           AND json_extract(body_json,'$.event.type')='tool.result'
+           AND json_extract(body_json,'$.event.payload.call_id')=?2
+           AND IFNULL(json_extract(body_json,'$.agent_id'),-1)=?3
+           AND json_extract(body_json,'$.event.payload.structured_result.epoch') IS NOT NULL",
+        params![agent, call_id, child.unwrap_or(-1)],
+        |row| row.get::<_, i64>(0),
+    )
+    .map(|count| u64::try_from(count).unwrap_or(0))
+    .map_err(ApiError::internal)
+}
+
+/// Tags a call replayed after a runtime epoch (and its result) with its attempt.
+fn annotate_attempt(db: &Connection, agent: &str, body: &mut Value) -> ApiResult<()> {
+    let event = &body["event"];
+    if body["type"] != "event" || !matches!(event["type"].as_str(), Some("tool.call" | "tool.result")) {
+        return Ok(());
+    }
+    let Some(call_id) = event["payload"]["call_id"].as_str().map(str::to_owned) else {
+        return Ok(());
+    };
+    let interrupted = interrupted_attempts(db, agent, body["agent_id"].as_i64(), &call_id)?;
+    if interrupted > 0
+        && let Some(payload) = body["event"]["payload"].as_object_mut()
+    {
+        payload.insert("attempt".into(), (interrupted + 1).into());
+    }
+    Ok(())
+}
+
+fn surface_epoch(db: &Connection, agent: &str) -> ApiResult<i64> {
+    db.query_row(
+        "SELECT COALESCE((SELECT epoch FROM local_managed_surface WHERE agent_id=?1),0)",
+        [agent],
+        |row| row.get(0),
+    )
+    .map_err(ApiError::internal)
+}
+
+fn runtime_generation(db: &Connection) -> ApiResult<i64> {
+    db.query_row(
+        "SELECT COALESCE((SELECT value FROM local_managed_meta WHERE key='runtime_generation'),0)",
+        [],
+        |row| row.get(0),
+    )
+    .map_err(ApiError::internal)
+}
+
+fn latest_cursor(db: &Connection, agent: &str) -> ApiResult<i64> {
+    db.query_row(
+        "SELECT COALESCE(MAX(cursor),0) FROM local_managed_events WHERE agent_id=?1",
+        [agent],
+        |row| row.get(0),
+    )
+    .map_err(ApiError::internal)
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn millis(seconds: f64) -> u64 {
+    (seconds * 1000.0).max(0.0) as u64
+}
+
+impl Database {
+    fn ensure_surface_tables(db: &Connection) -> ApiResult<()> {
+        db.execute_batch(
+            "CREATE TABLE IF NOT EXISTS local_managed_surface (
+               agent_id TEXT PRIMARY KEY, epoch INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS local_managed_meta (
+               key TEXT PRIMARY KEY, value INTEGER NOT NULL
+             );",
+        )
+        .map_err(ApiError::internal)
+    }
+
+    /// Counts every server start; a change tells clients the runtime that owned
+    /// retained processes and summaries is gone, even after an idle restart.
+    async fn begin_generation(&self) -> ApiResult<i64> {
+        let db = self.0.lock().await;
+        Self::ensure_surface_tables(&db)?;
+        db.execute(
+            "INSERT INTO local_managed_meta(key,value) VALUES('runtime_generation',1)
+             ON CONFLICT(key) DO UPDATE SET value=value+1",
+            [],
+        )
+        .map_err(ApiError::internal)?;
+        runtime_generation(&db)
+    }
+
+    async fn epoch_and_generation(&self, agent: &str) -> ApiResult<(i64, i64)> {
+        let db = self.0.lock().await;
+        Self::ensure_surface_tables(&db)?;
+        Ok((surface_epoch(&db, agent)?, runtime_generation(&db)?))
+    }
+
+    /// For every agent the lost process left with open work, appends one
+    /// runtime_epoch and an unknown-outcome tool.result per open call, newest
+    /// first, before recovery re-admits anything. Returns the changed agents.
+    async fn recover_runtime_epochs(&self) -> ApiResult<Vec<String>> {
+        let mut db = self.0.lock().await;
+        Self::ensure_surface_tables(&db)?;
+        let agents = db
+            .prepare("SELECT agent_id FROM local_managed_agents ORDER BY agent_id")
+            .map_err(ApiError::internal)?
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(ApiError::internal)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(ApiError::internal)?;
+        let mut changed = Vec::new();
+        for agent in agents {
+            let tx = db
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .map_err(ApiError::internal)?;
+            let (calls, runs) = open_entities(&tx, &agent)?;
+            let turns = tx
+                .prepare("SELECT turn_id FROM local_managed_turns WHERE agent_id=?1 AND state IN ('accepted','cancelling') ORDER BY created_at")
+                .map_err(ApiError::internal)?
+                .query_map([&agent], |row| row.get::<_, String>(0))
+                .map_err(ApiError::internal)?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(ApiError::internal)?;
+            if calls.is_empty() && runs.is_empty() && turns.is_empty() {
+                continue;
+            }
+            let epoch = surface_epoch(&tx, &agent)? + 1;
+            tx.execute(
+                "INSERT INTO local_managed_surface(agent_id,epoch) VALUES(?1,?2)
+                 ON CONFLICT(agent_id) DO UPDATE SET epoch=excluded.epoch",
+                params![agent, epoch],
+            )
+            .map_err(ApiError::internal)?;
+            let tool_calls = calls.iter().map(surface_call).collect::<Vec<_>>();
+            let open_runs = runs
+                .iter()
+                .map(|run| json!({"agent_id":run.agent_id,"turn_id":run.turn_id,"started_cursor":run.cursor.to_string(),"started_at":millis(run.started_at)}))
+                .collect::<Vec<_>>();
+            append_event(
+                &tx,
+                &agent,
+                None,
+                RUNTIME_EPOCH_KIND,
+                &json!({"type":RUNTIME_EPOCH_KIND,"epoch":epoch,"reason":"runtime_restarted",
+                    "interrupted":{"tool_calls":tool_calls,"runs":open_runs,"turns":turns}}),
+                None,
+            )?;
+            let finished = now();
+            for call in calls.iter().rev() {
+                let payload = &call.event["payload"];
+                let mut result = json!({
+                    "call_id": call.call_id, "tool": call.tool, "status": "failed",
+                    "duration_ns": millis(finished - call.started_at).saturating_mul(1_000_000),
+                    "started_after_ns": null, "result": INTERRUPTED_TOOL_CALL_ERROR, "outcome_unknown": true,
+                    "structured_result": {"code":"TOOL_CALL_INTERRUPTED","error":INTERRUPTED_TOOL_CALL_ERROR,
+                        "outcome":"unknown","reason":"runtime_restarted","epoch":epoch,"attempt":call.attempt},
+                });
+                if call.attempt > 1 {
+                    result["attempt"] = call.attempt.into();
+                }
+                for key in ["turn_id", "model_call_index"] {
+                    if !payload[key].is_null() {
+                        result[key] = payload[key].clone();
+                    }
+                }
+                let mut body = json!({"type":"event","event":{
+                    "protocol_version": call.event["protocol_version"], "request_id": call.event["request_id"],
+                    "seq": call.event["seq"], "type": "tool.result", "payload": result,
+                }});
+                if let Some(child) = call.agent_id {
+                    body["agent_id"] = child.into();
+                }
+                append_event(&tx, &agent, call.turn_id.as_deref(), "event", &body, None)?;
+            }
+            tx.commit().map_err(ApiError::internal)?;
+            eprintln!(
+                "managed-server runtime epoch {epoch} for {agent}: settled {} tool call(s)",
+                calls.len()
+            );
+            changed.push(agent);
+        }
+        Ok(changed)
+    }
+
+    async fn surface(&self, agent: &str, runtime_loaded: bool) -> ApiResult<Value> {
+        let db = self.0.lock().await;
+        Self::ensure_surface_tables(&db)?;
+        let (calls, runs) = open_entities(&db, agent)?;
+        let turns = db
+            .prepare("SELECT turn_id,state,attempt_count,created_at,updated_at FROM local_managed_turns WHERE agent_id=?1 AND state IN ('accepted','cancelling') ORDER BY created_at")
+            .map_err(ApiError::internal)?
+            .query_map([agent], |row| {
+                Ok(json!({"id":row.get::<_, String>(0)?,"state":row.get::<_, String>(1)?,
+                    "attempt_count":row.get::<_, i64>(2)?,"retry_at":null,
+                    "created_at":row.get::<_, f64>(3)? * 1000.0,"updated_at":row.get::<_, f64>(4)? * 1000.0}))
+            })
+            .map_err(ApiError::internal)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(ApiError::internal)?;
+        Ok(json!({
+            "protocol": 1,
+            "epoch": surface_epoch(&db, agent)?,
+            "runtime_generation": runtime_generation(&db)?,
+            "cursor": latest_cursor(&db, agent)?.to_string(),
+            "generated_at": millis(now()),
+            "runtime_loaded": runtime_loaded,
+            "turns": turns,
+            "runs": runs.iter().map(|run| json!({"agent_id":run.agent_id,"turn_id":run.turn_id,"state":"running",
+                "started_cursor":run.cursor.to_string(),"started_at":millis(run.started_at)})).collect::<Vec<_>>(),
+            "agents": [],
+            "tool_calls": calls.iter().map(surface_call).collect::<Vec<_>>(),
+            "process_sessions": [],
+        }))
+    }
+
+    async fn heartbeat(&self, agent: &str) -> ApiResult<Value> {
+        let db = self.0.lock().await;
+        Self::ensure_surface_tables(&db)?;
+        Ok(json!({
+            "type": "heartbeat",
+            "at": millis(now()),
+            "epoch": surface_epoch(&db, agent)?,
+            "runtime_generation": runtime_generation(&db)?,
+            "latest_cursor": latest_cursor(&db, agent)?.to_string(),
+        }))
+    }
+}
+
+fn surface_call(call: &OpenCall) -> Value {
+    json!({"agent_id":call.agent_id,"call_id":call.call_id,"tool":call.tool,"turn_id":call.turn_id,
+        "parent_call_id":parent_call_id(&call.call_id),"started_cursor":call.cursor.to_string(),
+        "started_at":millis(call.started_at),"attempt":call.attempt})
 }
