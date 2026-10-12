@@ -41,10 +41,10 @@ SIGKILL while S1 is held, restart, then durable history with `surface=1`
 12  event  tool.result   root  surface-root-cell/code-1  failed  TOOL_CALL_INTERRUPTED
 13  event  tool.result   root  surface-root-cell         failed  TOOL_CALL_INTERRUPTED
 15  event  run.started   root
-18  event  tool.call     root  surface-root-cell                       <- replayed attempt
-19  event  tool.call     root  surface-root-cell/code-1
-20  event  tool.result   root  surface-root-cell/code-1  failed  CODE_MODE_CALL_INTERRUPTED
-21  event  tool.result   root  surface-root-cell         failed
+18  event  tool.call     root  surface-root-cell                                     attempt=2
+19  event  tool.call     root  surface-root-cell/code-1                              attempt=2
+20  event  tool.result   root  surface-root-cell/code-1  failed  CODE_MODE_CALL_INTERRUPTED  attempt=2
+21  event  tool.result   root  surface-root-cell         failed                      attempt=2
 28  event  run.completed root
 29  turn_completed
 ```
@@ -53,7 +53,9 @@ The epoch and settlements are appended in the cold Session constructor, before
 recovery replays anything. Each settled result carries
 `outcome_unknown: true`, a `duration_ns`, and `structured_result`
 `{code:"TOOL_CALL_INTERRUPTED",outcome:"unknown",reason:"runtime_restarted",epoch:1}`.
-The effect S1 was dispatched exactly once.
+The effect S1 was dispatched exactly once. The replayed calls carry
+`payload.attempt: 2` (later run, same assertions), so a card keyed on
+`(agent_id, call_id, attempt)` keeps attempt 1 as unknown and shows attempt 2 separately.
 
 The epoch frame (as delivered to a `surface=1` reader):
 
@@ -73,8 +75,12 @@ The epoch frame (as delivered to a `surface=1` reader):
 * After the turn: `/surface` returns `{"epoch":1,"cursor":"29","turns":[],"runs":[],"tool_calls":[]}`;
   `/events/history?after=29&surface=1` is empty; after a follow-up turn, the delta
   from cursor 29 contains exactly the new turn.
+* WebSocket replay from cursor 0 (curl upgrade, raw frames): the legacy socket got 29 frames with
+  0 `runtime_epoch`; the `/ws?surface=1` socket got 30 frames with exactly one, and its
+  `ready` carried `surface: {epoch: 1, ...}`.
 * An idle SIGKILL/restart afterwards publishes nothing: epoch stays 1, one
-  `runtime_epoch` row in history.
+  `runtime_epoch` row in history, but `runtime_generation` goes 3 -> 4 so a client
+  can still tell the runtime was replaced.
 
 ## 4. Subagent swarm: child card stuck while the child moved on
 
