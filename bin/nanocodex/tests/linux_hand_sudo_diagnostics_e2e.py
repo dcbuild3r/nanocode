@@ -43,9 +43,26 @@ with tempfile.TemporaryDirectory(prefix="nanocodex-sudo-journey-") as fixture:
     assert "no terminal to ask for it" in err, "names the concrete cause"
     assert "State: the Hand service was not installed or changed." in err, "reports resulting state"
     assert "Retryable: yes" in err, "reports retryability"
-    assert "ssh -t HOST nanocodex setup" in err and "--target root@HOST" in err, "gives exact next commands"
+    assert f"in an interactive terminal on this machine: {cli} setup" in err, "absolute launcher path"
+    assert "ssh -t " in err and f" {cli} setup" in err and "--target root@" in err, "gives exact next commands"
     assert "sudoers" not in err.lower() and "NOPASSWD" not in err, "never suggests weakening sudo"
     assert sudo_calls == ["-n true"], f"must not prompt without a terminal: {sudo_calls}"
     assert elapsed < 10_000
-print("PASS linux hand sudo diagnostics journey")
 
+    # With a terminal (stdin still redirected, as under curl | bash) sudo may
+    # prompt; a refused password reports the Rejected cause.
+    script = subprocess.run(["sh", "-c", "command -v script"], capture_output=True, text=True).stdout.strip()
+    if script:
+        calls.unlink(missing_ok=True)
+        command = f"{cli} hand install --prepare < /dev/null"
+        tty = subprocess.run([script, "-qec", command, "/dev/null"], env=env, cwd=fixture,
+                             stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                             timeout=30, start_new_session=True)
+        tty_calls = calls.read_text().splitlines() if calls.exists() else []
+        (output / "transcript-tty.log").write_text(f"exit: {tty.returncode}\nsudo calls: {tty_calls}\n{tty.stdout}{tty.stderr}")
+        print(f"tty case: exit {tty.returncode}; sudo calls {tty_calls}")
+        assert tty_calls == ["-n true", "-v"], tty_calls
+        assert "sudo authentication failed" in tty.stdout + tty.stderr
+    else:
+        print("SKIP tty case: script(1) unavailable")
+print("PASS linux hand sudo diagnostics journey")

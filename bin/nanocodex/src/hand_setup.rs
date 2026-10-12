@@ -316,28 +316,32 @@ impl Destination {
         // `sudo -v` can require a password even when the requested command is
         // covered by NOPASSWD (for example a user also in Ubuntu's sudo group).
         // Honor existing unattended authorization before asking interactively.
-        if self
+        let unattended = self
             .command("sudo", &["-n", "true"])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
-            .await?
-            .success()
-        {
+            .await?;
+        if unattended.success() {
             return Ok(());
         }
-        let failure = match self {
-            Self::Ssh { .. } => SudoFailure::RemoteNeedsPassword,
-            // Without a controlling terminal sudo cannot ask for a password;
-            // report that directly instead of running a prompt that must fail.
-            Self::Local if !has_controlling_terminal() => SudoFailure::NoTerminal,
-            Self::Local if self.command("sudo", &["-v"]).status().await?.success() => {
-                return Ok(());
+        let failure = if let Self::Ssh { .. } = self {
+            match unattended.code() {
+                Some(255) => SudoFailure::SshUnavailable,
+                Some(127) => SudoFailure::SudoMissing,
+                _ => SudoFailure::NeedsPassword,
             }
-            Self::Local => SudoFailure::Rejected,
+        } else if !has_controlling_terminal() && std::env::var_os("SUDO_ASKPASS").is_none() {
+            // sudo cannot ask for a password; report that instead of running a
+            // prompt that must fail.
+            SudoFailure::NoTerminal
+        } else if self.command("sudo", &["-v"]).status().await?.success() {
+            return Ok(());
+        } else {
+            SudoFailure::Rejected
         };
-        bail!("{}", sudo_failure_message(self, failure))
+        bail!("{}", sudo_failure_message(self, failure, &launcher()))
     }
 
     async fn upload(&self, local: &std::path::Path, remote: &str) -> Result<()> {
@@ -371,15 +375,21 @@ impl Destination {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SudoFailure {
-    /// This machine needs a sudo password, but no terminal can ask for it.
+    /// Local sudo needs a password, but no terminal or askpass can ask for it.
     NoTerminal,
-    /// sudo asked for a password and authentication failed or was refused.
+    /// Local sudo asked for a password and authentication failed or was refused.
     Rejected,
+    /// ssh itself failed (host key, authentication, network) before sudo ran.
+    SshUnavailable,
+    /// The target has no sudo command; the installer always runs `sudo -n`.
+    SudoMissing,
     /// The SSH login has no passwordless sudo on the target.
-    RemoteNeedsPassword,
+    NeedsPassword,
 }
 
-fn has_controlling_terminal() -> bool {
+/// Whether sudo can prompt on this process's controlling terminal. Stdin may
+/// be a pipe (`curl | bash`) while a terminal is still available.
+pub(crate) fn has_controlling_terminal() -> bool {
     fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -387,33 +397,87 @@ fn has_controlling_terminal() -> bool {
         .is_ok()
 }
 
+/// The command users can run in a fresh shell, whose PATH may not include
+/// the installer's bin directory yet.
+fn launcher() -> String {
+    crate::update::launcher_path()
+        .or_else(|| std::env::current_exe().ok())
+        .map_or_else(|| "nanocodex".to_owned(), |path| path.display().to_string())
+}
+
 /// Stage, cause, resulting state and safe retry commands for a sudo failure.
 /// Never suggests weakening sudo policy.
-fn sudo_failure_message(destination: &Destination, failure: SudoFailure) -> String {
-    let (cause, retry) = match (destination, failure) {
-        (Destination::Ssh { target, port }, _) => {
-            let port = port.map(|port| format!(" --port {port}")).unwrap_or_default();
-            let host = target.rsplit_once('@').map_or(target.as_str(), |(_, host)| host);
+fn sudo_failure_message(destination: &Destination, failure: SudoFailure, cli: &str) -> String {
+    let local_host = || {
+        fs::read_to_string("/proc/sys/kernel/hostname")
+            .ok()
+            .map(|name| name.trim().to_owned())
+            .filter(|name| !name.is_empty() && !name.contains(char::is_whitespace))
+            .unwrap_or_else(|| "HOST".to_owned())
+    };
+    let (stage, cause, retry) = match (destination, failure) {
+        (Destination::Ssh { target, port }, failure) => {
+            let port_flag = port
+                .map(|port| format!(" --port {port}"))
+                .unwrap_or_default();
+            let ssh_port = port.map(|port| format!(" -p {port}")).unwrap_or_default();
+            let (user, host) = target
+                .rsplit_once('@')
+                .map_or((None, target.as_str()), |(user, host)| (Some(user), host));
+            let as_root = if user == Some("root") {
+                String::new()
+            } else {
+                format!(
+                    "\n  - over SSH as root: {cli} hand install --target root@{host}{port_flag}"
+                )
+            };
+            match failure {
+                SudoFailure::SshUnavailable => (
+                    "SSH connection",
+                    format!(
+                        "ssh could not run a command on {target} (unknown host key, authentication, or network; setup uses BatchMode)"
+                    ),
+                    format!(
+                        "  - check the connection and accept the host key: ssh{ssh_port} {target} true\n  - then rerun: {cli} hand install --target {target}{port_flag}"
+                    ),
+                ),
+                SudoFailure::SudoMissing => (
+                    "administrator access",
+                    format!(
+                        "{target} has no sudo command; Hand setup runs its installer through sudo -n"
+                    ),
+                    format!(
+                        "  - install sudo on {host}, then rerun: {cli} hand install --target {target}{port_flag}"
+                    ),
+                ),
+                _ => (
+                    "administrator access",
+                    format!(
+                        "{target} requires a sudo password for this SSH login; remote setup runs without a terminal and needs root or passwordless sudo"
+                    ),
+                    format!("  - in an interactive terminal on {host}: nanocodex setup{as_root}"),
+                ),
+            }
+        }
+        (Destination::Local, SudoFailure::NoTerminal) => {
+            let host = local_host();
             (
-                format!(
-                    "{target} requires a sudo password for this SSH login; remote setup runs without a terminal and needs root or passwordless sudo"
-                ),
-                format!(
-                    "  - over SSH as root: nanocodex hand install --target root@{host}{port}\n  - or in an interactive terminal on {host}: nanocodex setup"
-                ),
+                "administrator access",
+                "sudo needs a password, but this session has no terminal to ask for it (non-interactive shell, pipe, or ssh without -t)".to_owned(),
+                format!("  - in an interactive terminal on this machine: {cli} setup\n  - over SSH with a terminal: ssh -t {host} {cli} setup\n  - from another signed-in machine with root SSH here: nanocodex hand install --target root@{host}"),
             )
         }
-        (Destination::Local, SudoFailure::NoTerminal) => (
-            "sudo needs a password, but this session has no terminal to ask for it (non-interactive shell, pipe, or ssh without -t)".to_owned(),
-            "  - in an interactive terminal on this machine: nanocodex setup\n  - over SSH with a terminal: ssh -t HOST nanocodex setup\n  - from another signed-in machine with root SSH here: nanocodex hand install --target root@HOST".to_owned(),
-        ),
         (Destination::Local, _) => (
+            "administrator access",
             "sudo authentication failed or this account may not use sudo".to_owned(),
-            "  - rerun and enter this account's sudo password: nanocodex setup\n  - or from another signed-in machine with root SSH here: nanocodex hand install --target root@HOST".to_owned(),
+            format!(
+                "  - rerun and enter this account's sudo password: {cli} setup\n  - or from another signed-in machine with root SSH here: nanocodex hand install --target root@{}",
+                local_host()
+            ),
         ),
     };
     format!(
-        "Hand setup stopped at stage administrator access on {}: {cause}.\nState: the Hand service was not installed or changed.\nRetryable: yes, setup is idempotent. Next, one of:\n{retry}",
+        "Hand setup stopped at stage {stage} on {}: {cause}.\nState: the Hand service was not installed or changed.\nRetryable: yes, setup is idempotent. Next, one of:\n{retry}",
         destination.label()
     )
 }
@@ -1192,28 +1256,52 @@ mod tests {
 
     #[test]
     fn sudo_failures_name_stage_state_and_safe_retries() {
-        let local = sudo_failure_message(&Destination::Local, SudoFailure::NoTerminal);
+        let cli = "/home/u/.nanocodex/bin/nanocodex";
+        let local = sudo_failure_message(&Destination::Local, SudoFailure::NoTerminal, cli);
         assert!(
             local.starts_with("Hand setup stopped at stage administrator access on this device:")
         );
         assert!(local.contains("no terminal to ask for it"));
         assert!(local.contains("State: the Hand service was not installed or changed."));
         assert!(local.contains("Retryable: yes"));
-        assert!(local.contains("ssh -t HOST nanocodex setup"));
-        assert!(local.contains("nanocodex hand install --target root@HOST"));
-        let rejected = sudo_failure_message(&Destination::Local, SudoFailure::Rejected);
+        assert!(local.contains(&format!(
+            "in an interactive terminal on this machine: {cli} setup"
+        )));
+        assert!(local.contains(&format!("{cli} setup\n")) || local.contains(" setup\n"));
+        assert!(local.contains("hand install --target root@"));
+        let rejected = sudo_failure_message(&Destination::Local, SudoFailure::Rejected, cli);
         assert!(rejected.contains("sudo authentication failed"));
+        let ssh = |target: &str, port| Destination::Ssh {
+            target: target.into(),
+            port,
+        };
         let remote = sudo_failure_message(
-            &Destination::Ssh {
-                target: "gakonst@omarchy".into(),
-                port: Some(2222),
-            },
-            SudoFailure::RemoteNeedsPassword,
+            &ssh("gakonst@omarchy", Some(2222)),
+            SudoFailure::NeedsPassword,
+            cli,
         );
         assert!(remote.contains("gakonst@omarchy requires a sudo password"));
-        assert!(remote.contains("nanocodex hand install --target root@omarchy --port 2222"));
+        assert!(remote.contains(&format!(
+            "{cli} hand install --target root@omarchy --port 2222"
+        )));
         assert!(remote.contains("in an interactive terminal on omarchy: nanocodex setup"));
-        for message in [local, rejected, remote] {
+        let root =
+            sudo_failure_message(&ssh("root@omarchy", None), SudoFailure::NeedsPassword, cli);
+        assert!(
+            !root.contains("over SSH as root"),
+            "no circular root advice: {root}"
+        );
+        let unreachable = sudo_failure_message(
+            &ssh("root@omarchy", Some(2222)),
+            SudoFailure::SshUnavailable,
+            cli,
+        );
+        assert!(unreachable.contains("stage SSH connection"));
+        assert!(unreachable.contains("ssh -p 2222 root@omarchy true"));
+        let missing =
+            sudo_failure_message(&ssh("root@omarchy", None), SudoFailure::SudoMissing, cli);
+        assert!(missing.contains("has no sudo command"));
+        for message in [local, rejected, remote, root, unreachable, missing] {
             assert!(!message.to_lowercase().contains("sudoers"), "{message}");
             assert!(!message.contains("NOPASSWD"), "{message}");
         }
