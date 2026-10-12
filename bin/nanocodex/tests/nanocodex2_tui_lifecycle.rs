@@ -9279,7 +9279,7 @@ async fn terminal_card_stream_settles_tools_from_runtime_receipts() {
         .await;
     wait_line(&fixture.terminal, &["TOOL Shell echo CARD_PROBE", "done"]).await;
     wait_line(&fixture.terminal, &["cargo build --release", "running"]).await;
-    fixture.terminal.wait_text("[verified]").await;
+    fixture.terminal.wait_text("[receipt]").await;
     fixture
         .terminal
         .wait_text("exec_command in /srv/cards")
@@ -9397,6 +9397,10 @@ async fn terminal_card_stream_adopts_the_surface_snapshot_on_reconnect() {
     fixture.state_available.store(false, Ordering::SeqCst);
     fixture.break_stream();
     fixture.terminal.wait_text("Connection lost").await;
+    // The footer reports the dropped stream and keeps aging while idle.
+    wait_line(&fixture.terminal, &["disconnected 0s", "epoch 0"]).await;
+    wait_line(&fixture.terminal, &["disconnected 1s", "epoch 0"]).await;
+    capture(&fixture.terminal, "card stream reconnect: stream dropped");
     *fixture.surface.lock().unwrap() = Some(snapshot);
     fixture.state_available.store(true, Ordering::SeqCst);
     fixture.terminal.input("\r");
