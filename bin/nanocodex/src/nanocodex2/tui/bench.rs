@@ -923,7 +923,7 @@ fn mission_control_journey() {
     capture(
         "retained-process",
         retained,
-        &["retained", "Blocked/unknown: 0"],
+        &["[retained]", "Blocked/unknown: 0", "unconfirmed"],
     );
     records.push(record(
         4,
@@ -954,6 +954,39 @@ fn mission_control_journey() {
         "usage":{"input_tokens":293760,"output_tokens":0,"total_tokens":293760}
     }), None));
     capture("context-overflow", records.clone(), &["108% WARNING >100%"]);
+    let mut yielded = vec![
+        record(1, "run.started", json!({}), None),
+        record(
+            2,
+            "tool.call",
+            json!({"call_id":"cell","tool":"exec","arguments":{}}),
+            None,
+        ),
+        record(
+            3,
+            "tool.call",
+            json!({"call_id":"cell/code-1","tool":"exec_command","arguments":{}}),
+            None,
+        ),
+        record(
+            4,
+            "tool.result",
+            json!({"call_id":"cell","tool":"exec","status":"completed","duration_ns":1,"result":"Script running with cell ID 2"}),
+            None,
+        ),
+        record(5, "run.completed", json!({}), None),
+    ];
+    capture(
+        "yielded-unconfirmed",
+        yielded.clone(),
+        &["Retained calls: 2", "[retained]", "unconfirmed"],
+    );
+    yielded.push(record(6,"runtime_epoch",json!({"epoch":1,"reason":"runtime_restarted","interrupted":{"tool_calls":[{"call_id":"cell/code-1","agent_id":null}],"runs":[]}}),None));
+    capture(
+        "completed-with-lost-call",
+        yielded,
+        &["unresolved", "Blocked/unknown: 1"],
+    );
     let fallback = vec![
         record(1, "run.started", json!({}), None),
         record(

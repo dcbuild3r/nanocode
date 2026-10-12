@@ -99,13 +99,35 @@ reviewer's upstream report); this TUI cannot make that execution policy safe.
 Navigation currently follows row indices; live insertion can move the selected
 entity. This branch is a reviewable alternative, not merge-ready certification.
 
+## Retained-call follow-up after reviewer rounds 2/3
+
+A yield is not evidence that a process remains alive. Retained cells/process
+bindings now display `[retained] · liveness unconfirmed`, not `[running]`.
+The header counts retained calls separately from running assignments. Their
+last-event age remains an observation, not a live execution timer. A yielded
+cell gets `yield receipt · completion unconfirmed`, never completion-verification
+language. Only still-running children inherit a cell's retained observation;
+completed children are not reopened.
+
+Explicit epoch interruption/unknown receipts retire retained observations.
+Completed assignments show an unresolved-call count when their background work
+has an unknown receipt. With no epoch authority (for example legacy loopback
+`/surface` 404), the footer says `recovery unobservable`. This cannot infer that
+a process died merely because it vanished from a partial list or a socket broke;
+without host-generation evidence, retained/unconfirmed is the honest state.
+
+Reviewer agent 5 independently ran both variants on the protocol workerd stack
+and reported epoch 1/2/3 arriving through Mission Control's SSE path. That is
+reviewer evidence on PR #987, not a new live run by this agent. This follow-up
+uses production-renderer fixture journeys for yielded children, late epoch
+settlement and completed assignments with unresolved calls. The reviewer's
+shared stack/session was not modified or killed.
+
 ## Captured terminal excerpts
 
-Actual deterministic production-renderer captures follow. These are right-pane
-crops plus footer and unknown transcript lines, with blank rows omitted. The
-selected-agent frame preserves full-width nonblank rows. Complete frames are
-ignored under `output/mission-control/`. The harness is shared with
-`benches/nanocodex2_tui.rs`; it rejects rendering errors and checks stable frames.
+Actual production-renderer captures follow. Right-pane crops plus footer and
+unknown transcript lines are retained, blank rows omitted; selected-agent keeps
+full-width nonblank rows. Full files are in ignored `output/mission-control/`.
 
 ### normal
 
@@ -115,6 +137,7 @@ ignored under `output/mission-control/`. The harness is shared with
 │Done: 0 (not verified)              │
 │In progress: 1                      │
 │Blocked/unknown: 0                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -124,7 +147,7 @@ ignored under `output/mission-control/`. The harness is shared with
 │  run.started · 99s                 │
 │  agent-reported                    │
 └────────────────────────────────────┘
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### swarm
@@ -135,6 +158,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 2                      │
 │Blocked/unknown: 0                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -152,7 +176,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │  exec_command · 99s                │
 │  agent-reported                    │
 └────────────────────────────────────┘
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### restart
@@ -163,11 +187,12 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 0                      │
 │Blocked/unknown: 3                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
 │3 shown / 3 loaded · row 1          │
-│root [unknown]                      │
+│root [unknown] · 1 unresolved calls │
 │  codex / gpt-6-astra               │
 │  runtime restarted; outcome unknown│
 │· 99s                               │
@@ -195,11 +220,12 @@ context ? | event 99s ago | epoch 2 | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 1                      │
 │Blocked/unknown: 2                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
 │3 shown / 3 loaded · row 1          │
-│root [running]                      │
+│root [running] · 1 unresolved calls │
 │  codex / gpt-6-astra               │
 │  run.started · 99s                 │
 │  agent-reported                    │
@@ -226,11 +252,12 @@ context ? | event 99s ago | epoch 2 | stream unconfirmed/replay
 │Done: 1 (not verified)              │
 │In progress: 1                      │
 │Blocked/unknown: 1                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
 │3 shown / 3 loaded · row 1          │
-│root [running]                      │
+│root [running] · 1 unresolved calls │
 │  codex / gpt-6-astra               │
 │  run.started · 99s                 │
 │  agent-reported                    │
@@ -256,11 +283,12 @@ context ? | event 99s ago | epoch 2 | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 1                      │
 │Blocked/unknown: 1                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
 │2 shown / 2 loaded · row 1          │
-│root [running]                      │
+│root [running] · 1 unresolved calls │
 │  family ? / model ?                │
 │  run.started · 99s                 │
 │  agent-reported                    │
@@ -270,7 +298,7 @@ context ? | event 99s ago | epoch 2 | stream unconfirmed/replay
 │  agent-reported                    │
 └────────────────────────────────────┘
     └── ? Shell   … · completion unknown · outcome unknown · tool call ended without a terminal result
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### context-overflow
@@ -281,11 +309,12 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │Done: 1 (not verified)              │
 │In progress: 1                      │
 │Blocked/unknown: 1                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
 │3 shown / 3 loaded · row 1          │
-│root [running]                      │
+│root [running] · 1 unresolved calls │
 │  codex / gpt-6-astra               │
 │  run.started · 99s                 │
 │  agent-reported                    │
@@ -311,6 +340,7 @@ context 108% WARNING >100% | event 99s ago | epoch 2 | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 14                     │
 │Blocked/unknown: 0                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -336,7 +366,7 @@ context 108% WARNING >100% | event 99s ago | epoch 2 | stream unconfirmed/replay
 │  exec_command · 99s                │
 │  agent-reported                    │
 └────────────────────────────────────┘
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### selected-agent
@@ -347,6 +377,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │                                                                                                    ││Done: 0 (not verified)              │
 │                                                                                                    ││In progress: 14                     │
 │                                                                                                    ││Blocked/unknown: 0                  │
+│                                                                                                    ││Retained calls: 0 (unconfirmed)     │
 │                                                                                                    ││Next: inspect task evidence         │
 │                                                                                                    ││Task tree · assignment states       │
 │                                                                                                    ││F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -358,22 +389,22 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │                                                                                                    ││root → 7 [running]                  │
 │                                                                                                    ││  claude / claude-opus-4-6          │
 │                                                                                                    ││  run.started · 99s                 │
-│                                                                                                    ││  agent-reported                    │
-│                                            ▓▓██  ██░░░░                                            ││root → 8 [running]                  │
-│                                      ▒▒▓▓                ░░░░                                      ││  codex / gpt-6-astra               │
-│                                    ▒▒                        ░░                                    ││  run.started · 99s                 │
-│                                  ░░                            ░░                                  ││  agent-reported                    │
-│                                  ░░         nanocodex          ░░                                  ││root → 9 [running]                  │
-│                                  ░░                            ░░                                  ││  codex / gpt-6-astra               │
-│                                    ░░                        ░░                                    ││  run.started · 99s                 │
-│                                      ░░░░                ░░░░                                      ││  agent-reported                    │
-│                                            ░░░░  ░░░░░░                                            ││root → 10 [running]                 │
+│                                            ▓▓██  ██░░░░                                            ││  agent-reported                    │
+│                                      ▒▒▓▓                ░░░░                                      ││root → 8 [running]                  │
+│                                    ▒▒                        ░░                                    ││  codex / gpt-6-astra               │
+│                                  ░░                            ░░                                  ││  run.started · 99s                 │
+│                                  ░░         nanocodex          ░░                                  ││  agent-reported                    │
+│                                  ░░                            ░░                                  ││root → 9 [running]                  │
+│                                    ░░                        ░░                                    ││  codex / gpt-6-astra               │
+│                                      ░░░░                ░░░░                                      ││  run.started · 99s                 │
+│                                            ░░░░  ░░░░░░                                            ││  agent-reported                    │
+│                                                                                                    ││root → 10 [running]                 │
 │                                                                                                    ││  codex / gpt-6-astra               │
 │                                                                                                    ││  run.started · 99s                 │
 │                                                                                                    ││  agent-reported                    │
 │                   pgup/pgdn scroll · ctrl+home/end · ctrl+o expand all · esc back                  ││                                    │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────╯└────────────────────────────────────┘
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### test-build
@@ -384,6 +415,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 2                      │
 │Blocked/unknown: 0                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -402,7 +434,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │  test-build · agent-reported       │
 └────────────────────────────────────┘
     └── × Shell  $ echo fixture · completion unknown · 0ms
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### verified-receipt
@@ -413,6 +445,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 2                      │
 │Blocked/unknown: 0                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -431,7 +464,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │  verified: receipt only            │
 └────────────────────────────────────┘
     └── × Shell  $ echo fixture · completion unknown · fixture receipt · 0ms
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### epoch-baseline
@@ -442,6 +475,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 2                      │
 │Blocked/unknown: 0                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -470,6 +504,7 @@ context ? | event 99s ago | epoch 7 | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 2                      │
 │Blocked/unknown: 0                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -483,7 +518,7 @@ context ? | event 99s ago | epoch 7 | stream unconfirmed/replay
 │  run.started · 99s                 │
 │  agent-reported                    │
 └────────────────────────────────────┘
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### retained-process
@@ -494,6 +529,7 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │Done: 1 (not verified)              │
 │In progress: 1                      │
 │Blocked/unknown: 0                  │
+│Retained calls: 1 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
@@ -506,14 +542,15 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │  claude / claude-opus-4-6          │
 │  run.started · 99s                 │
 │  agent-reported                    │
-│root/shell-1 [running] · retained   │
-│process                             │
+│root/shell-1 [retained] · liveness  │
+│unconfirmed                         │
 │  family ? / model ?                │
 │  exec_command · 99s                │
-│  verified: receipt only            │
+│  yield receipt · completion        │
+│unconfirmed                         │
 └────────────────────────────────────┘
     └── ◇ Shell  $ echo fixture · session 42 · completion unknown · 0ms
-context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
 ```
 
 ### real-protocol
@@ -524,11 +561,12 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 │Done: 0 (not verified)              │
 │In progress: 0                      │
 │Blocked/unknown: 3                  │
+│Retained calls: 0 (unconfirmed)     │
 │Next: inspect task evidence         │
 │Task tree · assignment states       │
 │F6 tree · ↑↓/PgUp/PgDn · Enter      │
 │3 shown / 3 loaded · row 1          │
-│root [unknown]                      │
+│root [unknown] · 2 unresolved calls │
 │  family ? / gpt-6.1-sol            │
 │  run.started · 0s                  │
 │  agent-reported                    │
@@ -545,7 +583,73 @@ context ? | event 99s ago | epoch unreported | stream unconfirmed/replay
 context ? | event 0s ago | epoch 1 | stream unconfirmed/replay
 ```
 
-### Live idle/outage footer (no keyboard input)
+### yielded-unconfirmed
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 0                      │
+│Blocked/unknown: 0                  │
+│Retained calls: 2 (unconfirmed)     │
+│Next: inspect task evidence         │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 shown / 3 loaded · row 1          │
+│root [completed]                    │
+│  family ? / model ?                │
+│  run.completed · 99s               │
+│  agent-reported                    │
+│root/cell [retained] · liveness     │
+│unconfirmed                         │
+│  family ? / model ?                │
+│  exec · 99s                        │
+│  yield receipt · completion        │
+│unconfirmed                         │
+│root/cell/code-1 [retained] ·       │
+│liveness unconfirmed                │
+│  family ? / model ?                │
+│  exec_command · 99s                │
+│  yielded · liveness unconfirmed    │
+└────────────────────────────────────┘
+context ? | event 99s ago | epoch unreported; recovery unobservable | stream unconfirmed/replay
+```
+
+### completed-with-lost-call
+
+```text
+┌ Mission Control ───────────────────┐
+│Status · legacy / best-effort       │
+│Done: 1 (not verified)              │
+│In progress: 0                      │
+│Blocked/unknown: 1                  │
+│Retained calls: 1 (unconfirmed)     │
+│Next: inspect task evidence         │
+│Task tree · assignment states       │
+│F6 tree · ↑↓/PgUp/PgDn · Enter      │
+│3 shown / 3 loaded · row 1          │
+│root [completed] · 1 unresolved     │
+│calls                               │
+│  family ? / model ?                │
+│  run.completed · 99s               │
+│  agent-reported                    │
+│root/cell/code-1 [unknown]          │
+│  family ? / model ?                │
+│  runtime restarted; reconcile      │
+│receipt · 99s                       │
+│  yielded · liveness unconfirmed    │
+│root/cell [retained] · liveness     │
+│unconfirmed                         │
+│  family ? / model ?                │
+│  exec · 99s                        │
+│  yield receipt · completion        │
+│unconfirmed                         │
+└────────────────────────────────────┘
+    └── ? Shell   … · completion unknown · outcome unknown · tool call ended without a terminal result
+context ? | event 99s ago | epoch 1 | stream unconfirmed/replay
+```
+
+### Earlier live idle/outage footer (no keyboard input)
 
 ```text
 context 0% | event 25s ago | epoch unreported | stream observed (health unconfirmed)

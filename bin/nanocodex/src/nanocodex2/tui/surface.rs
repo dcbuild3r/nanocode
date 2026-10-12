@@ -120,7 +120,7 @@ impl SurfaceState {
                     .map_or_else(|| "root".into(), |id| id.to_string());
                 let key = format!("{owner}/{}", call["call_id"].as_str().unwrap_or(""));
                 if let Some(entity) = self.entities.get_mut(&key)
-                    && entity.state == "running"
+                    && matches!(entity.state.as_str(), "running" | "retained")
                     && entity.at <= at
                 {
                     entity.state = "unknown".into();
@@ -133,7 +133,7 @@ impl SurfaceState {
                     .as_u64()
                     .map_or_else(|| "root".into(), |id| id.to_string());
                 if let Some(entity) = self.entities.get_mut(&owner)
-                    && entity.state == "running"
+                    && matches!(entity.state.as_str(), "running" | "retained")
                     && entity.at <= at
                 {
                     entity.state = "unknown".into();
@@ -147,7 +147,11 @@ impl SurfaceState {
             if epoch != self.epoch
                 && (self.epoch.is_some() || p.get("previous_epoch").is_some_and(|v| !v.is_null()))
             {
-                for entity in self.entities.values_mut().filter(|e| e.state == "running") {
+                for entity in self
+                    .entities
+                    .values_mut()
+                    .filter(|e| matches!(e.state.as_str(), "running" | "retained"))
+                {
                     entity.state = "unknown".into();
                     entity.step = "runtime restarted; outcome unknown".into();
                 }
@@ -161,7 +165,8 @@ impl SurfaceState {
                 .map(|id| id.to_string())
                 .or_else(|| record.agent_request_id().map(|id| id.to_string()));
             if self.turn != turn {
-                self.entities.retain(|_, e| e.scope != "root" || e.retained);
+                self.entities
+                    .retain(|_, e| e.scope != "root" || e.retained || e.state == "unknown");
                 self.turn = turn;
             }
         }
@@ -196,14 +201,20 @@ impl SurfaceState {
             scope.clone()
         };
         let retained = kind == "tool.result"
+            && p["outcome_unknown"] != true
+            && p["status"] != "unknown"
+            && p["status"] != "failed"
+            && p["is_error"] != true
             && (p["structured_result"]["session_id"].is_number()
                 || p["result"]
                     .as_str()
                     .is_some_and(|s| s.contains("Script running with cell ID")));
         if retained {
             for (id, child) in &mut self.entities {
-                if id.starts_with(&format!("{key}/")) {
+                if id.starts_with(&format!("{key}/")) && child.state == "running" {
                     child.retained = true;
+                    child.state = "retained".into();
+                    child.evidence = "yielded · liveness unconfirmed".into();
                 }
             }
         }
@@ -223,7 +234,7 @@ impl SurfaceState {
             return;
         }
         entity.at = at;
-        if kind == "tool.result" {
+        if matches!(kind, "tool.result" | "tool.call") {
             entity.retained = retained;
         }
         for (field, dest) in [("family", &mut entity.family), ("model", &mut entity.model)] {
@@ -240,7 +251,9 @@ impl SurfaceState {
             .unwrap_or(kind)
             .into();
         if kind == "tool.result" {
-            entity.evidence = if p["outcome_unknown"] == true {
+            entity.evidence = if retained {
+                "yield receipt · completion unconfirmed"
+            } else if p["outcome_unknown"] == true {
                 "runtime receipt · effect unknown"
             } else if p["structured_result"]["evidence"]["kind"] == "test_build" {
                 "test-build · agent-reported"
@@ -262,7 +275,7 @@ impl SurfaceState {
             "run.unknown" | "tool.unknown" => "unknown",
             "tool.result" => {
                 if retained {
-                    "running"
+                    "retained"
                 } else if p["outcome_unknown"] == true || p["status"] == "unknown" {
                     "unknown"
                 } else if p["is_error"] == true || p["status"] == "error" || p["status"] == "failed"
@@ -325,7 +338,9 @@ impl SurfaceState {
         );
         format!(
             "context {percent} | event {age} | epoch {} | stream {}",
-            self.epoch.as_deref().unwrap_or("unreported"),
+            self.epoch
+                .as_deref()
+                .unwrap_or("unreported; recovery unobservable"),
             if self.connected {
                 "observed (health unconfirmed)"
             } else {
@@ -363,13 +378,14 @@ impl SurfaceState {
             .values()
             .filter(|e| e.state == "unknown")
             .count();
+        let retained = self.entities.values().filter(|e| e.retained).count();
         let completed = self
             .entities
             .values()
             .filter(|e| !e.tool && e.state == "completed")
             .count();
         let mut text = format!(
-            "Status · legacy / best-effort\nDone: {completed} (not verified)\nIn progress: {running}\nBlocked/unknown: {unknown}\nNext: inspect task evidence\n\nTask tree · assignment states\n"
+            "Status · legacy / best-effort\nDone: {completed} (not verified)\nIn progress: {running}\nBlocked/unknown: {unknown}\nRetained calls: {retained} (unconfirmed)\nNext: inspect task evidence\n\nTask tree · assignment states\n"
         );
         let first = selected.saturating_sub(limit.saturating_sub(1));
         text.push_str(&format!(
@@ -380,10 +396,17 @@ impl SurfaceState {
         ));
         for (index, (id, e)) in self.rows().into_iter().enumerate().skip(first).take(limit) {
             let age = now.saturating_sub(e.at) / 1000;
-            let stale = if e.retained {
-                " · retained process"
+            let unresolved = self
+                .entities
+                .values()
+                .filter(|call| call.tool && call.scope == e.scope && call.state == "unknown")
+                .count();
+            let stale = if !e.tool && unresolved > 0 {
+                format!(" · {unresolved} unresolved calls")
+            } else if e.retained {
+                " · liveness unconfirmed".into()
             } else {
-                ""
+                String::new()
             };
             text.push_str(&format!(
                 "{}{}{} [{}]{}\n  {} / {}\n  {} · {age}s\n  {}\n",
