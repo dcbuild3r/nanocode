@@ -90,6 +90,12 @@ impl CardStreamView {
         }
     }
 
+    /// A runtime epoch from the live surface stream.
+    pub(crate) fn runtime_epoch(&mut self, epoch: u64, reason: &str, at_ms: u64) {
+        let payload = serde_json::json!({"epoch": epoch, "reason": reason});
+        self.feed("runtime_epoch", &payload, EventScope::default(), at_ms);
+    }
+
     /// Apply the service's surface snapshot (`GET /v1/agents/:id/surface`)
     /// read on reconnect: open entities come from it, not from inference over
     /// whatever history the gap left behind.

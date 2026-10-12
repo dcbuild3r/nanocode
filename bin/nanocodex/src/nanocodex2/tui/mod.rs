@@ -524,6 +524,8 @@ enum ConnectionResult {
         request_id: u64,
         result: Option<Result<AgentList, ManagedError>>,
     },
+    /// A re-read of the service's surface snapshot (after a runtime epoch).
+    Surface(Option<Box<nanocodex_managed::SurfaceSnapshot>>),
     /// Local session discovery, read off the input loop.
     LocalSessions {
         pane: PaneId,
@@ -1729,6 +1731,18 @@ impl DriverRuntime {
         self.recent_prompts.truncate(100);
         self.cache_prompts(vec![self.recent_prompts[0].clone()]);
         Ok(record)
+    }
+
+    /// Re-read the service's open lifecycle entities in the background.
+    fn refresh_surface(&mut self) {
+        if self.local.is_some() || self.agent_id.is_empty() {
+            return;
+        }
+        let client = self.client.clone();
+        let agent_id = self.agent_id.clone();
+        self.connection.spawn(async move {
+            ConnectionResult::Surface(client.surface(&agent_id).await.ok().map(Box::new))
+        });
     }
 
     fn project_managed_event(
@@ -3214,6 +3228,19 @@ async fn run_inner(
                         presentation.received(&runtime.agent_id, telemetry::Received::managed(&event));
                         if let Some(bridge) = &runtime.control_bridge { let mut value=serde_json::to_value(&event).unwrap_or_default(); value["session_id"]=serde_json::json!(runtime.agent_id); bridge.publish("managed.event",value); }
                         runtime.observed_cursor.clone_from(&event.cursor);
+                        // Surface streams (WebSocket surface=1) deliver the
+                        // runtime epoch; the card stream settles in-flight work
+                        // and re-reads the service's open entities.
+                        if let ManagedEventData::RuntimeEpoch { epoch, reason, .. } = &event.data {
+                            let update = app.update(AppEvent::RuntimeEpoch {
+                                pane: PaneId::Main,
+                                epoch: *epoch,
+                                reason: reason.clone(),
+                                at_ms: event.created_at.map_or_else(unix_ms, |at| at as u64),
+                            });
+                            stopping |= apply_update(update, &mut app, &mut runtime, &mut terminal, &mut scheduler).await?;
+                            runtime.refresh_surface();
+                        }
                         if let Some(request_id) = event.data.turn_id() {
                             if runtime.submitted_turns.contains(request_id) {
                                 runtime.confirmed_requests.insert(request_id.to_owned());
@@ -3485,6 +3512,11 @@ async fn run_inner(
                         continue;
                     }
                     match result {
+                        ConnectionResult::Surface(snapshot) => {
+                            if let Some(snapshot) = snapshot {
+                                request_render(app.update(AppEvent::SurfaceSnapshot { pane: PaneId::Main, snapshot }), &mut scheduler);
+                            }
+                        }
                         ConnectionResult::Recovered(Ok((agent, events, agent_id, workspace, history, _, settings, _, active_turns)), surface) => {
                             runtime.recovery_surface = surface;
                             runtime.agent = Some(agent);

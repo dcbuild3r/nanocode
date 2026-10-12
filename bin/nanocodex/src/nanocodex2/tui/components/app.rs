@@ -68,6 +68,13 @@ pub(crate) enum AppEvent {
         pane: PaneId,
         error: String,
     },
+    /// A runtime epoch delivered on the live surface stream.
+    RuntimeEpoch {
+        pane: PaneId,
+        epoch: u64,
+        reason: String,
+        at_ms: u64,
+    },
     /// The service's surface snapshot read at attach.
     SurfaceSnapshot {
         pane: PaneId,
@@ -393,6 +400,19 @@ impl AppNode {
                     active_turns,
                     pending_local,
                     reasoning_mode,
+                },
+            ),
+            AppEvent::RuntimeEpoch {
+                pane,
+                epoch,
+                reason,
+                at_ms,
+            } => self.update_root(
+                pane,
+                RootEvent::RuntimeEpoch {
+                    epoch,
+                    reason,
+                    at_ms,
                 },
             ),
             AppEvent::SurfaceSnapshot { pane, snapshot } => {

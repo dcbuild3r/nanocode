@@ -167,6 +167,11 @@ pub(crate) enum RootEvent {
     },
     AgentReconnectFailed(String),
     SurfaceSnapshot(Box<nanocodex_managed::SurfaceSnapshot>),
+    RuntimeEpoch {
+        epoch: u64,
+        reason: String,
+        at_ms: u64,
+    },
     Subagent(AgentUpdate),
     ReplaceDraft(String),
     HandoffFinished(String),
@@ -4578,6 +4583,14 @@ impl Component for RootNode {
                 self.reconnecting = Some(false);
                 self.notification = Some(Notification::plain(error, Color::Red));
                 self.reconnection_status("Connection lost · Enter to reconnect")
+            }
+            RootEvent::RuntimeEpoch {
+                epoch,
+                reason,
+                at_ms,
+            } => {
+                self.card_stream.runtime_epoch(epoch, &reason, at_ms);
+                ComponentUpdate::render(RenderRequest::Immediate)
             }
             RootEvent::SurfaceSnapshot(snapshot) => {
                 self.card_stream.apply_snapshot(&snapshot);
