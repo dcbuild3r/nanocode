@@ -9482,6 +9482,9 @@ async fn terminal_card_stream_reads_the_surface_snapshot_on_first_attach() {
     wait_line(&fixture.terminal, &["TOOL Code Mode", "running"]).await;
     wait_line(&fixture.terminal, &["epoch 1", "3 open"]).await;
     capture(&fixture.terminal, "card stream attach: surface snapshot");
+    // A first-seen epoch is a baseline, not a restart.
+    let screen = fixture.terminal.screen.lock().unwrap().screen().contents();
+    assert!(!screen.contains("restart(s)"), "{screen}");
     // End jumps to (and follows) the newest cards; Home returns to the top.
     fixture.terminal.input("\x1b[F");
     fixture.terminal.input("\x1b[H");

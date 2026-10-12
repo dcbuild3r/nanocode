@@ -49,6 +49,9 @@ pub struct SurfaceState {
     /// Whether any runtime epoch has been observed; the first observation is
     /// a baseline, not a restart.
     epoch_known: bool,
+    /// Whether any runtime lifecycle delta was applied (surface-local cards
+    /// such as the workspace do not establish an epoch baseline).
+    runtime_seen: bool,
     pub(crate) disconnected_at_ms: Option<u64>,
 }
 
@@ -149,7 +152,7 @@ impl SurfaceState {
     /// Whether an earlier epoch was observed (explicitly, or implicitly by
     /// applying its deltas). Only then is a newer epoch a restart.
     const fn has_baseline(&self) -> bool {
-        self.epoch_known || self.cursor > 0
+        self.epoch_known || self.runtime_seen
     }
 
     const fn advance(&mut self, cursor: u64, at_ms: u64) {
@@ -191,6 +194,7 @@ impl SurfaceState {
     }
 
     fn upsert(&mut self, entity: &Entity, cursor: u64, at_ms: u64) {
+        self.runtime_seen |= entity.kind().settles_on_epoch();
         let Some(tracked) = self.entities.get_mut(&entity.id) else {
             self.entities.insert(
                 entity.id.clone(),

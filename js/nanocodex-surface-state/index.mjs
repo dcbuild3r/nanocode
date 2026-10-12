@@ -59,6 +59,9 @@ export class SurfaceState {
   restarts = [];
   // Whether a runtime epoch was observed; the first observation is a baseline.
   epochKnown = false;
+  // Whether a runtime lifecycle delta was applied; surface-local cards such as
+  // the workspace do not establish an epoch baseline.
+  runtimeSeen = false;
   disconnectedAtMs = undefined;
 
   entity(id) {
@@ -105,7 +108,7 @@ export class SurfaceState {
   }
 
   #hasBaseline() {
-    return this.epochKnown || this.cursor > 0;
+    return this.epochKnown || this.runtimeSeen;
   }
 
   #advance(cursor, atMs) {
@@ -142,6 +145,7 @@ export class SurfaceState {
   }
 
   #upsert(entity, cursor, atMs) {
+    if (SETTLES_ON_EPOCH.has(entity.kind)) this.runtimeSeen = true;
     const tracked = this.entities.get(entity.id);
     if (!tracked) {
       this.entities.set(entity.id, {
