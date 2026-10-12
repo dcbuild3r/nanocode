@@ -353,14 +353,21 @@ impl TranscriptModel {
 
     pub(crate) fn apply(&mut self, record: &TranscriptRecord) -> ModelChange {
         if record.kind() == "runtime.epoch" {
-            let epoch = record
-                .decode_payload::<Value>()
-                .ok()
-                .and_then(|p| p.get("epoch").map(Value::to_string));
+            let epoch = record.decode_payload::<Value>().ok().and_then(|p| {
+                p.get("epoch")
+                    .map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_owned))
+            });
             if epoch == self.runtime_epoch {
                 return ModelChange::default();
             }
+            let baseline = self.runtime_epoch.is_none()
+                && !record
+                    .decode_payload::<Value>()
+                    .is_ok_and(|p| p.get("previous_epoch").is_some_and(|v| !v.is_null()));
             self.runtime_epoch = epoch;
+            if baseline {
+                return ModelChange::default();
+            }
             let unfinished = self.running_tools.iter().copied().collect::<Vec<_>>();
             self.settle_unfinished_tools(&unfinished);
             self.active_runs.clear();
@@ -1585,7 +1592,22 @@ impl TranscriptModel {
     fn background_shell_ids(&self) -> HashSet<EntryId> {
         // Process sessions belong to the runtime, not the turn that launched
         // or polled them. A returned session ID remains usable across turns.
-        self.shell_sessions.values().copied().collect()
+        let mut retained = self
+            .shell_sessions
+            .values()
+            .copied()
+            .collect::<HashSet<_>>();
+        for parent in self.code_cells.values() {
+            retained.insert(*parent);
+            retained.extend(
+                self.code_children
+                    .get(parent)
+                    .into_iter()
+                    .flatten()
+                    .copied(),
+            );
+        }
+        retained
     }
 
     fn settle_orphaned_tools(&mut self) {

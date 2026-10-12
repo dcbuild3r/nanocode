@@ -469,6 +469,7 @@ pub(crate) enum DraftReset {
 /// Owns layout and routing so future screen components do not widen the event loop.
 pub(crate) struct RootNode {
     mission_focused: bool,
+    mission_tick: Option<Instant>,
     mission_selected: usize,
     capabilities: crate::nanocodex2::tui::backend::Capabilities,
     transcript: Node<Transcript>,
@@ -607,6 +608,7 @@ impl RootNode {
             theme_mode: ThemeMode::Auto,
             preferred_reasoning_mode: ReasoningMode::Standard,
             mission_focused: false,
+            mission_tick: None,
             mission_selected: 0,
             subagents,
             surface: Default::default(),
@@ -1022,6 +1024,7 @@ impl RootNode {
             _ => None,
         };
         [
+            self.mission_tick,
             selector,
             self.transcript.component().animation_deadline(),
             self.composer.component().animation_deadline(),
@@ -1042,6 +1045,9 @@ impl RootNode {
 
     fn render_root(&mut self, frame: &mut Frame<'_>, area: Rect, theme: &Theme, focused: bool) {
         self.refresh_actions();
+        if self.surface.last_event.is_some() && self.mission_tick.is_none() {
+            self.mission_tick = Some(Instant::now() + Duration::from_secs(1));
+        }
         let now = super::super::surface::now_ms();
         let percent = self.context_diagnostics.usage.map(|u| {
             u.total.saturating_mul(100) / self.context_diagnostics.model_window_tokens.max(1)
@@ -4336,6 +4342,12 @@ impl RootNode {
     }
 
     fn update_animation(&mut self, now: Instant) -> ComponentUpdate<RootEffect> {
+        let liveness = if self.mission_tick.is_some_and(|deadline| now >= deadline) {
+            self.mission_tick = Some(now + Duration::from_secs(1));
+            RenderRequest::Immediate
+        } else {
+            RenderRequest::None
+        };
         let confirmation = if self
             .key_confirmation
             .as_ref()
@@ -4385,7 +4397,8 @@ impl RootNode {
                 .max(subagents)
                 .max(selection)
                 .max(confirmation)
-                .max(notification),
+                .max(notification)
+                .max(liveness),
         }
     }
 

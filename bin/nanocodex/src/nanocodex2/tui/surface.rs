@@ -23,6 +23,7 @@ struct Entity {
     at: u64,
     tool: bool,
     evidence: String,
+    retained: bool,
 }
 impl SurfaceState {
     pub(crate) fn observe(&mut self, record: &TranscriptRecord) {
@@ -34,8 +35,10 @@ impl SurfaceState {
             .managed_agent_id()
             .map_or_else(|| "root".into(), |id| id.to_string());
         if kind == "runtime.epoch" {
-            let epoch = p.get("epoch").map(Value::to_string);
-            if epoch != self.epoch {
+            let epoch = p.get("epoch").map(identity);
+            if epoch != self.epoch
+                && (self.epoch.is_some() || p.get("previous_epoch").is_some_and(|v| !v.is_null()))
+            {
                 for entity in self.entities.values_mut().filter(|e| e.state == "running") {
                     entity.state = "unknown".into();
                     entity.step = "runtime restarted; outcome unknown".into();
@@ -50,7 +53,7 @@ impl SurfaceState {
                 .map(|id| id.to_string())
                 .or_else(|| record.agent_request_id().map(|id| id.to_string()));
             if self.turn != turn {
-                self.entities.clear();
+                self.entities.retain(|_, e| e.scope != "root" || e.retained);
                 self.turn = turn;
             }
         }
@@ -61,7 +64,7 @@ impl SurfaceState {
             for entity in self
                 .entities
                 .values_mut()
-                .filter(|e| e.tool && e.scope == scope && e.state == "running")
+                .filter(|e| e.tool && !e.retained && e.scope == scope && e.state == "running")
             {
                 entity.state = "unknown".into();
                 entity.step = if kind == "run.started" {
@@ -84,6 +87,18 @@ impl SurfaceState {
         } else {
             scope.clone()
         };
+        let retained = kind == "tool.result"
+            && (p["structured_result"]["session_id"].is_number()
+                || p["result"]
+                    .as_str()
+                    .is_some_and(|s| s.contains("Script running with cell ID")));
+        if retained {
+            for (id, child) in &mut self.entities {
+                if id.starts_with(&format!("{key}/")) {
+                    child.retained = true;
+                }
+            }
+        }
         let entity = self.entities.entry(key).or_insert_with(|| Entity {
             scope: scope.clone(),
             parent: "root".into(),
@@ -94,18 +109,22 @@ impl SurfaceState {
             at,
             tool,
             evidence: "agent-reported".into(),
+            retained: false,
         });
         if at < entity.at {
             return;
         }
         entity.at = at;
+        if kind == "tool.result" {
+            entity.retained = retained;
+        }
         for (field, dest) in [("family", &mut entity.family), ("model", &mut entity.model)] {
             if let Some(value) = p[field].as_str() {
                 *dest = value.into();
             }
         }
         if let Some(parent) = p.get("parent_agent_id") {
-            entity.parent = parent.to_string();
+            entity.parent = identity(parent);
         }
         entity.step = p["tool"]
             .as_str()
@@ -134,7 +153,9 @@ impl SurfaceState {
             }
             "run.unknown" | "tool.unknown" => "unknown",
             "tool.result" => {
-                if p["outcome_unknown"] == true || p["status"] == "unknown" {
+                if retained {
+                    "running"
+                } else if p["outcome_unknown"] == true || p["status"] == "unknown" {
                     "unknown"
                 } else if p["is_error"] == true || p["status"] == "error" || p["status"] == "failed"
                 {
@@ -161,6 +182,7 @@ impl SurfaceState {
                     at,
                     tool: false,
                     evidence: "agent-reported".into(),
+                    retained: false,
                 });
             }
             AgentUpdate::Event { id, event } => {
@@ -194,29 +216,39 @@ impl SurfaceState {
             |p| format!("{p}%{}", if p > 100 { " WARNING >100%" } else { "" }),
         );
         format!(
-            "stream {} | epoch {} | event {age} | context {percent}",
+            "context {percent} | event {age} | epoch {} | stream {}",
+            self.epoch.as_deref().unwrap_or("unreported"),
             if self.connected {
-                "connected"
+                "observed (health unconfirmed)"
             } else {
-                "offline/replay"
-            },
-            self.epoch.as_deref().unwrap_or("unreported")
+                "unconfirmed/replay"
+            }
         )
+    }
+    fn rows(&self) -> Vec<(&String, &Entity)> {
+        let mut rows = self.entities.iter().collect::<Vec<_>>();
+        rows.sort_by_key(|(id, e)| {
+            (
+                id.as_str() != "root",
+                e.tool,
+                !matches!(e.state.as_str(), "running" | "unknown"),
+                e.scope.parse::<u64>().unwrap_or(u64::MAX),
+                (*id).clone(),
+            )
+        });
+        rows
     }
     pub(crate) fn row_count(&self) -> usize {
         self.entities.len()
     }
     pub(crate) fn row_scope(&self, selected: usize) -> Option<&str> {
-        self.entities
-            .values()
-            .nth(selected)
-            .map(|e| e.scope.as_str())
+        self.rows().get(selected).map(|(_, e)| e.scope.as_str())
     }
     pub(crate) fn panel(&self, now: u64, selected: usize, focused: bool, limit: usize) -> String {
         let running = self
             .entities
             .values()
-            .filter(|e| e.state == "running")
+            .filter(|e| !e.tool && e.state == "running")
             .count();
         let unknown = self
             .entities
@@ -226,23 +258,22 @@ impl SurfaceState {
         let completed = self
             .entities
             .values()
-            .filter(|e| e.state == "completed")
+            .filter(|e| !e.tool && e.state == "completed")
             .count();
         let mut text = format!(
-            "Status · legacy / best-effort\nDone: {completed} (not verified)\nIn progress: {running}\nBlocked/unknown: {unknown}\nNext: inspect unknown receipts\n\nTask tree · assignment states\n"
+            "Status · legacy / best-effort\nDone: {completed} (not verified)\nIn progress: {running}\nBlocked/unknown: {unknown}\nNext: inspect task evidence\n\nTask tree · assignment states\n"
         );
         let first = selected.saturating_sub(limit.saturating_sub(1));
         text.push_str(&format!(
-            "F6 tree · ↑↓/PgUp/PgDn · Enter\n{} loaded · row {}\n",
+            "F6 tree · ↑↓/PgUp/PgDn · Enter\n{} shown / {} loaded · row {}\n",
+            limit.min(self.entities.len()),
             self.entities.len(),
             selected.saturating_add(1).min(self.entities.len())
         ));
-        for (index, (id, e)) in self.entities.iter().enumerate().skip(first).take(limit) {
+        for (index, (id, e)) in self.rows().into_iter().enumerate().skip(first).take(limit) {
             let age = now.saturating_sub(e.at) / 1000;
-            let stale = if age > 60 && e.state == "running" {
-                " · NO SIGNAL"
-            } else if age > 60 {
-                " · stale report"
+            let stale = if e.retained {
+                " · retained process"
             } else {
                 ""
             };
@@ -282,4 +313,10 @@ pub(crate) fn now_ms() -> u64 {
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_millis() as u64)
     }
+}
+
+fn identity(value: &Value) -> String {
+    value
+        .as_str()
+        .map_or_else(|| value.to_string(), str::to_owned)
 }

@@ -846,7 +846,7 @@ fn mission_control_journey() {
     capture(
         "normal",
         records.clone(),
-        &["Mission Control", "Status", "running", "NO SIGNAL"],
+        &["Mission Control", "Status", "running", "99s"],
     );
     records.push(record(
         2,
@@ -881,10 +881,11 @@ fn mission_control_journey() {
     assert!(navigation.screen_text().contains("row 15"));
     save_frame("tree-scrolled", &navigation);
     navigation.key_update(KeyCode::Home, KeyModifiers::NONE);
+    navigation.key_update(KeyCode::Down, KeyModifiers::NONE);
     navigation.key_update(KeyCode::Enter, KeyModifiers::NONE);
     navigation.render();
     assert!(
-        navigation.screen_text().contains("#10"),
+        navigation.screen_text().contains("#7"),
         "{}",
         navigation.screen_text()
     );
@@ -903,7 +904,33 @@ fn mission_control_journey() {
         evidence_records,
         &["verified: receipt only"],
     );
-    records.push(record(4, "runtime.epoch", json!({"epoch":2}), None));
+    let mut baseline = records.clone();
+    baseline.push(record(4, "runtime.epoch", json!({"epoch":"7"}), None));
+    capture("epoch-baseline", baseline, &["In progress: 2", "epoch 7"]);
+    let mut continuation = records.clone();
+    let next = record(4, "run.started", json!({}), None);
+    continuation.push(Arc::new(
+        (*next).clone().with_managed_turn_id(Some("new-turn")),
+    ));
+    capture(
+        "children-survive",
+        continuation,
+        &["In progress: 2", "7 [running]"],
+    );
+    let mut retained = records.clone();
+    retained.push(record(4,"tool.result",json!({"call_id":"shell-1","tool":"exec_command","status":"completed","duration_ns":1,"result":"still running","structured_result":{"session_id":42}}),None));
+    retained.push(record(5, "run.completed", json!({}), None));
+    capture(
+        "retained-process",
+        retained,
+        &["retained", "Blocked/unknown: 0"],
+    );
+    records.push(record(
+        4,
+        "runtime.epoch",
+        json!({"epoch":2,"previous_epoch":1}),
+        None,
+    ));
     capture(
         "restart",
         records.clone(),
@@ -918,14 +945,10 @@ fn mission_control_journey() {
     capture(
         "reconnect",
         records.clone(),
-        &["unknown", "running", "offline/replay"],
+        &["unknown", "running", "unconfirmed/replay"],
     );
     records.push(record(6, "run.completed", json!({}), Some(7)));
-    capture(
-        "stale-summary",
-        records.clone(),
-        &["stale report", "not verified"],
-    );
+    capture("stale-summary", records.clone(), &["99s", "not verified"]);
     records.push(record(7, "model.call.completed", json!({
         "call_index":1,"model":"gpt-6-astra","attempt":1,"connection_generation":1,"status":"completed","duration_ns":1,"time_to_first_event_ns":1,"tool_calls":0,
         "usage":{"input_tokens":293760,"output_tokens":0,"total_tokens":293760}

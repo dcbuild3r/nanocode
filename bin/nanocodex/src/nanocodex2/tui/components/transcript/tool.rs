@@ -521,17 +521,6 @@ fn summary_lines_with_origin(
         );
     }
 
-    if tool.state == ToolState::Running
-        && tool.result.is_none()
-        && live_duration_ns.is_some_and(|ns| ns > 60_000_000_000)
-    {
-        append_span(
-            &mut duration_spans,
-            " · NO SIGNAL (no receipt)",
-            Style::default().fg(theme.thinking_xhigh()),
-        );
-    }
-
     if matches!(presentation.summary_overflow, SummaryOverflow::Truncate) {
         let title_span_count = prefix.len() + usize::from(!content.is_empty());
         let leading = prefix
