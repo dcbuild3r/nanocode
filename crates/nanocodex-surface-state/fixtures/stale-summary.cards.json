@@ -75,8 +75,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,
@@ -102,8 +102,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,
@@ -129,8 +129,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,
@@ -276,8 +276,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,
@@ -303,8 +303,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,
@@ -330,8 +330,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 2,

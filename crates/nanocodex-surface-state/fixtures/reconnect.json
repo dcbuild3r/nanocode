@@ -146,7 +146,7 @@
             "updated_at_ms": 1791820860000,
             "exit_code": 0,
             "output_bytes": 512,
-            "provenance": "verified"
+            "provenance": "receipt"
           }
         },
         {
@@ -168,7 +168,7 @@
             "updated_at_ms": 1791820860000,
             "exit_code": 0,
             "output_bytes": 512,
-            "provenance": "verified"
+            "provenance": "receipt"
           }
         },
         {

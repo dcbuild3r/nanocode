@@ -181,8 +181,8 @@
         {
           "badges": [
             {
-              "text": "verified",
-              "tone": "ok"
+              "text": "receipt",
+              "tone": "muted"
             }
           ],
           "depth": 1,

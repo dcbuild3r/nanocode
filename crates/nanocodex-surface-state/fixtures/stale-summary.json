@@ -80,7 +80,7 @@
             "updated_at_ms": 1791820900000,
             "exit_code": 101,
             "output_bytes": 40960,
-            "provenance": "verified"
+            "provenance": "receipt"
           }
         },
         {
@@ -101,7 +101,7 @@
             "started_at_ms": 1791821100000,
             "updated_at_ms": 1791821200000,
             "exit_code": 0,
-            "provenance": "verified"
+            "provenance": "receipt"
           }
         },
         {
@@ -123,7 +123,7 @@
             "updated_at_ms": 1791821680000,
             "exit_code": 0,
             "output_bytes": 38912,
-            "provenance": "verified"
+            "provenance": "receipt"
           }
         },
         {
