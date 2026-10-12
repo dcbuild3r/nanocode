@@ -87,3 +87,8 @@ fn orphaned_tool() {
 fn control_frames() {
     run("control-frames");
 }
+
+#[test]
+fn streams() {
+    run("streams");
+}

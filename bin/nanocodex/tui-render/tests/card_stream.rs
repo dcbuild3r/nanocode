@@ -69,6 +69,7 @@ fn every_fixture_renders_closed_cards_at_every_width() {
         "stale-summary",
         "orphaned-tool",
         "control-frames",
+        "streams",
     ] {
         for projection in projections(name) {
             for width in [40, 80, 120] {

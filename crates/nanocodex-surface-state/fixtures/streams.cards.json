@@ -1,0 +1,278 @@
+[
+  {
+    "label": "main stream at cursor 40, child stream at cursor 3",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 6s",
+          "subject": "Serve and test",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "t1.cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 5s",
+          "subject": "await tools.exec_command({cmd: 'pnpm dev'})",
+          "title": "Code Mode",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 2,
+          "id": "t1.cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 4s",
+          "subject": "pnpm dev",
+          "title": "Shell",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "a1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 1",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 3s",
+          "title": "Worker 1",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 40,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 40 · 4 open · last event 3s ago · 1 replay(s) ignored",
+        "open": 4,
+        "regressions_ignored": 0,
+        "replays_ignored": 1,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820806000
+    }
+  },
+  {
+    "label": "cell yields, then the turn ends: the nested call is settled locally",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "Serve and test",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 7s",
+          "subject": "await tools.exec_command({cmd: 'pnpm dev'})",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "t1.cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "owner ended without a tool result",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "pnpm dev",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "a1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 1",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 9s",
+          "title": "Worker 1",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 42,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 42 · 1 open · last event 1s ago · 1 replay(s) ignored",
+        "open": 1,
+        "regressions_ignored": 0,
+        "replays_ignored": 1,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820812000
+    }
+  },
+  {
+    "label": "producer snapshot still lists the call: reopened and detached",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "Serve and test",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 7s",
+          "subject": "await tools.exec_command({cmd: 'pnpm dev'})",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "detached",
+              "tone": "info"
+            }
+          ],
+          "depth": 2,
+          "id": "t1.cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 13s",
+          "subject": "pnpm dev",
+          "title": "Shell",
+          "tone": "live"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "a1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 1",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 12s",
+          "title": "Worker 1",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "cursor": 43,
+        "epoch": 0,
+        "label": "epoch 0 · cursor 43 · 2 open · last event 1s ago · 1 replay(s) ignored",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 1,
+        "restarts": 0,
+        "tone": "ok"
+      },
+      "now_ms": 1791820815000
+    }
+  }
+]

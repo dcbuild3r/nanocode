@@ -1,0 +1,171 @@
+{
+  "name": "streams",
+  "description": "Independent producer cursor spaces and producer authority: a child stream's low cursor is not a replay of the main stream, and a producer snapshot reopens a call this surface settled itself.",
+  "steps": [
+    {
+      "label": "main stream at cursor 40, child stream at cursor 3",
+      "now_ms": 1791820806000,
+      "events": [
+        {
+          "type": "upsert",
+          "cursor": 38,
+          "at_ms": 1791820800000,
+          "entity": {
+            "id": "t1",
+            "kind": "turn",
+            "epoch": 0,
+            "state": "running",
+            "title": "Turn",
+            "subject": "Serve and test",
+            "started_at_ms": 1791820800000,
+            "updated_at_ms": 1791820800000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 39,
+          "at_ms": 1791820801000,
+          "entity": {
+            "id": "t1.cell",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 0,
+            "state": "running",
+            "title": "Code Mode",
+            "subject": "await tools.exec_command({cmd: 'pnpm dev'})",
+            "tool": "exec",
+            "started_at_ms": 1791820801000,
+            "updated_at_ms": 1791820801000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 40,
+          "at_ms": 1791820802000,
+          "entity": {
+            "id": "t1.cell/code-1",
+            "parent_id": "t1.cell",
+            "kind": "tool_call",
+            "epoch": 0,
+            "state": "running",
+            "title": "Shell",
+            "subject": "pnpm dev",
+            "tool": "exec_command",
+            "started_at_ms": 1791820802000,
+            "updated_at_ms": 1791820802000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 3,
+          "at_ms": 1791820803000,
+          "entity": {
+            "id": "a1",
+            "parent_id": "t1",
+            "kind": "agent",
+            "epoch": 0,
+            "state": "running",
+            "title": "Worker 1",
+            "role": "Worker 1",
+            "started_at_ms": 1791820803000,
+            "updated_at_ms": 1791820803000
+          },
+          "stream": "agent:1"
+        },
+        {
+          "type": "upsert",
+          "cursor": 3,
+          "at_ms": 1791820803000,
+          "entity": {
+            "id": "a1",
+            "parent_id": "t1",
+            "kind": "agent",
+            "epoch": 0,
+            "state": "running",
+            "title": "Worker 1",
+            "role": "Worker 1",
+            "started_at_ms": 1791820803000,
+            "updated_at_ms": 1791820803000
+          },
+          "stream": "agent:1"
+        }
+      ]
+    },
+    {
+      "label": "cell yields, then the turn ends: the nested call is settled locally",
+      "now_ms": 1791820812000,
+      "events": [
+        {
+          "type": "upsert",
+          "cursor": 41,
+          "at_ms": 1791820808000,
+          "entity": {
+            "id": "t1.cell",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 0,
+            "state": "completed",
+            "title": "Code Mode",
+            "subject": "await tools.exec_command({cmd: 'pnpm dev'})",
+            "tool": "exec",
+            "started_at_ms": 1791820801000,
+            "updated_at_ms": 1791820808000,
+            "provenance": "receipt"
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 42,
+          "at_ms": 1791820811000,
+          "entity": {
+            "id": "t1",
+            "kind": "turn",
+            "epoch": 0,
+            "state": "completed",
+            "title": "Turn",
+            "subject": "Serve and test",
+            "started_at_ms": 1791820800000,
+            "updated_at_ms": 1791820811000
+          }
+        }
+      ]
+    },
+    {
+      "label": "producer snapshot still lists the call: reopened and detached",
+      "now_ms": 1791820815000,
+      "events": [
+        {
+          "type": "snapshot",
+          "epoch": 0,
+          "cursor": 43,
+          "at_ms": 1791820814000,
+          "entities": [
+            {
+              "id": "t1.cell/code-1",
+              "parent_id": "t1.cell",
+              "kind": "tool_call",
+              "epoch": 0,
+              "state": "running",
+              "title": "Shell",
+              "subject": "pnpm dev",
+              "tool": "exec_command",
+              "started_at_ms": 1791820802000,
+              "updated_at_ms": 1791820814000
+            },
+            {
+              "id": "a1",
+              "parent_id": "t1",
+              "kind": "agent",
+              "epoch": 0,
+              "state": "running",
+              "title": "Worker 1",
+              "role": "Worker 1",
+              "started_at_ms": 1791820803000,
+              "updated_at_ms": 1791820814000
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

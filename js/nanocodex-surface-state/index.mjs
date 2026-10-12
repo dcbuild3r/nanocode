@@ -63,6 +63,8 @@ export class SurfaceState {
   // the workspace do not establish an epoch baseline.
   runtimeSeen = false;
   disconnectedAtMs = undefined;
+  // Applied cursor per secondary producer stream; the main stream uses cursor.
+  watermarks = new Map();
 
   entity(id) {
     return this.entities.get(id)?.entity;
@@ -89,25 +91,36 @@ export class SurfaceState {
       this.disconnectedAtMs = event.connected ? undefined : (this.disconnectedAtMs ?? event.at_ms);
       return;
     }
-    if (event.cursor <= this.cursor) {
+    if (event.cursor <= this.#watermark(event.stream)) {
       this.replaysIgnored += 1;
       return;
     }
     switch (event.type) {
-      case "upsert":
-        this.#upsert(event.entity, event.cursor, event.at_ms);
+      case "upsert": {
+        this.#upsert(event.entity, event.cursor, event.at_ms, false);
         // Hand and workspace observations are environment state, not runtime
         // progress: they must not refresh "last event".
-        if (event.entity.kind === "hand" || event.entity.kind === "brain") this.cursor = event.cursor;
-        else this.#advance(event.cursor, event.at_ms);
+        const progress = event.entity.kind !== "hand" && event.entity.kind !== "brain";
+        this.#fence(event.stream, event.cursor, progress ? event.at_ms : undefined);
         break;
+      }
       case "runtime_epoch":
         this.#settleEpoch(event.epoch, event.cursor, event.at_ms, event.reason);
-        this.#advance(event.cursor, event.at_ms);
+        this.#fence(event.stream, event.cursor, event.at_ms);
         break;
       default:
         throw new TypeError(`unknown surface event type: ${event.type}`);
     }
+  }
+
+  #watermark(stream) {
+    return stream === undefined ? this.cursor : (this.watermarks.get(stream) ?? 0);
+  }
+
+  #fence(stream, cursor, progressAtMs) {
+    if (stream === undefined) this.cursor = cursor;
+    else this.watermarks.set(stream, cursor);
+    if (progressAtMs !== undefined) this.lastEventAtMs = progressAtMs;
   }
 
   #hasBaseline() {
@@ -141,13 +154,15 @@ export class SurfaceState {
         tracked.lastEventAtMs = atMs;
       }
     }
-    for (const entity of entities) this.#upsert(entity, cursor, atMs);
+    for (const entity of entities) this.#upsert(entity, cursor, atMs, true);
     this.epoch = Math.max(this.epoch, epoch);
     this.epochKnown = true;
     this.#advance(cursor, atMs);
   }
 
-  #upsert(entity, cursor, atMs) {
+  // Authoritative upserts come from a producer snapshot: they may reopen an
+  // entity this surface settled itself, because the producer says it is open.
+  #upsert(entity, cursor, atMs, authoritative) {
     if (SETTLES_ON_EPOCH.has(entity.kind)) this.runtimeSeen = true;
     const tracked = this.entities.get(entity.id);
     if (!tracked) {
@@ -166,7 +181,8 @@ export class SurfaceState {
     const previous = tracked.entity.state;
     const next = entity.state;
     const resumedInNewEpoch = entity.epoch > tracked.entity.epoch;
-    if (isTerminal(previous) && !isTerminal(next) && !resumedInNewEpoch) {
+    const reopened = authoritative && tracked.settledLocally;
+    if (isTerminal(previous) && !isTerminal(next) && !resumedInNewEpoch && !reopened) {
       this.regressionsIgnored += 1;
       return;
     }
@@ -174,7 +190,7 @@ export class SurfaceState {
       this.regressionsIgnored += 1;
       return;
     }
-    if (isTerminal(previous) && !isTerminal(next)) tracked.attempt += 1;
+    if (isTerminal(previous) && !isTerminal(next) && resumedInNewEpoch) tracked.attempt += 1;
     if (tracked.settledLocally && isDefinitive(next)) tracked.reconciled = true;
     if (!isTerminal(next) || isDefinitive(next)) tracked.settledLocally = false;
     tracked.entity = structuredClone(entity);

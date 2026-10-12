@@ -76,8 +76,8 @@ export type Entity = EntityCommon &
 
 export type SurfaceEvent =
   | { type: "snapshot"; epoch: number; cursor: number; at_ms: number; entities: Entity[] }
-  | { type: "upsert"; cursor: number; at_ms: number; entity: Entity }
-  | { type: "runtime_epoch"; epoch: number; cursor: number; at_ms: number; reason: string }
+  | { type: "upsert"; cursor: number; at_ms: number; entity: Entity; stream?: string }
+  | { type: "runtime_epoch"; epoch: number; cursor: number; at_ms: number; reason: string; stream?: string }
   | { type: "heartbeat"; cursor: number; at_ms: number; context_pct?: number }
   | { type: "connection"; connected: boolean; at_ms: number };
 
