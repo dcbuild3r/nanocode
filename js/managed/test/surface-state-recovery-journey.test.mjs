@@ -343,6 +343,13 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
     assert.equal(surfaceSocket.filter(frame => frame.type === 'runtime_epoch').length, 1);
     assert.equal(interruptedResults(legacySocket).length, openDuring.length);
 
+    // An idle surface stream proves liveness with cursorless heartbeat frames.
+    const idleSurface = await curl('root-sse-surface-heartbeat', '/v1/agents/' + rootRun.agent_id + '/events?cursor=latest&surface=1',
+      { headers: { Accept: 'text/event-stream' }, sse: value => value.type === 'heartbeat', maxTime: 25 });
+    const heartbeat = idleSurface.frames.find(frame => frame.type === 'heartbeat');
+    summary.heartbeat = heartbeat;
+    assert.ok(heartbeat && heartbeat.epoch === 1 && typeof heartbeat.runtime_generation === 'number' && typeof heartbeat.latest_cursor === 'string',
+      'surface streams carry heartbeats: ' + JSON.stringify(idleSurface.frames));
     const settledSnapshot = await snapshot('root-surface-settled', rootRun.agent_id);
     summary.root_settled = settledSnapshot;
     assert.deepEqual([settledSnapshot.epoch, settledSnapshot.turns, settledSnapshot.runs, settledSnapshot.tool_calls], [1, [], [], []]);
