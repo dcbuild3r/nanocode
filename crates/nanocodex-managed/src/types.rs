@@ -1502,6 +1502,35 @@ mod tests {
 
 #[cfg(test)]
 mod presentation_contract_tests {
+    // Frames captured from the surface-state curl recovery journey.
+    #[test]
+    fn runtime_epoch_and_surface_snapshot_decode_service_frames() {
+        let epoch: super::ManagedEvent = serde_json::from_str(r#"{"cursor":"11","created_at":1791838773897,"turn_id":null,"type":"runtime_epoch","epoch":1,"reason":"runtime_restarted","interrupted":{"tool_calls":[{"agent_id":null,"call_id":"surface-root-cell","tool":"exec","turn_id":"4d83ebe3-6dfe-80df-9ba9-4a62fa024291","parent_call_id":null,"started_cursor":"9","started_at":1791838772235},{"agent_id":null,"call_id":"surface-root-cell/code-1","tool":"exec_command","turn_id":"4d83ebe3-6dfe-80df-9ba9-4a62fa024291","parent_call_id":"surface-root-cell","started_cursor":"10","started_at":1791838772274}],"runs":[{"agent_id":null,"turn_id":"4d83ebe3-6dfe-80df-9ba9-4a62fa024291","started_cursor":"4","started_at":1791838772166}],"turns":["4d83ebe3-6dfe-80df-9ba9-4a62fa024291"]}}"#).unwrap();
+        let super::ManagedEventData::RuntimeEpoch {
+            epoch: number,
+            reason,
+            interrupted,
+        } = &epoch.data
+        else {
+            panic!("runtime_epoch must decode as RuntimeEpoch");
+        };
+        assert_eq!(
+            (*number, reason.as_str(), epoch.data.event_name()),
+            (1, "runtime_restarted", "runtime_epoch")
+        );
+        assert_eq!(
+            interrupted.tool_calls[1].parent_call_id.as_deref(),
+            Some("surface-root-cell")
+        );
+        assert_eq!(interrupted.turns.len(), 1);
+        assert!(epoch.data.turn_id().is_none() && epoch.data.agent_event().unwrap().is_none());
+
+        let snapshot: super::SurfaceSnapshot = serde_json::from_str(r#"{"protocol":1,"epoch":0,"cursor":"24","generated_at":1791838774699,"runtime_loaded":true,"turns":[{"id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","state":"accepted","attempt_count":0,"retry_at":null,"created_at":1791838774478,"updated_at":1791838774516}],"runs":[{"agent_id":null,"turn_id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","state":"running","started_cursor":"4","started_at":1791838774515},{"agent_id":1,"turn_id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","state":"running","started_cursor":"12","started_at":1791838774579}],"agents":[{"agent_id":1,"parent_agent_id":null,"role":"Surface child","state":"running","updated_at":1791838774578,"reported_epoch":0}],"tool_calls":[{"agent_id":1,"call_id":"surface-child-cell","tool":"exec","turn_id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","parent_call_id":null,"started_cursor":"20","started_at":1791838774602},{"agent_id":null,"call_id":"surface-wait/code-1","tool":"wait_agent","turn_id":"3b72a0f2-a68e-8737-b618-9cdeadbafb12","parent_call_id":"surface-wait","started_cursor":"24","started_at":1791838774651}],"process_sessions":[]}"#).unwrap();
+        assert_eq!((snapshot.cursor.as_str(), snapshot.runs.len()), ("24", 2));
+        assert_eq!(snapshot.tool_calls[0].agent_id, Some(1));
+        assert_eq!(snapshot.agents[0].state, "running");
+    }
+
     #[test]
     fn list_json_preserves_presentation_and_accepts_legacy_summaries() {
         let mut value = serde_json::json!({"data":["synthetic"],"summaries":{"synthetic":{

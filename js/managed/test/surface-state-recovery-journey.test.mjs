@@ -142,15 +142,18 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
         () => exec('surface-wait', 'text(await tools.wait_agent({agent_ids:[1],timeout_ms:20000}));'),
       ][outputs.length]?.() ?? say('SURFACE_SPAWN_DONE');
       case 'SURFACE_CHILD_TASK': {
-        // A restored child is told which call was interrupted; it never repeats S2.
-        if (resumed) return outputs.some(item => item.call_id === 'surface-child-submit') ? say('CHILD_DONE')
-          : exec('surface-child-submit', 'text(await tools.submit_result({output:"CHILD_RESUMED_WITHOUT_REPEAT"}));');
+        // A restored child is told which call was interrupted; it never repeats
+        // S2 and moves on to new work (S3, held) before submitting.
+        const done = outputs.map(item => item.call_id);
+        if (resumed) return !done.includes('surface-child-moved-on') ? exec('surface-child-moved-on', effect('S3'))
+          : !done.includes('surface-child-submit') ? exec('surface-child-submit', 'text(await tools.submit_result({output:"CHILD_RESUMED_WITHOUT_REPEAT"}));')
+          : say('CHILD_DONE');
         return outputs.length === 0 ? exec('surface-child-cell', effect('S2')) : say('CHILD_UNEXPECTED');
       }
       default: unexpected.push({ kind: 'model', scenario: scenario ?? null }); return say('UNEXPECTED');
     }
   };
-  const held = [];
+  const held = [], releases = new Map();
   const sockets = new Set();
   const control = createServer(async (req, res) => {
     let raw = ''; for await (const chunk of req) raw += chunk;
@@ -162,7 +165,11 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
       effects.push({ process: processNumber, name, at: new Date().toISOString() });
       // The first dispatch reaches the external system and its response is
       // held: the call is visibly running when the owner dies.
-      if (effects.filter(entry => entry.name === name).length === 1) { held.push(name); return; }
+      if (effects.filter(entry => entry.name === name).length === 1) {
+        held.push(name);
+        releases.set(name, () => send(200, 'EFFECT_' + name + '_APPLIED\n', 'text/plain'));
+        return;
+      }
       return send(200, 'EFFECT_' + name + '_APPLIED\n', 'text/plain');
     }
     if (url.origin === 'https://chatgpt.com' && call.body?.includes('"gpt-6-luna"'))
@@ -320,8 +327,26 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
     const childOpen = childDuring.tool_calls.map(call => (call.agent_id ?? 'root') + ':' + call.call_id);
     await kill('child effect S2 held');
     await start();
-    const childAfter = await snapshot('child-surface-after-restart', spawnRun.agent_id);
+    // Any public request reconstructs the Session (production also fires its alarm).
+    const childRestart = await snapshot('child-surface-after-restart', spawnRun.agent_id);
+    summary.child_restart = childRestart;
+    assert.equal(childRestart.epoch, 1);
+    assert.ok(!childRestart.tool_calls.some(call => call.call_id.startsWith('surface-child-cell')), 'the lost child call is settled at reconstruction');
+    // The stuck-card moment: the restored child has moved on to new work (S3
+    // is held, its new call is running), and the call that died with the old
+    // owner already has a terminal result for every reader, legacy included.
+    await waitFor('restored child moved on', () => held.includes('S3'));
+    const movedOnRows = (await history('child-history-moved-on-legacy', spawnRun.agent_id, false)).data;
+    const openAfterMove = openCalls(movedOnRows);
+    summary.child_open_while_moved_on = openAfterMove;
+    assert.ok(openAfterMove.includes('1:surface-child-moved-on'), 'the restored child is running new work: ' + JSON.stringify(openAfterMove));
+    assert.ok(!openAfterMove.some(key => key.startsWith('1:surface-child-cell')), 'the lost child call is not left running: ' + JSON.stringify(openAfterMove));
+    const childAfter = await snapshot('child-surface-moved-on', spawnRun.agent_id);
+    summary.child_after = childAfter;
     assert.equal(childAfter.epoch, 1);
+    assert.ok(childAfter.tool_calls.some(call => call.agent_id === 1 && call.call_id === 'surface-child-moved-on'));
+    assert.ok(!childAfter.tool_calls.some(call => call.call_id.startsWith('surface-child-cell')));
+    releases.get('S3')();
     const spawnDone = await terminal('child-root-terminal', spawnRun.agent_id, spawnRun.turn_id);
     assert.equal(spawnDone.state, 'completed', JSON.stringify(spawnDone));
     const childRows = (await history('child-history-surface', spawnRun.agent_id, true)).data;
@@ -332,6 +357,15 @@ test('a runtime restart mid-tool settles every open call as unknown, and clients
     assert.ok(childSettled.includes('1:surface-child-cell'), 'the child call settled as unknown: ' + JSON.stringify(childSettled));
     assert.deepEqual(openCalls(childRows), [], 'no root or child call is left running');
     assert.equal(effects.filter(entry => entry.name === 'S2').length, 1, 'the restored child never repeats S2');
+    // The child's completion may wake the idle root for one more turn; once
+    // that settles, nothing is open.
+    const finalChild = await waitFor('child agent settled', async () => {
+      const value = await snapshot('child-surface-settled', spawnRun.agent_id);
+      return value.turns.length === 0 && value.runs.length === 0 && value.tool_calls.length === 0 ? value : undefined;
+    }, 30_000, 250);
+    summary.child_settled = finalChild;
+    assert.ok(finalChild.agents.some(agent => agent.agent_id === 1 && agent.state === 'completed'), JSON.stringify(finalChild.agents));
+    assert.deepEqual(openCalls((await history('child-history-final', spawnRun.agent_id, true)).data), []);
 
     // 3. A restart with no open work (idle eviction) is not a visible epoch.
     await kill('idle owner loss');
