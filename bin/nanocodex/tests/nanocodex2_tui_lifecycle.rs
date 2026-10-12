@@ -9271,6 +9271,7 @@ async fn terminal_card_stream_settles_tools_from_runtime_receipts() {
         "structured_result": {"code": "TOOL_CALL_INTERRUPTED", "outcome": "unknown", "reason": "runtime_restarted", "epoch": 1}}));
     fixture.terminal.wait_text("runtime restarted").await;
     wait_line(&fixture.terminal, &["cargo build --release", "unknown"]).await;
+    fixture.terminal.wait_text("[outcome unknown]").await;
     capture(
         &fixture.terminal,
         "card stream: restart receipt settles the tool",

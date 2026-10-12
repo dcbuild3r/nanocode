@@ -336,7 +336,7 @@ impl SurfaceState {
         if let Some(provenance) = entity.provenance {
             badges.push(badge(provenance.label(), provenance_tone(provenance)));
         }
-        if entity.state == Lifecycle::Unknown && tracked.settled_locally {
+        if entity.state == Lifecycle::Unknown {
             badges.push(badge("outcome unknown", Tone::Warn));
         }
         if tracked.reconciled {

@@ -318,14 +318,18 @@ impl AgentEventAdapter {
                         "runtime reported the outcome as unknown".to_owned()
                     });
                 }
-                // A tool.result is a runtime receipt for the call itself.
-                entity.provenance = Some(Provenance::Verified);
+                // A definitive tool.result is a runtime receipt for the call
+                // itself; an unknown-outcome receipt verifies nothing.
+                if !unknown {
+                    entity.provenance = Some(Provenance::Verified);
+                }
                 entity.updated_at_ms = at_ms;
-                if let Body::ToolCall {
-                    exit_code,
-                    output_bytes,
-                    ..
-                } = &mut entity.body
+                if !unknown
+                    && let Body::ToolCall {
+                        exit_code,
+                        output_bytes,
+                        ..
+                    } = &mut entity.body
                 {
                     *exit_code = structured["exit_code"].as_i64();
                     *output_bytes = structured["output"]

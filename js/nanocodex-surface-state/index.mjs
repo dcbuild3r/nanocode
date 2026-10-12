@@ -317,7 +317,7 @@ export class SurfaceState {
     if (entity.provenance !== undefined) {
       badges.push(badge(PROVENANCE_LABEL[entity.provenance], PROVENANCE_TONE[entity.provenance]));
     }
-    if (entity.state === "unknown" && tracked.settledLocally) badges.push(badge("outcome unknown", "warn"));
+    if (entity.state === "unknown") badges.push(badge("outcome unknown", "warn"));
     if (tracked.reconciled) badges.push(badge("outcome reconciled", "info"));
     let latestEvent = 0;
     this.#walk(tracked, children, (node) => {
