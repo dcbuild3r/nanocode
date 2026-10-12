@@ -218,10 +218,23 @@ pub(super) fn live_managed_projection(
             })?;
             (record, None)
         }
+        ManagedEventData::RuntimeEpoch {
+            epoch,
+            reason,
+            interrupted,
+        } => (
+            TranscriptRecord::runtime_epoch(
+                *next_sequence,
+                timestamp,
+                epoch,
+                &reason,
+                &interrupted,
+            ),
+            None,
+        ),
         ManagedEventData::AgentCreated { .. }
         | ManagedEventData::TurnCancelling { .. }
-        | ManagedEventData::StreamFailed { .. }
-        | ManagedEventData::RuntimeEpoch { .. } => return Ok(None),
+        | ManagedEventData::StreamFailed { .. } => return Ok(None),
     };
     *next_sequence = next_sequence.saturating_add(1);
     Ok(Some((Arc::new(record), prompt)))
@@ -343,10 +356,23 @@ pub(super) fn history_projection_with_sequences(
                     })?;
                     Ok(Some((Arc::new(record), None)))
                 }
+                ManagedEventData::RuntimeEpoch {
+                    epoch,
+                    reason,
+                    interrupted,
+                } => Ok(Some((
+                    Arc::new(TranscriptRecord::runtime_epoch(
+                        sequence,
+                        timestamp,
+                        *epoch,
+                        reason,
+                        interrupted,
+                    )),
+                    None,
+                ))),
                 ManagedEventData::AgentCreated { .. }
                 | ManagedEventData::TurnCancelling { .. }
-                | ManagedEventData::StreamFailed { .. }
-                | ManagedEventData::RuntimeEpoch { .. } => Ok(None),
+                | ManagedEventData::StreamFailed { .. } => Ok(None),
             }
         })();
         match projected {

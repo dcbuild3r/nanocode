@@ -159,6 +159,28 @@ struct AgentMetadata {
 }
 
 impl TranscriptRecord {
+    pub(crate) fn runtime_epoch(
+        sequence: u64,
+        at: u64,
+        epoch: u64,
+        reason: &str,
+        interrupted: &nanocodex_managed::RuntimeEpochInterrupted,
+    ) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            sequence,
+            recorded_at_unix_ms: at,
+            source: "managed".into(),
+            kind: "runtime_epoch".into(),
+            agent: None,
+            payload: to_raw_value(
+                &serde_json::json!({"epoch":epoch,"reason":reason,"interrupted":interrupted}),
+            )
+            .expect("serializable epoch")
+            .into(),
+        }
+    }
+
     pub(crate) fn from_agent(sequence: u64, recorded_at_unix_ms: u64, event: AgentEvent) -> Self {
         Self {
             schema_version: SCHEMA_VERSION,

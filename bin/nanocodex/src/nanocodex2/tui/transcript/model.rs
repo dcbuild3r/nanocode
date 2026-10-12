@@ -352,6 +352,41 @@ impl TranscriptModel {
     }
 
     pub(crate) fn apply(&mut self, record: &TranscriptRecord) -> ModelChange {
+        if record.kind() == "runtime_epoch" {
+            if let Ok(p) = record.decode_payload::<Value>() {
+                let ids = p["interrupted"]["tool_calls"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|call| {
+                        call["call_id"]
+                            .as_str()
+                            .and_then(|id| self.tools.get(id))
+                            .copied()
+                            .filter(|id| self.running_tools.contains(id) && self.entry(*id).is_some_and(|entry| matches!(&entry.kind, EntryKind::Tool(tool) if tool.started_at_unix_ms <= record.recorded_at_unix_ms())))
+                    })
+                    .collect::<Vec<_>>();
+                self.settle_unfinished_tools(&ids);
+                let interrupted = |scope: &RunScope| {
+                    p["interrupted"]["runs"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .any(|run| {
+                            run["agent_id"].as_u64() == scope.child
+                                && run["turn_id"].as_str() == scope.turn.as_deref()
+                        })
+                };
+                self.active_runs.retain(|run| !interrupted(&run.scope));
+                self.run_activity.retain(|run| !interrupted(&run.scope));
+                self.refresh_transient();
+                self.runtime_epoch = p.get("epoch").map(Value::to_string);
+            }
+            return ModelChange {
+                changed: true,
+                ..ModelChange::default()
+            };
+        }
         if record.kind() == "runtime.epoch" {
             let epoch = record.decode_payload::<Value>().ok().and_then(|p| {
                 p.get("epoch")

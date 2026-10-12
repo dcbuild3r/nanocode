@@ -1,0 +1,167 @@
+[
+  {
+    "cursor": "4",
+    "created_at": 1791838417691,
+    "turn_id": "80f079a2-404d-81a4-b166-1c622c99244f",
+    "type": "event",
+    "event": {
+      "protocol_version": 1,
+      "request_id": "01a131e4-7292-741b-a195-6bc52e9317e5",
+      "seq": 2,
+      "type": "run.started",
+      "payload": {
+        "mode": "openai_model",
+        "model": "gpt-6.1-sol",
+        "reasoning_mode": "standard",
+        "effort": "low",
+        "transport": "responses_websocket_v2",
+        "orchestration": "local_code_mode",
+        "websocket_url": "https://nanocodex.internal/v1/responses",
+        "workspace": ".",
+        "instruction_bytes": 1325,
+        "turn_id": "01a131e4-7314-7ed0-b638-9ec7f50169b2"
+      }
+    }
+  },
+  {
+    "cursor": "9",
+    "created_at": 1791838417793,
+    "turn_id": "80f079a2-404d-81a4-b166-1c622c99244f",
+    "type": "event",
+    "event": {
+      "protocol_version": 1,
+      "request_id": "01a131e4-7292-741b-a195-6bc52e9317e5",
+      "seq": 11,
+      "type": "tool.call",
+      "payload": {
+        "call_id": "surface-root-cell",
+        "tool": "exec",
+        "arguments": "text(await tools.exec_command({cmd:\"curl -s -X POST https://effects.example/effect/S1\"}));",
+        "model_call_index": 1,
+        "turn_id": "01a131e4-7314-7ed0-b638-9ec7f50169b2"
+      }
+    }
+  },
+  {
+    "cursor": "10",
+    "created_at": 1791838417894,
+    "turn_id": "80f079a2-404d-81a4-b166-1c622c99244f",
+    "type": "event",
+    "event": {
+      "protocol_version": 1,
+      "request_id": "01a131e4-7292-741b-a195-6bc52e9317e5",
+      "seq": 12,
+      "type": "tool.call",
+      "payload": {
+        "call_id": "surface-root-cell/code-1",
+        "tool": "exec_command",
+        "arguments": {
+          "cmd": "curl -s -X POST https://effects.example/effect/S1"
+        },
+        "model_call_index": 1,
+        "turn_id": "01a131e4-7314-7ed0-b638-9ec7f50169b2"
+      }
+    }
+  },
+  {
+    "cursor": "11",
+    "created_at": 1791838421062,
+    "turn_id": null,
+    "type": "runtime_epoch",
+    "epoch": 1,
+    "reason": "runtime_restarted",
+    "interrupted": {
+      "tool_calls": [
+        {
+          "agent_id": null,
+          "call_id": "surface-root-cell",
+          "tool": "exec",
+          "turn_id": "80f079a2-404d-81a4-b166-1c622c99244f",
+          "parent_call_id": null,
+          "started_cursor": "9",
+          "started_at": 1791838417793
+        },
+        {
+          "agent_id": null,
+          "call_id": "surface-root-cell/code-1",
+          "tool": "exec_command",
+          "turn_id": "80f079a2-404d-81a4-b166-1c622c99244f",
+          "parent_call_id": "surface-root-cell",
+          "started_cursor": "10",
+          "started_at": 1791838417894
+        }
+      ],
+      "runs": [
+        {
+          "agent_id": null,
+          "turn_id": "80f079a2-404d-81a4-b166-1c622c99244f",
+          "started_cursor": "4",
+          "started_at": 1791838417691
+        }
+      ],
+      "turns": [
+        "80f079a2-404d-81a4-b166-1c622c99244f"
+      ]
+    }
+  },
+  {
+    "cursor": "12",
+    "created_at": 1791838421062,
+    "turn_id": "80f079a2-404d-81a4-b166-1c622c99244f",
+    "type": "event",
+    "event": {
+      "protocol_version": 1,
+      "request_id": "01a131e4-7292-741b-a195-6bc52e9317e5",
+      "seq": 12,
+      "type": "tool.result",
+      "payload": {
+        "call_id": "surface-root-cell/code-1",
+        "tool": "exec_command",
+        "status": "failed",
+        "duration_ns": 3168000000,
+        "started_after_ns": null,
+        "result": "The session runtime restarted before a terminal result for this tool call, so its outcome is unknown. Inspect external state before retrying any effect.",
+        "outcome_unknown": true,
+        "structured_result": {
+          "code": "TOOL_CALL_INTERRUPTED",
+          "error": "The session runtime restarted before a terminal result for this tool call, so its outcome is unknown. Inspect external state before retrying any effect.",
+          "outcome": "unknown",
+          "reason": "runtime_restarted",
+          "epoch": 1
+        },
+        "turn_id": "01a131e4-7314-7ed0-b638-9ec7f50169b2",
+        "model_call_index": 1
+      }
+    }
+  },
+  {
+    "cursor": "13",
+    "created_at": 1791838421062,
+    "turn_id": "80f079a2-404d-81a4-b166-1c622c99244f",
+    "type": "event",
+    "event": {
+      "protocol_version": 1,
+      "request_id": "01a131e4-7292-741b-a195-6bc52e9317e5",
+      "seq": 11,
+      "type": "tool.result",
+      "payload": {
+        "call_id": "surface-root-cell",
+        "tool": "exec",
+        "status": "failed",
+        "duration_ns": 3269000000,
+        "started_after_ns": null,
+        "result": "The session runtime restarted before a terminal result for this tool call, so its outcome is unknown. Inspect external state before retrying any effect.",
+        "outcome_unknown": true,
+        "structured_result": {
+          "code": "TOOL_CALL_INTERRUPTED",
+          "error": "The session runtime restarted before a terminal result for this tool call, so its outcome is unknown. Inspect external state before retrying any effect.",
+          "outcome": "unknown",
+          "reason": "runtime_restarted",
+          "epoch": 1
+        },
+        "turn_id": "01a131e4-7314-7ed0-b638-9ec7f50169b2",
+        "model_call_index": 1
+      }
+    }
+  }
+]

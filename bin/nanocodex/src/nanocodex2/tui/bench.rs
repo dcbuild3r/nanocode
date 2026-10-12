@@ -966,3 +966,64 @@ fn mission_control_journey() {
     ];
     capture("fallback", fallback, &["unknown", "no terminal receipt"]);
 }
+
+#[test]
+fn mission_control_real_protocol_capture() {
+    let events: Vec<ManagedEvent> = serde_json::from_str(include_str!(
+        "../../../fixtures/surface-state/recovery-events.json"
+    ))
+    .unwrap();
+    let snapshot: nanocodex_managed::SurfaceSnapshot = serde_json::from_str(include_str!(
+        "../../../fixtures/surface-state/open-snapshot.json"
+    ))
+    .unwrap();
+    let mut surface = super::surface::SurfaceState::default();
+    assert_eq!(surface.snapshot(&snapshot), Some("10".into()));
+    assert!(
+        surface
+            .panel(snapshot.generated_at, 0, false, 20)
+            .contains("In progress: 1")
+    );
+    let deltas = events
+        .iter()
+        .filter(|event| event.cursor.parse::<u64>().unwrap() > 10)
+        .cloned()
+        .collect();
+    let delta_records = history_projection(deltas, AGENT_ID, Path::new(WORKSPACE))
+        .unwrap()
+        .0;
+    for record in &delta_records {
+        surface.observe(record);
+    }
+    assert_eq!(surface.epoch.as_deref(), Some("1"));
+    assert!(
+        surface
+            .panel(snapshot.generated_at, 0, false, 20)
+            .contains("Blocked/unknown: 3")
+    );
+    let records = history_projection(events, AGENT_ID, Path::new(WORKSPACE))
+        .unwrap()
+        .0;
+    for record in &records {
+        surface.observe(record);
+    }
+    assert_eq!(surface.epoch.as_deref(), Some("1"));
+    let mut harness = Harness::from_records(records, 140, 48);
+    harness.render();
+    let text = harness.screen_text();
+    assert!(text.contains("epoch 1"), "{text}");
+    assert!(text.contains("outcome unknown"), "{text}");
+    assert!(!text.contains("Could not render"), "{text}");
+    let frame = harness
+        .terminal
+        .backend()
+        .buffer()
+        .content()
+        .chunks(140)
+        .map(|row| row.iter().map(|cell| cell.symbol()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let output = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../output/mission-control");
+    std::fs::create_dir_all(&output).unwrap();
+    std::fs::write(output.join("real-protocol.txt"), frame).unwrap();
+}

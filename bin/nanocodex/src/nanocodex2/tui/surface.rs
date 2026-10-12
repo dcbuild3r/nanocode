@@ -26,6 +26,81 @@ struct Entity {
     retained: bool,
 }
 impl SurfaceState {
+    /// Atomically replaces one complete server snapshot, at its opaque cursor.
+    /// Caller must replay surface deltas strictly after the returned cursor.
+    pub(crate) fn snapshot(
+        &mut self,
+        snapshot: &nanocodex_managed::SurfaceSnapshot,
+    ) -> Option<String> {
+        if snapshot.protocol != 1 {
+            return None;
+        }
+        let mut next = Self::default();
+        next.epoch = Some(snapshot.epoch.to_string());
+        for run in &snapshot.runs {
+            let scope = run
+                .agent_id
+                .map_or_else(|| "root".into(), |id| id.to_string());
+            next.entities.insert(
+                scope.clone(),
+                Entity {
+                    scope,
+                    parent: "root".into(),
+                    family: "family ?".into(),
+                    model: "model ?".into(),
+                    state: "running".into(),
+                    step: "snapshot run".into(),
+                    at: run.started_at,
+                    tool: false,
+                    evidence: format!("snapshot @{}", snapshot.cursor),
+                    retained: false,
+                },
+            );
+        }
+        for agent in &snapshot.agents {
+            let scope = agent.agent_id.to_string();
+            next.entities.insert(
+                scope.clone(),
+                Entity {
+                    scope,
+                    parent: agent
+                        .parent_agent_id
+                        .map_or_else(|| "root".into(), |id| id.to_string()),
+                    family: "family ?".into(),
+                    model: "model ?".into(),
+                    state: agent.state.clone(),
+                    step: agent.role.clone(),
+                    at: agent.updated_at,
+                    tool: false,
+                    evidence: format!("snapshot @{}", snapshot.cursor),
+                    retained: false,
+                },
+            );
+        }
+        for call in &snapshot.tool_calls {
+            let scope = call
+                .agent_id
+                .map_or_else(|| "root".into(), |id| id.to_string());
+            next.entities.insert(
+                format!("{scope}/{}", call.call_id),
+                Entity {
+                    scope,
+                    parent: "root".into(),
+                    family: "family ?".into(),
+                    model: "model ?".into(),
+                    state: "running".into(),
+                    step: call.tool.clone(),
+                    at: call.started_at,
+                    tool: true,
+                    evidence: format!("snapshot @{}", snapshot.cursor),
+                    retained: false,
+                },
+            );
+        }
+        // Snapshot generation is transport evidence, not entity progress.
+        *self = next;
+        Some(snapshot.cursor.clone())
+    }
     pub(crate) fn observe(&mut self, record: &TranscriptRecord) {
         let kind = record.kind();
         let p = record.decode_payload::<Value>().unwrap_or(Value::Null);
@@ -34,6 +109,39 @@ impl SurfaceState {
         let scope = record
             .managed_agent_id()
             .map_or_else(|| "root".into(), |id| id.to_string());
+        if kind == "runtime_epoch" {
+            for call in p["interrupted"]["tool_calls"]
+                .as_array()
+                .into_iter()
+                .flatten()
+            {
+                let owner = call["agent_id"]
+                    .as_u64()
+                    .map_or_else(|| "root".into(), |id| id.to_string());
+                let key = format!("{owner}/{}", call["call_id"].as_str().unwrap_or(""));
+                if let Some(entity) = self.entities.get_mut(&key)
+                    && entity.state == "running"
+                    && entity.at <= at
+                {
+                    entity.state = "unknown".into();
+                    entity.retained = false;
+                    entity.step = "runtime restarted; reconcile receipt".into();
+                }
+            }
+            for run in p["interrupted"]["runs"].as_array().into_iter().flatten() {
+                let owner = run["agent_id"]
+                    .as_u64()
+                    .map_or_else(|| "root".into(), |id| id.to_string());
+                if let Some(entity) = self.entities.get_mut(&owner)
+                    && entity.state == "running"
+                    && entity.at <= at
+                {
+                    entity.state = "unknown".into();
+                }
+            }
+            self.epoch = p.get("epoch").map(identity);
+            return;
+        }
         if kind == "runtime.epoch" {
             let epoch = p.get("epoch").map(identity);
             if epoch != self.epoch
