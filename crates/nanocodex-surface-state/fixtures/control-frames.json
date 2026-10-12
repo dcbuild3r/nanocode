@@ -1,6 +1,6 @@
 {
   "name": "control-frames",
-  "description": "Control frames and attempts: a first-seen epoch is a baseline, a heartbeat never fences a delayed delta, a dropped stream shows in liveness, and a turn resumed by a newer epoch is attempt 2.",
+  "description": "Control frames and attempts: a first-seen epoch is a baseline, a heartbeat never fences a delayed delta, a dropped stream shows in liveness, and a turn resumed by a newer epoch is attempt 2; a yielded Code Mode cell leaves its nested call detached, not unknown, and a Hand observation is not runtime progress.",
   "steps": [
     {
       "label": "first observed epoch 7 is a baseline, not a restart",
@@ -123,6 +123,82 @@
             "subject": "Run the suite",
             "started_at_ms": 1791820802000,
             "updated_at_ms": 1791820849000
+          }
+        }
+      ]
+    },
+    {
+      "label": "cell yields: nested call detached; hand observation is not an event",
+      "now_ms": 1791820880000,
+      "events": [
+        {
+          "type": "upsert",
+          "cursor": 8,
+          "at_ms": 1791820852000,
+          "entity": {
+            "id": "t1.cell",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 8,
+            "state": "running",
+            "title": "Code Mode",
+            "subject": "await tools.exec_command({cmd: 'sleep 600'})",
+            "tool": "exec",
+            "started_at_ms": 1791820852000,
+            "updated_at_ms": 1791820852000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 9,
+          "at_ms": 1791820853000,
+          "entity": {
+            "id": "t1.cell/code-1",
+            "parent_id": "t1.cell",
+            "kind": "tool_call",
+            "epoch": 8,
+            "state": "running",
+            "title": "Shell",
+            "subject": "sleep 600",
+            "tool": "exec_command",
+            "started_at_ms": 1791820853000,
+            "updated_at_ms": 1791820853000
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 10,
+          "at_ms": 1791820858000,
+          "entity": {
+            "id": "t1.cell",
+            "parent_id": "t1",
+            "kind": "tool_call",
+            "epoch": 8,
+            "state": "completed",
+            "title": "Code Mode",
+            "subject": "await tools.exec_command({cmd: 'sleep 600'})",
+            "tool": "exec",
+            "started_at_ms": 1791820852000,
+            "updated_at_ms": 1791820858000,
+            "provenance": "receipt"
+          }
+        },
+        {
+          "type": "upsert",
+          "cursor": 11,
+          "at_ms": 1791820879000,
+          "entity": {
+            "id": "hand",
+            "kind": "hand",
+            "epoch": 8,
+            "state": "running",
+            "title": "paradigm",
+            "updated_at_ms": 1791820879000,
+            "online": true,
+            "resources": {
+              "observed_at_ms": 1791820879000,
+              "cpu_pct": 9
+            }
           }
         }
       ]

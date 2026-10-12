@@ -79,6 +79,12 @@ impl SurfaceState {
         &self.restarts
     }
 
+    /// When the event stream dropped, if it is currently down.
+    #[must_use]
+    pub const fn disconnected_since(&self) -> Option<u64> {
+        self.disconnected_at_ms
+    }
+
     #[must_use]
     pub fn entity(&self, id: &str) -> Option<&Entity> {
         self.entities.get(id).map(|tracked| &tracked.entity)
@@ -135,7 +141,13 @@ impl SurfaceState {
                 entity,
             } => {
                 self.upsert(entity, *cursor, *at_ms);
-                self.advance(*cursor, *at_ms);
+                // Hand and workspace observations are environment state, not
+                // runtime progress: they must not refresh "last event".
+                if matches!(entity.kind(), EntityKind::Hand | EntityKind::Brain) {
+                    self.cursor = *cursor;
+                } else {
+                    self.advance(*cursor, *at_ms);
+                }
             }
             SurfaceEvent::RuntimeEpoch {
                 epoch,
@@ -252,7 +264,10 @@ impl SurfaceState {
         else {
             return;
         };
-        if !kind.settles_on_epoch() || kind == EntityKind::ProcessSession {
+        // A Code Mode cell that yields ends while its nested calls keep
+        // running (they show as detached); only a turn, run or agent ending
+        // closes the calls it issued.
+        if !matches!(kind, EntityKind::Turn | EntityKind::Run | EntityKind::Agent) {
             return;
         }
         let mut owners = vec![owner.to_owned()];

@@ -230,5 +230,132 @@
       },
       "now_ms": 1791820850000
     }
+  },
+  {
+    "label": "cell yields: nested call detached; hand observation is not an event",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "hand",
+          "kind": "hand",
+          "lines": [
+            {
+              "text": "CPU 9% · observed 1s ago",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "online",
+          "title": "paradigm",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
+          "depth": 0,
+          "id": "t1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 1m 18s",
+          "subject": "Run the suite",
+          "title": "Turn",
+          "tone": "live"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.c1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            },
+            {
+              "text": "exit 0",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 8s",
+          "subject": "pnpm test",
+          "title": "Shell",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "t1.cell",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 6s",
+          "subject": "await tools.exec_command({cmd: 'sleep 600'})",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "detached",
+              "tone": "info"
+            }
+          ],
+          "depth": 2,
+          "id": "t1.cell/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "running",
+          "state_label": "running 27s",
+          "subject": "sleep 600",
+          "title": "Shell",
+          "tone": "live"
+        }
+      ],
+      "liveness": {
+        "context_pct": 12,
+        "cursor": 11,
+        "epoch": 8,
+        "label": "epoch 8 · cursor 11 · 2 open · last event 22s ago · heartbeat 1m 10s ago · context 12% · 1 restart(s)",
+        "open": 2,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 1,
+        "tone": "ok"
+      },
+      "now_ms": 1791820880000
+    }
   }
 ]

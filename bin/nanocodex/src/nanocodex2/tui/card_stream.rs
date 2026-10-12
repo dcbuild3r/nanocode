@@ -120,6 +120,13 @@ impl CardStreamView {
 
     /// Keep the user's view state across a history replay.
     pub(crate) fn preserve_view_from(&mut self, previous: &Self) {
+        // A replay rebuilds state from history; the stream is still down.
+        if let Some(since) = previous.state.disconnected_since() {
+            self.state.apply(&SurfaceEvent::Connection {
+                connected: false,
+                at_ms: since,
+            });
+        }
         self.open = previous.open;
         self.scroll = previous.scroll;
     }

@@ -350,6 +350,19 @@ impl SurfaceState {
         if tracked.reconciled {
             badges.push(badge("outcome reconciled", Tone::Info));
         }
+        let detached = kind == EntityKind::ToolCall
+            && !entity.state.is_terminal()
+            && entity
+                .parent_id
+                .as_deref()
+                .and_then(|parent| self.entities.get(parent))
+                .is_some_and(|parent| {
+                    parent.entity.kind() == EntityKind::ToolCall
+                        && parent.entity.state.is_terminal()
+                });
+        if detached {
+            badges.push(badge("detached", Tone::Info));
+        }
         if tracked.attempt > 1 {
             badges.push(badge(format!("attempt {}", tracked.attempt), Tone::Info));
         }

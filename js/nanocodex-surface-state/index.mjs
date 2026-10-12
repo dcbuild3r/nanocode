@@ -96,7 +96,10 @@ export class SurfaceState {
     switch (event.type) {
       case "upsert":
         this.#upsert(event.entity, event.cursor, event.at_ms);
-        this.#advance(event.cursor, event.at_ms);
+        // Hand and workspace observations are environment state, not runtime
+        // progress: they must not refresh "last event".
+        if (event.entity.kind === "hand" || event.entity.kind === "brain") this.cursor = event.cursor;
+        else this.#advance(event.cursor, event.at_ms);
         break;
       case "runtime_epoch":
         this.#settleEpoch(event.epoch, event.cursor, event.at_ms, event.reason);
@@ -185,7 +188,9 @@ export class SurfaceState {
   // unknown (mirrors the Rust reducer).
   #settleOrphanedToolCalls(ownerId, cursor, atMs) {
     const kind = this.entities.get(ownerId)?.entity.kind;
-    if (!SETTLES_ON_EPOCH.has(kind) || kind === "process_session") return;
+    // A yielded Code Mode cell ends while its nested calls keep running (they
+    // show as detached); only a turn, run or agent ending closes its calls.
+    if (kind !== "turn" && kind !== "run" && kind !== "agent") return;
     const owners = [ownerId];
     while (owners.length > 0) {
       const owner = owners.pop();
@@ -357,6 +362,15 @@ export class SurfaceState {
     }
     if (entity.state === "unknown") badges.push(badge("outcome unknown", "warn"));
     if (tracked.reconciled) badges.push(badge("outcome reconciled", "info"));
+    const parent = entity.parent_id === undefined ? undefined : this.entities.get(entity.parent_id);
+    if (
+      kind === "tool_call" &&
+      !isTerminal(entity.state) &&
+      parent?.entity.kind === "tool_call" &&
+      isTerminal(parent.entity.state)
+    ) {
+      badges.push(badge("detached", "info"));
+    }
     if (tracked.attempt > 1) badges.push(badge(`attempt ${tracked.attempt}`, "info"));
     let latestEvent = 0;
     this.#walk(tracked, children, (node) => {
