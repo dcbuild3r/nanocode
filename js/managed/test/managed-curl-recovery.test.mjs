@@ -502,22 +502,22 @@ test('curl recovers managed work across workerd SIGKILL without duplicate effect
   const history = async (label, agent) => (await curl(label, `/v1/agents/${agent}/events/history?after=0&limit=256`, { expected: 200 })).value;
   // A client renders a tool.call as running until its tool.result, so a call
   // whose owner died must still reach a terminal receipt in durable history.
-  // Recovery may replay a call (tool.call and tool.result again), but a call
-  // closed as interrupted must never report again.
+  // The runtime epoch that follows owner loss closes every open call with an
+  // unknown outcome. Recovery may then replay a call (tool.call and tool.result
+  // again) as a new attempt, but every tool.result closes exactly one open
+  // attempt: an interrupted call never reports a second bare result.
   const openToolCalls = page => {
-    const open = new Map(), interrupted = new Map(), reopened = [];
+    const open = new Map(), reopened = [];
     for (const row of page.data) {
       const key = (row.agent_id ?? 'root') + ':' + row.event?.payload?.call_id;
-      if ((row.event?.type === 'tool.call' || row.event?.type === 'tool.result') && interrupted.has(key))
-        reopened.push({ call: key, interrupted: interrupted.get(key), cursor: row.cursor, type: row.event.type });
       if (row.event?.type === 'tool.call') open.set(key, { cursor: row.cursor, tool: row.event.payload.tool });
       if (row.event?.type === 'tool.result') {
+        if (!open.has(key)) reopened.push({ call: key, cursor: row.cursor, type: row.event.type });
         open.delete(key);
-        if (row.event.payload.structured_result?.code === 'TOOL_CALL_INTERRUPTED') interrupted.set(key, row.cursor);
       }
     }
     assert.equal(page.has_more, false, 'history fits one page');
-    assert.deepEqual(reopened, [], 'a call closed as interrupted never reports again');
+    assert.deepEqual(reopened, [], 'every tool.result closes exactly one open attempt');
     return [...open].map(([call, value]) => ({ call, ...value }));
   };
   // Negative invariant: every call the child observed before the loss is
