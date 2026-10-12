@@ -1,0 +1,48 @@
+{
+  "protocol": 1,
+  "epoch": 1,
+  "cursor": "53",
+  "generated_at": 1791838776567,
+  "runtime_loaded": true,
+  "turns": [],
+  "runs": [
+    {
+      "agent_id": 1,
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "state": "running",
+      "started_cursor": "33",
+      "started_at": 1791838776346
+    }
+  ],
+  "agents": [
+    {
+      "agent_id": 1,
+      "parent_agent_id": null,
+      "role": "Surface child",
+      "state": "running",
+      "updated_at": 1791838776345,
+      "reported_epoch": 1
+    }
+  ],
+  "tool_calls": [
+    {
+      "agent_id": 1,
+      "call_id": "surface-child-moved-on",
+      "tool": "exec",
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "parent_call_id": null,
+      "started_cursor": "47",
+      "started_at": 1791838776487
+    },
+    {
+      "agent_id": 1,
+      "call_id": "surface-child-moved-on/code-1",
+      "tool": "exec_command",
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "parent_call_id": "surface-child-moved-on",
+      "started_cursor": "48",
+      "started_at": 1791838776499
+    }
+  ],
+  "process_sessions": []
+}

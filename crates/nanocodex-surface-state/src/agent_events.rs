@@ -1,14 +1,16 @@
-//! Bridge from today's agent event stream to [`SurfaceEvent`]s.
+//! Bridge from the managed event stream to [`SurfaceEvent`]s.
 //!
-//! Until the runtime publishes surface events natively, this adapter maps the
-//! explicit lifecycle pairs already on the wire (`run.started` →
-//! `run.completed`/`run.failed`, `tool.call` → `tool.result`) and the
-//! runtime epoch marker into entity upserts. It never infers an outcome: an
-//! entity stays running until its own terminal event or a newer runtime epoch
-//! settles it to `unknown`. Living in the shared crate keeps every surface on
-//! one mapping instead of one heuristic per surface.
+//! The runtime does not yet publish surface events natively, so this adapter
+//! maps what the wire already carries explicitly: lifecycle pairs
+//! (`run.started` to `run.completed`/`run.failed`, `tool.call` to `tool.result`),
+//! durable turn terminals, the `runtime_epoch` marker and the
+//! `GET /v1/agents/:id/surface` snapshot of open entities. It never infers an
+//! outcome: an entity stays running until its own terminal event, a newer
+//! runtime epoch, or a snapshot that no longer lists it. Living in the shared
+//! crate keeps every surface on one mapping instead of one heuristic each.
 
 use crate::model::{Body, Entity, Lifecycle, Provenance, SurfaceEvent};
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -21,7 +23,72 @@ pub struct EventScope<'a> {
     pub turn_id: Option<&'a str>,
 }
 
-/// Stateful mapping from agent events to surface events.
+/// `GET /v1/agents/:id/surface`: every open lifecycle entity, exact at
+/// `cursor`. Mirrors the managed service's `SurfaceSnapshot` wire shape.
+#[derive(Clone, Debug, Deserialize)]
+pub struct ManagedSnapshot {
+    pub epoch: u64,
+    pub cursor: String,
+    pub generated_at: u64,
+    #[serde(default)]
+    pub turns: Vec<ManagedTurn>,
+    #[serde(default)]
+    pub runs: Vec<ManagedRun>,
+    #[serde(default)]
+    pub agents: Vec<ManagedAgent>,
+    #[serde(default)]
+    pub tool_calls: Vec<ManagedToolCall>,
+    #[serde(default)]
+    pub process_sessions: Vec<ManagedProcessSession>,
+}
+
+/// A non-terminal managed turn (`accepted` or `cancelling`).
+#[derive(Clone, Debug, Deserialize)]
+pub struct ManagedTurn {
+    pub id: String,
+    pub state: String,
+    pub created_at: f64,
+    pub updated_at: f64,
+}
+
+/// A run without a terminal event.
+#[derive(Clone, Debug, Deserialize)]
+pub struct ManagedRun {
+    pub agent_id: Option<u64>,
+    pub turn_id: Option<String>,
+    pub started_at: u64,
+}
+
+/// A child agent's latest reported lifecycle state.
+#[derive(Clone, Debug, Deserialize)]
+pub struct ManagedAgent {
+    pub agent_id: u64,
+    pub parent_agent_id: Option<u64>,
+    pub role: String,
+    pub state: String,
+    pub updated_at: u64,
+    pub reported_epoch: u64,
+}
+
+/// A tool call without a terminal result.
+#[derive(Clone, Debug, Deserialize)]
+pub struct ManagedToolCall {
+    pub agent_id: Option<u64>,
+    pub call_id: String,
+    pub tool: String,
+    pub turn_id: Option<String>,
+    pub parent_call_id: Option<String>,
+    pub started_at: u64,
+}
+
+/// A durable Hand process session that has not finished.
+#[derive(Clone, Debug, Deserialize)]
+pub struct ManagedProcessSession {
+    pub id: u64,
+    pub machine_id: Option<String>,
+}
+
+/// Stateful mapping from managed events to surface events.
 #[derive(Clone, Debug, Default)]
 pub struct AgentEventAdapter {
     cursor: u64,
@@ -29,6 +96,8 @@ pub struct AgentEventAdapter {
     turns: u64,
     root_turn: Option<String>,
     entities: HashMap<String, Entity>,
+    /// First prompt line per card id (`turn:<managed id>` or `agent:<id>`).
+    prompts: HashMap<String, String>,
 }
 
 fn friendly_tool(tool: &str) -> &str {
@@ -59,10 +128,52 @@ fn first_line(text: &str, limit: usize) -> String {
     }
 }
 
+/// The user's prompt without the service-appended request context.
+fn prompt_line(input: &str) -> Option<String> {
+    let prompt = input
+        .split("<current_request_context>")
+        .next()
+        .unwrap_or(input);
+    let line = first_line(prompt, 120);
+    (!line.is_empty()).then_some(line)
+}
+
 fn arguments(payload: &Value) -> Value {
     match &payload["arguments"] {
         Value::String(text) => serde_json::from_str(text).unwrap_or(Value::String(text.clone())),
         other => other.clone(),
+    }
+}
+
+fn owner_key(agent_id: Option<u64>) -> String {
+    agent_id.map_or_else(|| "root".to_owned(), |id| id.to_string())
+}
+
+fn agent_lifecycle(state: &str) -> Lifecycle {
+    match state {
+        "pending" => Lifecycle::Admitted,
+        "running" | "closing" => Lifecycle::Running,
+        "completed" | "closed" => Lifecycle::Completed,
+        "failed" => Lifecycle::Failed,
+        "cancelled" => Lifecycle::Cancelled,
+        _ => Lifecycle::Unknown,
+    }
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "service timestamps are non-negative Unix milliseconds"
+)]
+const fn millis(value: f64) -> u64 {
+    value as u64
+}
+
+const fn agent_body() -> Body {
+    Body::Agent {
+        role: None,
+        summary: None,
+        context_pct: None,
     }
 }
 
@@ -86,10 +197,35 @@ impl AgentEventAdapter {
         }
     }
 
+    fn turn_key(&mut self, turn_id: Option<&str>) -> String {
+        turn_id.map_or_else(
+            || {
+                self.turns += 1;
+                format!("turn:{}", self.turns)
+            },
+            |turn| format!("turn:{turn}"),
+        )
+    }
+
     fn scope_parent(&self, scope: EventScope<'_>) -> Option<String> {
-        scope
-            .agent_id
-            .map_or_else(|| self.root_turn.clone(), |id| Some(format!("agent:{id}")))
+        scope.agent_id.map_or_else(
+            || {
+                scope
+                    .turn_id
+                    .map(|turn| format!("turn:{turn}"))
+                    .filter(|turn| self.entities.contains_key(turn))
+                    .or_else(|| self.root_turn.clone())
+            },
+            |id| Some(format!("agent:{id}")),
+        )
+    }
+
+    fn subject_for(&self, id: &str) -> Option<String> {
+        self.prompts.get(id).cloned().or_else(|| {
+            self.entities
+                .get(id)
+                .and_then(|entity| entity.subject.clone())
+        })
     }
 
     /// A workspace (Brain) card for the surface's configured workspace.
@@ -114,7 +250,73 @@ impl AgentEventAdapter {
         self.upsert(entity, at_ms)
     }
 
+    /// Map one managed event envelope (the JSON of a history page entry or an
+    /// SSE `data:` frame) to surface events.
+    pub fn observe_managed(&mut self, event: &Value) -> Vec<SurfaceEvent> {
+        let at_ms = event["created_at"].as_u64().unwrap_or(0);
+        let turn_id = event["turn_id"].as_str();
+        match event["type"].as_str() {
+            Some("event") => {
+                let nested = &event["event"];
+                let Some(kind) = nested["type"].as_str() else {
+                    return Vec::new();
+                };
+                let scope = EventScope {
+                    agent_id: event["agent_id"].as_u64(),
+                    turn_id,
+                };
+                self.observe(kind, &nested["payload"], scope, at_ms)
+            }
+            Some("runtime_epoch") => {
+                self.observe("runtime_epoch", event, EventScope::default(), at_ms)
+            }
+            Some("turn_accepted") => {
+                if let (Some(turn), Some(prompt)) =
+                    (turn_id, event["input"].as_str().and_then(prompt_line))
+                {
+                    self.prompts.insert(format!("turn:{turn}"), prompt);
+                }
+                Vec::new()
+            }
+            Some("turn_completed") => self.finish_turn(turn_id, Lifecycle::Completed, None, at_ms),
+            Some("turn_failed") => {
+                let error = event["error"].as_str().map(|error| first_line(error, 160));
+                self.finish_turn(turn_id, Lifecycle::Failed, error, at_ms)
+            }
+            Some("turn_cancelled") => self.finish_turn(turn_id, Lifecycle::Cancelled, None, at_ms),
+            _ => Vec::new(),
+        }
+    }
+
+    fn finish_turn(
+        &mut self,
+        turn_id: Option<&str>,
+        state: Lifecycle,
+        reason: Option<String>,
+        at_ms: u64,
+    ) -> Vec<SurfaceEvent> {
+        let id = match turn_id {
+            Some(turn) => format!("turn:{turn}"),
+            None => match &self.root_turn {
+                Some(turn) => turn.clone(),
+                None => return Vec::new(),
+            },
+        };
+        let Some(mut entity) = self.entities.get(&id).cloned() else {
+            return Vec::new();
+        };
+        if entity.state.is_definitive() {
+            return Vec::new();
+        }
+        entity.state = state;
+        entity.reason = reason;
+        entity.updated_at_ms = at_ms;
+        entity.epoch = self.epoch.max(entity.epoch);
+        vec![self.upsert(entity, at_ms)]
+    }
+
     /// Map one agent event (`kind` plus decoded payload) to surface events.
+    #[allow(clippy::too_many_lines, reason = "one arm per wire event kind")]
     pub fn observe(
         &mut self,
         kind: &str,
@@ -123,6 +325,25 @@ impl AgentEventAdapter {
         at_ms: u64,
     ) -> Vec<SurfaceEvent> {
         match kind {
+            "input.accepted" => {
+                let Some(prompt) = payload["input"].as_str().and_then(prompt_line) else {
+                    return Vec::new();
+                };
+                let id = match (scope.agent_id, scope.turn_id) {
+                    (Some(agent), _) => format!("agent:{agent}"),
+                    (None, Some(turn)) => format!("turn:{turn}"),
+                    (None, None) => return Vec::new(),
+                };
+                self.prompts.insert(id.clone(), prompt.clone());
+                match self.entities.get(&id).cloned() {
+                    Some(mut entity) if entity.subject.as_deref() != Some(prompt.as_str()) => {
+                        entity.subject = Some(prompt);
+                        entity.updated_at_ms = at_ms;
+                        vec![self.upsert(entity, at_ms)]
+                    }
+                    _ => Vec::new(),
+                }
+            }
             "runtime.epoch" | "runtime_epoch" => {
                 let Some(epoch) = payload["epoch"].as_u64() else {
                     return Vec::new();
@@ -131,13 +352,11 @@ impl AgentEventAdapter {
                     return Vec::new();
                 }
                 self.epoch = epoch;
-                let reason = payload["reason"]
-                    .as_str()
-                    .map_or("runtime restarted", |reason| match reason {
-                        "runtime_restarted" => "runtime restarted",
-                        other => other,
-                    })
-                    .to_owned();
+                let reason = match payload["reason"].as_str() {
+                    None | Some("runtime_restarted") => "runtime restarted",
+                    Some(other) => other,
+                }
+                .to_owned();
                 vec![SurfaceEvent::RuntimeEpoch {
                     epoch,
                     cursor: self.next_cursor(),
@@ -150,79 +369,73 @@ impl AgentEventAdapter {
                     let id = format!("agent:{agent}");
                     let previous = self.entities.get(&id);
                     Entity {
-                        parent_id: self.root_turn.clone(),
+                        parent_id: previous
+                            .and_then(|entity| entity.parent_id.clone())
+                            .or_else(|| {
+                                self.scope_parent(EventScope {
+                                    agent_id: None,
+                                    ..scope
+                                })
+                            }),
                         epoch: self.epoch,
                         state: Lifecycle::Running,
                         title: previous.map_or_else(
                             || format!("Agent {agent}"),
                             |entity| entity.title.clone(),
                         ),
-                        subject: payload["model"].as_str().map(str::to_owned),
+                        subject: self.subject_for(&id),
                         reason: None,
                         started_at_ms: Some(at_ms),
                         updated_at_ms: at_ms,
                         provenance: None,
-                        body: previous.map_or(
-                            Body::Agent {
-                                role: None,
-                                summary: None,
-                                context_pct: None,
-                            },
-                            |entity| entity.body.clone(),
-                        ),
+                        body: previous.map_or_else(agent_body, |entity| entity.body.clone()),
                         id,
                     }
                 } else {
-                    self.turns += 1;
-                    let id = scope.turn_id.map_or_else(
-                        || format!("turn:{}", self.turns),
-                        |turn| format!("turn:{turn}"),
-                    );
+                    let id = self.turn_key(scope.turn_id);
                     self.root_turn = Some(id.clone());
                     Entity {
-                        id,
                         parent_id: None,
                         epoch: self.epoch,
                         state: Lifecycle::Running,
                         title: "Turn".to_owned(),
-                        subject: payload["model"].as_str().map(str::to_owned),
+                        subject: self.subject_for(&id),
                         reason: None,
-                        started_at_ms: Some(at_ms),
+                        started_at_ms: self
+                            .entities
+                            .get(&id)
+                            .and_then(|entity| entity.started_at_ms)
+                            .or(Some(at_ms)),
                         updated_at_ms: at_ms,
                         provenance: None,
                         body: Body::Turn { prompt: None },
+                        id,
                     }
                 };
                 vec![self.upsert(entity, at_ms)]
             }
-            // Durable managed turn terminals, delivered even when the run's own
-            // terminal event was lost.
+            // Durable managed turn terminals as projected by the TUI history,
+            // delivered even when the run's own terminal event was lost.
             "managed.final_message" | "managed.turn_stopped" => {
-                let Some(id) = self.root_turn.clone() else {
-                    return Vec::new();
+                let turn = payload["turn_id"].as_str().or(scope.turn_id);
+                let (state, reason) = match (kind, payload["error"].as_str()) {
+                    ("managed.final_message", _) => (Lifecycle::Completed, None),
+                    (_, Some(error)) => (Lifecycle::Failed, Some(first_line(error, 160))),
+                    (_, None) => (Lifecycle::Cancelled, None),
                 };
-                let Some(mut entity) = self.entities.get(&id).cloned() else {
-                    return Vec::new();
-                };
-                if entity.state.is_terminal() {
-                    return Vec::new();
-                }
-                entity.state = match (kind, payload["error"].as_str()) {
-                    ("managed.final_message", _) => Lifecycle::Completed,
-                    (_, Some(error)) => {
-                        entity.reason = Some(first_line(error, 160));
-                        Lifecycle::Failed
-                    }
-                    (_, None) => Lifecycle::Cancelled,
-                };
-                entity.updated_at_ms = at_ms;
-                vec![self.upsert(entity, at_ms)]
+                let turn = turn.filter(|turn| self.entities.contains_key(&format!("turn:{turn}")));
+                self.finish_turn(turn, state, reason, at_ms)
             }
             "run.completed" | "run.failed" => {
                 let id = match scope.agent_id {
                     Some(agent) => format!("agent:{agent}"),
-                    None => match &self.root_turn {
-                        Some(turn) => turn.clone(),
+                    None => match scope
+                        .turn_id
+                        .map(|turn| format!("turn:{turn}"))
+                        .filter(|turn| self.entities.contains_key(turn))
+                        .or_else(|| self.root_turn.clone())
+                    {
+                        Some(turn) => turn,
                         None => return Vec::new(),
                     },
                 };
@@ -248,9 +461,7 @@ impl AgentEventAdapter {
                     return Vec::new();
                 };
                 let tool = payload["tool"].as_str().unwrap_or("tool");
-                let owner = scope
-                    .agent_id
-                    .map_or_else(|| "root".to_owned(), |id| id.to_string());
+                let owner = owner_key(scope.agent_id);
                 let parent_id = call_id
                     .rfind("/code-")
                     .map(|index| format!("tool:{owner}:{}", &call_id[..index]))
@@ -290,10 +501,7 @@ impl AgentEventAdapter {
                 let Some(call_id) = payload["call_id"].as_str() else {
                     return Vec::new();
                 };
-                let owner = scope
-                    .agent_id
-                    .map_or_else(|| "root".to_owned(), |id| id.to_string());
-                let id = format!("tool:{owner}:{call_id}");
+                let id = format!("tool:{}:{call_id}", owner_key(scope.agent_id));
                 let Some(mut entity) = self.entities.get(&id).cloned() else {
                     return Vec::new();
                 };
@@ -343,27 +551,191 @@ impl AgentEventAdapter {
         }
     }
 
+    /// Map a surface snapshot (`GET /v1/agents/:id/surface`) to one authoritative
+    /// [`SurfaceEvent::Snapshot`]. Apply it after the history it supersedes:
+    /// entities it no longer lists are no longer open.
+    pub fn snapshot(&mut self, snapshot: &ManagedSnapshot) -> SurfaceEvent {
+        let at_ms = snapshot.generated_at;
+        self.epoch = self.epoch.max(snapshot.epoch);
+        let epoch = snapshot.epoch;
+        let mut entities: Vec<Entity> = Vec::new();
+        let root_runs: HashMap<&str, u64> = snapshot
+            .runs
+            .iter()
+            .filter(|run| run.agent_id.is_none())
+            .filter_map(|run| Some((run.turn_id.as_deref()?, run.started_at)))
+            .collect();
+        for turn in &snapshot.turns {
+            let id = format!("turn:{}", turn.id);
+            self.root_turn = Some(id.clone());
+            entities.push(Entity {
+                subject: self.subject_for(&id),
+                parent_id: None,
+                epoch,
+                state: Lifecycle::Running,
+                title: "Turn".to_owned(),
+                reason: (turn.state == "cancelling").then(|| "cancelling".to_owned()),
+                started_at_ms: Some(
+                    root_runs
+                        .get(turn.id.as_str())
+                        .copied()
+                        .unwrap_or_else(|| millis(turn.created_at)),
+                ),
+                updated_at_ms: millis(turn.updated_at),
+                provenance: None,
+                body: Body::Turn { prompt: None },
+                id,
+            });
+        }
+        let turn_parent = |turn: Option<&str>, entities: &[Entity]| {
+            turn.map(|turn| format!("turn:{turn}"))
+                .filter(|id| entities.iter().any(|entity| &entity.id == id))
+        };
+        let child_runs: HashMap<u64, &ManagedRun> = snapshot
+            .runs
+            .iter()
+            .filter_map(|run| Some((run.agent_id?, run)))
+            .collect();
+        for agent in &snapshot.agents {
+            let id = format!("agent:{}", agent.agent_id);
+            let run = child_runs.get(&agent.agent_id);
+            let mut state = agent_lifecycle(&agent.state);
+            let mut reason = None;
+            if !state.is_terminal() && agent.reported_epoch < snapshot.epoch {
+                state = Lifecycle::Unknown;
+                reason = Some("last report predates the runtime restart".to_owned());
+            }
+            let parent_id = agent
+                .parent_agent_id
+                .map(|parent| format!("agent:{parent}"))
+                .or_else(|| turn_parent(run.and_then(|run| run.turn_id.as_deref()), &entities))
+                .or_else(|| self.root_turn.clone());
+            entities.push(Entity {
+                subject: self.subject_for(&id),
+                parent_id,
+                epoch: agent.reported_epoch,
+                state,
+                title: agent.role.clone(),
+                reason,
+                started_at_ms: run.map(|run| run.started_at),
+                updated_at_ms: agent.updated_at,
+                provenance: None,
+                body: Body::Agent {
+                    role: Some(agent.role.clone()),
+                    summary: None,
+                    context_pct: None,
+                },
+                id,
+            });
+        }
+        for (agent_id, run) in &child_runs {
+            let id = format!("agent:{agent_id}");
+            if entities.iter().any(|entity| entity.id == id) {
+                continue;
+            }
+            entities.push(Entity {
+                title: self.entities.get(&id).map_or_else(
+                    || format!("Agent {agent_id}"),
+                    |entity| entity.title.clone(),
+                ),
+                subject: self.subject_for(&id),
+                parent_id: turn_parent(run.turn_id.as_deref(), &entities)
+                    .or_else(|| self.root_turn.clone()),
+                epoch,
+                state: Lifecycle::Running,
+                reason: None,
+                started_at_ms: Some(run.started_at),
+                updated_at_ms: run.started_at,
+                provenance: None,
+                body: agent_body(),
+                id,
+            });
+        }
+        for call in &snapshot.tool_calls {
+            let owner = owner_key(call.agent_id);
+            let id = format!("tool:{owner}:{}", call.call_id);
+            let previous = self.entities.get(&id);
+            let parent_id = call
+                .parent_call_id
+                .as_ref()
+                .map(|parent| format!("tool:{owner}:{parent}"))
+                .or_else(|| call.agent_id.map(|agent| format!("agent:{agent}")))
+                .or_else(|| turn_parent(call.turn_id.as_deref(), &entities))
+                .or_else(|| self.root_turn.clone());
+            entities.push(Entity {
+                parent_id,
+                epoch,
+                state: Lifecycle::Running,
+                title: friendly_tool(&call.tool).to_owned(),
+                subject: previous.and_then(|entity| entity.subject.clone()),
+                reason: None,
+                started_at_ms: Some(call.started_at),
+                updated_at_ms: call.started_at,
+                provenance: None,
+                body: previous.map_or_else(
+                    || Body::ToolCall {
+                        tool: call.tool.clone(),
+                        cwd: None,
+                        hand_id: None,
+                        exit_code: None,
+                        output_bytes: None,
+                    },
+                    |entity| entity.body.clone(),
+                ),
+                id,
+            });
+        }
+        for process in &snapshot.process_sessions {
+            let id = format!("process:{}", process.id);
+            entities.push(Entity {
+                subject: self
+                    .entities
+                    .get(&id)
+                    .and_then(|entity| entity.subject.clone()),
+                parent_id: None,
+                epoch,
+                state: Lifecycle::Running,
+                title: "Process".to_owned(),
+                reason: None,
+                started_at_ms: None,
+                updated_at_ms: at_ms,
+                provenance: None,
+                body: Body::ProcessSession {
+                    hand_id: process.machine_id.clone(),
+                    exit_code: None,
+                },
+                id,
+            });
+        }
+        for entity in &entities {
+            self.entities.insert(entity.id.clone(), entity.clone());
+        }
+        SurfaceEvent::Snapshot {
+            epoch,
+            cursor: self.next_cursor(),
+            at_ms,
+            entities,
+        }
+    }
+
     /// Record a subagent's role as its card title, when a surface learns it.
     pub fn agent_role(&mut self, agent_id: u64, role: &str, at_ms: u64) -> Option<SurfaceEvent> {
         let id = format!("agent:{agent_id}");
+        let known = self.entities.contains_key(&id);
         let mut entity = self.entities.get(&id).cloned().unwrap_or_else(|| Entity {
             id: id.clone(),
             parent_id: self.root_turn.clone(),
             epoch: self.epoch,
             state: Lifecycle::Admitted,
             title: role.to_owned(),
-            subject: None,
+            subject: self.prompts.get(&id).cloned(),
             reason: None,
             started_at_ms: None,
             updated_at_ms: at_ms,
             provenance: None,
-            body: Body::Agent {
-                role: None,
-                summary: None,
-                context_pct: None,
-            },
+            body: agent_body(),
         });
-        if entity.title == role && self.entities.contains_key(&id) {
+        if known && entity.title == role {
             return None;
         }
         entity.title = role.to_owned();

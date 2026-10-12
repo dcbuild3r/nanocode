@@ -105,7 +105,9 @@ export class SurfaceState {
     const open = new Set(entities.map((entity) => entity.id));
     for (const tracked of this.entities.values()) {
       const entity = tracked.entity;
-      if (!isTerminal(entity.state) && !open.has(entity.id)) {
+      // Snapshots list runtime lifecycle entities; surface-local cards
+      // (workspace, hands, status) are not theirs to close.
+      if (SETTLES_ON_EPOCH.has(entity.kind) && !isTerminal(entity.state) && !open.has(entity.id)) {
         entity.state = "unknown";
         entity.reason = "closed while disconnected";
         entity.updated_at_ms = atMs;

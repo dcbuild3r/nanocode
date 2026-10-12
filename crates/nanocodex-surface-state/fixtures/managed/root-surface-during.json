@@ -1,0 +1,48 @@
+{
+  "protocol": 1,
+  "epoch": 0,
+  "cursor": "10",
+  "generated_at": 1791838772401,
+  "runtime_loaded": true,
+  "turns": [
+    {
+      "id": "4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
+      "state": "accepted",
+      "attempt_count": 0,
+      "retry_at": null,
+      "created_at": 1791838772071,
+      "updated_at": 1791838772167
+    }
+  ],
+  "runs": [
+    {
+      "agent_id": null,
+      "turn_id": "4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
+      "state": "running",
+      "started_cursor": "4",
+      "started_at": 1791838772166
+    }
+  ],
+  "agents": [],
+  "tool_calls": [
+    {
+      "agent_id": null,
+      "call_id": "surface-root-cell",
+      "tool": "exec",
+      "turn_id": "4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
+      "parent_call_id": null,
+      "started_cursor": "9",
+      "started_at": 1791838772235
+    },
+    {
+      "agent_id": null,
+      "call_id": "surface-root-cell/code-1",
+      "tool": "exec_command",
+      "turn_id": "4d83ebe3-6dfe-80df-9ba9-4a62fa024291",
+      "parent_call_id": "surface-root-cell",
+      "started_cursor": "10",
+      "started_at": 1791838772274
+    }
+  ],
+  "process_sessions": []
+}

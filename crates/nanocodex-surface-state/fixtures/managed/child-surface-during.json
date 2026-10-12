@@ -1,0 +1,82 @@
+{
+  "protocol": 1,
+  "epoch": 0,
+  "cursor": "24",
+  "generated_at": 1791838774699,
+  "runtime_loaded": true,
+  "turns": [
+    {
+      "id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "state": "accepted",
+      "attempt_count": 0,
+      "retry_at": null,
+      "created_at": 1791838774478,
+      "updated_at": 1791838774516
+    }
+  ],
+  "runs": [
+    {
+      "agent_id": null,
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "state": "running",
+      "started_cursor": "4",
+      "started_at": 1791838774515
+    },
+    {
+      "agent_id": 1,
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "state": "running",
+      "started_cursor": "12",
+      "started_at": 1791838774579
+    }
+  ],
+  "agents": [
+    {
+      "agent_id": 1,
+      "parent_agent_id": null,
+      "role": "Surface child",
+      "state": "running",
+      "updated_at": 1791838774578,
+      "reported_epoch": 0
+    }
+  ],
+  "tool_calls": [
+    {
+      "agent_id": 1,
+      "call_id": "surface-child-cell",
+      "tool": "exec",
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "parent_call_id": null,
+      "started_cursor": "20",
+      "started_at": 1791838774602
+    },
+    {
+      "agent_id": 1,
+      "call_id": "surface-child-cell/code-1",
+      "tool": "exec_command",
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "parent_call_id": "surface-child-cell",
+      "started_cursor": "21",
+      "started_at": 1791838774612
+    },
+    {
+      "agent_id": null,
+      "call_id": "surface-wait",
+      "tool": "exec",
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "parent_call_id": null,
+      "started_cursor": "23",
+      "started_at": 1791838774642
+    },
+    {
+      "agent_id": null,
+      "call_id": "surface-wait/code-1",
+      "tool": "wait_agent",
+      "turn_id": "3b72a0f2-a68e-8737-b618-9cdeadbafb12",
+      "parent_call_id": "surface-wait",
+      "started_cursor": "24",
+      "started_at": 1791838774651
+    }
+  ],
+  "process_sessions": []
+}

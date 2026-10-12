@@ -147,7 +147,12 @@ impl SurfaceState {
         let open: HashSet<&str> = entities.iter().map(|entity| entity.id.as_str()).collect();
         for tracked in self.entities.values_mut() {
             let entity = &mut tracked.entity;
-            if !entity.state.is_terminal() && !open.contains(entity.id.as_str()) {
+            // Snapshots list runtime lifecycle entities; surface-local cards
+            // (workspace, hands, status) are not theirs to close.
+            if entity.kind().settles_on_epoch()
+                && !entity.state.is_terminal()
+                && !open.contains(entity.id.as_str())
+            {
                 entity.state = Lifecycle::Unknown;
                 entity.reason = Some("closed while disconnected".to_owned());
                 entity.updated_at_ms = at_ms;
