@@ -1,0 +1,5544 @@
+[
+  {
+    "label": "full swarm history (6 restarts)",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:01a131fb-f357-7f10-a108-2cc0a00149cb",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "SLEEP 600",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-5a434e",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 600; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-5a434e/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 600; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
+          "depth": 0,
+          "id": "turn:01a131fc-92f7-7501-94e4-9e073ec9c1ee",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 5s",
+          "subject": "SLEEP 601",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-9ec06c",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 601; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-9ec06c/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 601; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-9ec06c#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "attempt 2: re-dispatched under the same call id",
+              "tone": "error"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "296 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 601; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-9ec06c/code-1#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime reported the outcome as unknown",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 601; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:01a131fd-36b7-7653-b1d5-dd0e6bec5768",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 5s",
+          "subject": "SWARM 5 40",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:swarm-f42c82",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "const out = []; for (const p of [await tools.spawn_agent({\"role\":\"Worker 1\",\"task\":\"CHILD 1 40: run your shell then sub…",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-3",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-4",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-5",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "subagent turn ended without a valid submit_result call Inspect child evidence before assigning recovery. A plain final answer is not an accepted result; do not…",
+              "tone": "error"
+            },
+            {
+              "text": "role: Worker 1",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 1 40: run your shell then submit_result.",
+          "title": "Worker 1",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:1:child1-bc1b75",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 1; sleep 40; echo child 1 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:1:child1-bc1b75/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 1; sleep 40; echo child 1 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:1:child1-submit-a1722a",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 1 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:2",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "subagent turn ended without a valid submit_result call Inspect child evidence before assigning recovery. A plain final answer is not an accepted result; do not…",
+              "tone": "error"
+            },
+            {
+              "text": "role: Worker 2",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 2 43: run your shell then submit_result.",
+          "title": "Worker 2",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:2:child2-3c78c6",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 2; sleep 43; echo child 2 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:2:child2-3c78c6/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 2; sleep 43; echo child 2 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:2:child2-submit-6368cf",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 2 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:3",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "subagent turn ended without a valid submit_result call Inspect child evidence before assigning recovery. A plain final answer is not an accepted result; do not…",
+              "tone": "error"
+            },
+            {
+              "text": "role: Worker 3",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 3 46: run your shell then submit_result.",
+          "title": "Worker 3",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:3:child3-a02296",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 3; sleep 46; echo child 3 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:3:child3-a02296/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 3; sleep 46; echo child 3 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:3:child3-submit-de4c99",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 3 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:4",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "subagent turn ended without a valid submit_result call Inspect child evidence before assigning recovery. A plain final answer is not an accepted result; do not…",
+              "tone": "error"
+            },
+            {
+              "text": "role: Worker 4",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 4 49: run your shell then submit_result.",
+          "title": "Worker 4",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:4:child4-5ecad1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 4; sleep 49; echo child 4 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:4:child4-5ecad1/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 4; sleep 49; echo child 4 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:4:child4-submit-e2ab42",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 4 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:5",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "subagent turn ended without a valid submit_result call Inspect child evidence before assigning recovery. A plain final answer is not an accepted result; do not…",
+              "tone": "error"
+            },
+            {
+              "text": "role: Worker 5",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 5 52: run your shell then submit_result.",
+          "title": "Worker 5",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:5:child5-3e900b",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 5; sleep 52; echo child 5 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:5:child5-3e900b/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 5; sleep 52; echo child 5 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:5:child5-submit-9f6742",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 5 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:swarm-wait-5ee6ed",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 5s",
+          "subject": "text(await tools.wait_agent({agent_ids:[1,2,3,4,5],timeout_ms:5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-wait-5ee6ed/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "wait_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "734 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 5s",
+          "title": "Wait for agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
+          "depth": 0,
+          "id": "turn:01a13203-6aa6-78e1-aafb-78d60678e6c1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 9s",
+          "subject": "SLEEP 602",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-c1b873",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 602; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-c1b873/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 602; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-c1b873#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "attempt 2: re-dispatched under the same call id",
+              "tone": "error"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "296 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 602; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-c1b873/code-1#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime reported the outcome as unknown",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 602; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:01a13204-a94d-7400-bc25-a88e0625a468",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "SWARM 12 60",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:swarm-3f3809",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "const out = []; for (const p of [await tools.spawn_agent({\"role\":\"Worker 1\",\"task\":\"CHILD 1 60: run your shell then sub…",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-3",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-4",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-5",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-6",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-7",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-8",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-9",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-10",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "63 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-11",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "63 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-12",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "63 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:6",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 1",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 1 60: run your shell then submit_result.",
+          "title": "Worker 1",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:6:child1-f082ee",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 1; sleep 60; echo child 1 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:6:child1-f082ee/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 1; sleep 60; echo child 1 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:6:child1-submit-8f6816",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 1 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:7",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 2",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 2 63: run your shell then submit_result.",
+          "title": "Worker 2",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:7:child2-f5d4b8",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 2; sleep 63; echo child 2 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:7:child2-f5d4b8/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 2; sleep 63; echo child 2 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:7:child2-submit-38d557",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 2 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:8",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 3",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 3 66: run your shell then submit_result.",
+          "title": "Worker 3",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:8:child3-05fe7e",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 3; sleep 66; echo child 3 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:8:child3-05fe7e/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 3; sleep 66; echo child 3 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:8:child3-submit-21257f",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 3 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:9",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 4",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 4 69: run your shell then submit_result.",
+          "title": "Worker 4",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:9:child4-500db2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 4; sleep 69; echo child 4 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:9:child4-500db2/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 4; sleep 69; echo child 4 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:9:child4-submit-7f9c3f",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 4 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:10",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 5",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 5 72: run your shell then submit_result.",
+          "title": "Worker 5",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:10:child5-797dfb",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 5; sleep 72; echo child 5 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:10:child5-797dfb/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 5; sleep 72; echo child 5 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:10:child5-submit-8f1288",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 5 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:11",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 6",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 6 75: run your shell then submit_result.",
+          "title": "Worker 6",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:11:child6-189099",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 6; sleep 75; echo child 6 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:11:child6-189099/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 6; sleep 75; echo child 6 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:11:child6-submit-3d80d2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 6 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:12",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 7",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 7 78: run your shell then submit_result.",
+          "title": "Worker 7",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:12:child7-823d6e",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 7; sleep 78; echo child 7 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:12:child7-823d6e/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 7; sleep 78; echo child 7 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:12:child7-submit-cafdcf",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 7 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:13",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 8",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 8 81: run your shell then submit_result.",
+          "title": "Worker 8",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:13:child8-44d73e",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 8; sleep 81; echo child 8 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:13:child8-44d73e/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 8; sleep 81; echo child 8 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:13:child8-submit-c30839",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 8 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:14",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 9",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 9 84: run your shell then submit_result.",
+          "title": "Worker 9",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:14:child9-b4ae34",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 9; sleep 84; echo child 9 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:14:child9-b4ae34/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 9; sleep 84; echo child 9 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:14:child9-submit-fa0920",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 9 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:15",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 10",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 10 87: run your shell then submit_result.",
+          "title": "Worker 10",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:15:child10-f325af",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 10; sleep 87; echo child 10 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:15:child10-f325af/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 10; sleep 87; echo child 10 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:15:child10-submit-5b8dca",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 10 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:16",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 11",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 11 90: run your shell then submit_result.",
+          "title": "Worker 11",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:16:child11-d45f15",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 11; sleep 90; echo child 11 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:16:child11-d45f15/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 11; sleep 90; echo child 11 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:16:child11-submit-4dfa33",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 11 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "agent:17",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "run ended; assignment outcome not reported yet",
+              "tone": "warn"
+            },
+            {
+              "text": "role: Worker 12",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "CHILD 12 93: run your shell then submit_result.",
+          "title": "Worker 12",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:17:child12-756880",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 12; sleep 93; echo child 12 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:17:child12-756880/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 12; sleep 93; echo child 12 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:17:child12-submit-a79517",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 12 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:swarm-wait-603260",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "text(await tools.wait_agent({agent_ids:[1,2,3,4,5,6,7,8,9,10,11,12],timeout_ms:5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-wait-603260/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "wait_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "2 KiB output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Wait for agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:01a13207-8f3d-7232-a668-f9ffb41a57b5",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "SLEEP 603",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-7d15b2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 603; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-7d15b2/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 603; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        }
+      ],
+      "liveness": {
+        "cursor": 265,
+        "epoch": 6,
+        "label": "epoch 6 · cursor 265 · 0 open · last event 0s ago · 6 restart(s)",
+        "open": 0,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 6,
+        "tone": "ok"
+      },
+      "now_ms": 1791840748914
+    }
+  },
+  {
+    "label": "service snapshot after epoch 6",
+    "projection": {
+      "cards": [
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:01a131fb-f357-7f10-a108-2cc0a00149cb",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "SLEEP 600",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-5a434e",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 600; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-5a434e/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 600; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
+          "depth": 0,
+          "id": "turn:01a131fc-92f7-7501-94e4-9e073ec9c1ee",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 5s",
+          "subject": "SLEEP 601",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-9ec06c",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 601; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-9ec06c/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 601; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-9ec06c#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "attempt 2: re-dispatched under the same call id",
+              "tone": "error"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "296 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 601; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-9ec06c/code-1#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime reported the outcome as unknown",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 601; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:01a131fd-36b7-7653-b1d5-dd0e6bec5768",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 5s",
+          "subject": "SWARM 5 40",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:swarm-f42c82",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "const out = []; for (const p of [await tools.spawn_agent({\"role\":\"Worker 1\",\"task\":\"CHILD 1 40: run your shell then sub…",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-3",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-4",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-f42c82/code-5",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:swarm-wait-5ee6ed",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 5s",
+          "subject": "text(await tools.wait_agent({agent_ids:[1,2,3,4,5],timeout_ms:5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-wait-5ee6ed/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "wait_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "734 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 5s",
+          "title": "Wait for agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "attempt 2",
+              "tone": "info"
+            }
+          ],
+          "depth": 0,
+          "id": "turn:01a13203-6aa6-78e1-aafb-78d60678e6c1",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 9s",
+          "subject": "SLEEP 602",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-c1b873",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 602; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-c1b873/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 602; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-c1b873#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "attempt 2: re-dispatched under the same call id",
+              "tone": "error"
+            },
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "296 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 602; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-c1b873/code-1#2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime reported the outcome as unknown",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 602; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:01a13204-a94d-7400-bc25-a88e0625a468",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "SWARM 12 60",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:swarm-3f3809",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "const out = []; for (const p of [await tools.spawn_agent({\"role\":\"Worker 1\",\"task\":\"CHILD 1 60: run your shell then sub…",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-3",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-4",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "61 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-5",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-6",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-7",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-8",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-9",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "62 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-10",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "63 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-11",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "63 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-3f3809/code-12",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "spawn_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "63 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Spawn agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:swarm-wait-603260",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "subject": "text(await tools.wait_agent({agent_ids:[1,2,3,4,5,6,7,8,9,10,11,12],timeout_ms:5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:swarm-wait-603260/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "wait_agent",
+              "tone": "muted"
+            },
+            {
+              "text": "2 KiB output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 0s",
+          "title": "Wait for agent",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 0,
+          "id": "turn:01a13207-8f3d-7232-a668-f9ffb41a57b5",
+          "kind": "turn",
+          "lines": [],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "SLEEP 603",
+          "title": "Turn",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:1",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 1",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 1 40: run your shell then submit_result.",
+          "title": "Worker 1",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:1:child1-bc1b75",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 1; sleep 40; echo child 1 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:1:child1-bc1b75/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 1; sleep 40; echo child 1 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:1:child1-submit-a1722a",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 1 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:2",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 2",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 2 43: run your shell then submit_result.",
+          "title": "Worker 2",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:2:child2-3c78c6",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 2; sleep 43; echo child 2 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:2:child2-3c78c6/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 2; sleep 43; echo child 2 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:2:child2-submit-6368cf",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 2 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:3",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 3",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 3 46: run your shell then submit_result.",
+          "title": "Worker 3",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:3:child3-a02296",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 3; sleep 46; echo child 3 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:3:child3-a02296/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 3; sleep 46; echo child 3 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:3:child3-submit-de4c99",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 3 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:4",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 4",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 4 49: run your shell then submit_result.",
+          "title": "Worker 4",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:4:child4-5ecad1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 4; sleep 49; echo child 4 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:4:child4-5ecad1/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 4; sleep 49; echo child 4 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:4:child4-submit-e2ab42",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 4 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:5",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 5",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 5 52: run your shell then submit_result.",
+          "title": "Worker 5",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:5:child5-3e900b",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 5; sleep 52; echo child 5 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:5:child5-3e900b/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 5; sleep 52; echo child 5 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:5:child5-submit-9f6742",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 5 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:6",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 1",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 1 60: run your shell then submit_result.",
+          "title": "Worker 1",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:6:child1-f082ee",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 1; sleep 60; echo child 1 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:6:child1-f082ee/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 1; sleep 60; echo child 1 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:6:child1-submit-8f6816",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 1 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:7",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 2",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 2 63: run your shell then submit_result.",
+          "title": "Worker 2",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:7:child2-f5d4b8",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 2; sleep 63; echo child 2 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:7:child2-f5d4b8/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 2; sleep 63; echo child 2 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:7:child2-submit-38d557",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 2 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:8",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 3",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 3 66: run your shell then submit_result.",
+          "title": "Worker 3",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:8:child3-05fe7e",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 3; sleep 66; echo child 3 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:8:child3-05fe7e/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 3; sleep 66; echo child 3 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:8:child3-submit-21257f",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 3 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:9",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 4",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 4 69: run your shell then submit_result.",
+          "title": "Worker 4",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:9:child4-500db2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 4; sleep 69; echo child 4 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:9:child4-500db2/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 4; sleep 69; echo child 4 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:9:child4-submit-7f9c3f",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 4 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:10",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 5",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 5 72: run your shell then submit_result.",
+          "title": "Worker 5",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:10:child5-797dfb",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 5; sleep 72; echo child 5 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:10:child5-797dfb/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 5; sleep 72; echo child 5 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:10:child5-submit-8f1288",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 5 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:11",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 6",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 6 75: run your shell then submit_result.",
+          "title": "Worker 6",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:11:child6-189099",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 6; sleep 75; echo child 6 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:11:child6-189099/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 6; sleep 75; echo child 6 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:11:child6-submit-3d80d2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 6 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:12",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 7",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 7 78: run your shell then submit_result.",
+          "title": "Worker 7",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:12:child7-823d6e",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 7; sleep 78; echo child 7 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:12:child7-823d6e/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 7; sleep 78; echo child 7 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:12:child7-submit-cafdcf",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 7 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:13",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 8",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 8 81: run your shell then submit_result.",
+          "title": "Worker 8",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:13:child8-44d73e",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 8; sleep 81; echo child 8 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:13:child8-44d73e/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 8; sleep 81; echo child 8 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:13:child8-submit-c30839",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 8 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:14",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 9",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 9 84: run your shell then submit_result.",
+          "title": "Worker 9",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:14:child9-b4ae34",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 9; sleep 84; echo child 9 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:14:child9-b4ae34/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 9; sleep 84; echo child 9 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:14:child9-submit-fa0920",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 9 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:15",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 10",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 10 87: run your shell then submit_result.",
+          "title": "Worker 10",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:15:child10-f325af",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 10; sleep 87; echo child 10 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:15:child10-f325af/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 10; sleep 87; echo child 10 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:15:child10-submit-5b8dca",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 10 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:16",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 11",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 11 90: run your shell then submit_result.",
+          "title": "Worker 11",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:16:child11-d45f15",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 11; sleep 90; echo child 11 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:16:child11-d45f15/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 11; sleep 90; echo child 11 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:16:child11-submit-4dfa33",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 11 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [],
+          "depth": 1,
+          "id": "agent:17",
+          "kind": "agent",
+          "lines": [
+            {
+              "text": "role: Worker 12",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "failed",
+          "state_label": "failed",
+          "subject": "CHILD 12 93: run your shell then submit_result.",
+          "title": "Worker 12",
+          "tone": "error"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:17:child12-756880",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo child 12; sleep 93; echo child 12 done\", yield_time_ms: 5000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 3,
+          "id": "tool:17:child12-756880/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo child 12; sleep 93; echo child 12 done",
+          "title": "Shell",
+          "tone": "warn"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:17:child12-submit-a79517",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "99 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.submit_result({output:\"child 12 finished\"}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "receipt",
+              "tone": "muted"
+            }
+          ],
+          "depth": 1,
+          "id": "tool:root:sleep-7d15b2",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "exec",
+              "tone": "muted"
+            },
+            {
+              "text": "98 B output",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "completed",
+          "state_label": "done in 11s",
+          "subject": "text(await tools.exec_command({cmd:\"echo starting; sleep 603; echo finished\", yield_time_ms: 600000}));",
+          "title": "Code Mode",
+          "tone": "ok"
+        },
+        {
+          "badges": [
+            {
+              "text": "outcome unknown",
+              "tone": "warn"
+            }
+          ],
+          "depth": 2,
+          "id": "tool:root:sleep-7d15b2/code-1",
+          "kind": "tool_call",
+          "lines": [
+            {
+              "text": "runtime restarted",
+              "tone": "warn"
+            },
+            {
+              "text": "exec_command",
+              "tone": "muted"
+            }
+          ],
+          "pinned": false,
+          "state": "unknown",
+          "state_label": "unknown",
+          "subject": "echo starting; sleep 603; echo finished",
+          "title": "Shell",
+          "tone": "warn"
+        }
+      ],
+      "liveness": {
+        "cursor": 266,
+        "epoch": 6,
+        "label": "epoch 6 · cursor 266 · 0 open · last event 0s ago · 6 restart(s)",
+        "open": 0,
+        "regressions_ignored": 0,
+        "replays_ignored": 0,
+        "restarts": 6,
+        "tone": "ok"
+      },
+      "now_ms": 1791840766980
+    }
+  }
+]

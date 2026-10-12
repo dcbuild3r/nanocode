@@ -1,0 +1,149 @@
+{
+  "protocol": 1,
+  "epoch": 6,
+  "cursor": "490",
+  "generated_at": 1791840766980,
+  "runtime_loaded": false,
+  "turns": [],
+  "runs": [],
+  "agents": [
+    {
+      "agent_id": 1,
+      "parent_agent_id": null,
+      "role": "Worker 1",
+      "state": "failed",
+      "updated_at": 1791840063308,
+      "reported_epoch": 2
+    },
+    {
+      "agent_id": 2,
+      "parent_agent_id": null,
+      "role": "Worker 2",
+      "state": "failed",
+      "updated_at": 1791840063444,
+      "reported_epoch": 2
+    },
+    {
+      "agent_id": 3,
+      "parent_agent_id": null,
+      "role": "Worker 3",
+      "state": "failed",
+      "updated_at": 1791840063462,
+      "reported_epoch": 2
+    },
+    {
+      "agent_id": 4,
+      "parent_agent_id": null,
+      "role": "Worker 4",
+      "state": "failed",
+      "updated_at": 1791840063472,
+      "reported_epoch": 2
+    },
+    {
+      "agent_id": 5,
+      "parent_agent_id": null,
+      "role": "Worker 5",
+      "state": "failed",
+      "updated_at": 1791840063427,
+      "reported_epoch": 2
+    },
+    {
+      "agent_id": 6,
+      "parent_agent_id": null,
+      "role": "Worker 1",
+      "state": "failed",
+      "updated_at": 1791840551052,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 7,
+      "parent_agent_id": null,
+      "role": "Worker 2",
+      "state": "failed",
+      "updated_at": 1791840551154,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 8,
+      "parent_agent_id": null,
+      "role": "Worker 3",
+      "state": "failed",
+      "updated_at": 1791840551191,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 9,
+      "parent_agent_id": null,
+      "role": "Worker 4",
+      "state": "failed",
+      "updated_at": 1791840551214,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 10,
+      "parent_agent_id": null,
+      "role": "Worker 5",
+      "state": "failed",
+      "updated_at": 1791840551209,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 11,
+      "parent_agent_id": null,
+      "role": "Worker 6",
+      "state": "failed",
+      "updated_at": 1791840551237,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 12,
+      "parent_agent_id": null,
+      "role": "Worker 7",
+      "state": "failed",
+      "updated_at": 1791840551250,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 13,
+      "parent_agent_id": null,
+      "role": "Worker 8",
+      "state": "failed",
+      "updated_at": 1791840551225,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 14,
+      "parent_agent_id": null,
+      "role": "Worker 9",
+      "state": "failed",
+      "updated_at": 1791840551264,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 15,
+      "parent_agent_id": null,
+      "role": "Worker 10",
+      "state": "failed",
+      "updated_at": 1791840551292,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 16,
+      "parent_agent_id": null,
+      "role": "Worker 11",
+      "state": "failed",
+      "updated_at": 1791840551277,
+      "reported_epoch": 4
+    },
+    {
+      "agent_id": 17,
+      "parent_agent_id": null,
+      "role": "Worker 12",
+      "state": "failed",
+      "updated_at": 1791840551298,
+      "reported_epoch": 4
+    }
+  ],
+  "tool_calls": [],
+  "process_sessions": []
+}

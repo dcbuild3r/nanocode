@@ -102,6 +102,28 @@ pub struct AgentEventAdapter {
     /// runtime re-dispatches an interrupted call under the same call id, so a
     /// call seen again after it ended (or in a newer epoch) is a new attempt.
     attempts: HashMap<String, (String, u32)>,
+    /// A root prompt accepted before its turn identity was known.
+    pending_prompt: Option<String>,
+    /// `spawn_agent` task per spawn call card, until its receipt names the agent.
+    spawn_tasks: HashMap<String, String>,
+    /// Agents whose card subject is their assigned task.
+    tasked: std::collections::HashSet<String>,
+}
+
+/// A tool result's machine-readable body: the structured result, or the JSON
+/// text a provider returned.
+fn result_value(payload: &Value) -> Value {
+    let structured = &payload["structured_result"];
+    let value = if structured.is_null() {
+        &payload["result"]
+    } else {
+        structured
+    };
+    value
+        .as_str()
+        .or_else(|| value["text"].as_str())
+        .and_then(|text| serde_json::from_str(text).ok())
+        .unwrap_or_else(|| value.clone())
 }
 
 fn friendly_tool(tool: &str) -> &str {
@@ -129,6 +151,29 @@ fn first_line(text: &str, limit: usize) -> String {
         out
     } else {
         line.to_owned()
+    }
+}
+
+/// Prompt text from a string or a list of content parts (web/websocket
+/// prompts arrive as `[{"type":"text","text":...}]`).
+fn input_text(input: &Value) -> Option<String> {
+    match input {
+        Value::String(text) => Some(text.clone()),
+        Value::Array(parts) => {
+            let text: Vec<&str> = parts
+                .iter()
+                .filter_map(|part| part["text"].as_str())
+                .filter(|text| !text.trim_start().starts_with("<current_request_context>"))
+                .collect();
+            (!text.is_empty()).then(|| {
+                text.join(
+                    "
+",
+                )
+            })
+        }
+        Value::Object(_) => input["text"].as_str().map(str::to_owned),
+        _ => None,
     }
 }
 
@@ -282,9 +327,10 @@ impl AgentEventAdapter {
                 self.observe("runtime_epoch", event, EventScope::default(), at_ms)
             }
             Some("turn_accepted") => {
-                if let (Some(turn), Some(prompt)) =
-                    (turn_id, event["input"].as_str().and_then(prompt_line))
-                {
+                if let (Some(turn), Some(prompt)) = (
+                    turn_id,
+                    input_text(&event["input"]).as_deref().and_then(prompt_line),
+                ) {
                     self.prompts.insert(format!("turn:{turn}"), prompt);
                 }
                 Vec::new()
@@ -337,14 +383,25 @@ impl AgentEventAdapter {
     ) -> Vec<SurfaceEvent> {
         match kind {
             "input.accepted" => {
-                let Some(prompt) = payload["input"].as_str().and_then(prompt_line) else {
+                let Some(prompt) = input_text(&payload["input"])
+                    .as_deref()
+                    .and_then(prompt_line)
+                else {
                     return Vec::new();
                 };
                 let id = match (scope.agent_id, scope.turn_id) {
                     (Some(agent), _) => format!("agent:{agent}"),
                     (None, Some(turn)) => format!("turn:{turn}"),
-                    (None, None) => return Vec::new(),
+                    (None, None) => {
+                        self.pending_prompt = Some(prompt);
+                        return Vec::new();
+                    }
                 };
+                // A delegated child's first input is runtime boilerplate; its
+                // assigned task (from the spawn) is the better subject.
+                if self.tasked.contains(&id) {
+                    return Vec::new();
+                }
                 self.prompts.insert(id.clone(), prompt.clone());
                 match self.entities.get(&id).cloned() {
                     Some(mut entity) if entity.subject.as_deref() != Some(prompt.as_str()) => {
@@ -410,7 +467,7 @@ impl AgentEventAdapter {
                         epoch: self.epoch,
                         state: Lifecycle::Running,
                         title: "Turn".to_owned(),
-                        subject: self.subject_for(&id),
+                        subject: self.subject_for(&id).or_else(|| self.pending_prompt.take()),
                         reason: None,
                         started_at_ms: self
                             .entities
@@ -453,7 +510,13 @@ impl AgentEventAdapter {
                 let Some(mut entity) = self.entities.get(&id).cloned() else {
                     return Vec::new();
                 };
-                entity.state = if kind == "run.completed" {
+                let child = scope.agent_id.is_some();
+                entity.state = if kind == "run.completed" && child {
+                    // A child's run ending is not its assignment outcome; that
+                    // arrives as a lifecycle report (wait/list/close_agent,
+                    // `/surface` agents[].state).
+                    Lifecycle::Unknown
+                } else if kind == "run.completed" {
                     Lifecycle::Completed
                 } else if payload["status"] == "cancelled" {
                     Lifecycle::Cancelled
@@ -462,7 +525,11 @@ impl AgentEventAdapter {
                 };
                 entity.reason = payload["error"]
                     .as_str()
-                    .map(|error| first_line(error, 160));
+                    .map(|error| first_line(error, 160))
+                    .or_else(|| {
+                        (kind == "run.completed" && child)
+                            .then(|| "run ended; assignment outcome not reported yet".to_owned())
+                    });
                 entity.updated_at_ms = at_ms;
                 entity.epoch = self.epoch.max(entity.epoch);
                 vec![self.upsert(entity, at_ms)]
@@ -491,6 +558,13 @@ impl AgentEventAdapter {
                     None => (base.clone(), 1),
                 };
                 self.attempts.insert(base, (id.clone(), attempt));
+                if tool == "spawn_agent"
+                    && let Some(task) = arguments(payload)["task"]
+                        .as_str()
+                        .map(|task| first_line(task, 120))
+                {
+                    self.spawn_tasks.insert(id.clone(), task);
+                }
                 let args = arguments(payload);
                 let subject = args["cmd"]
                     .as_str()
@@ -586,17 +660,28 @@ impl AgentEventAdapter {
                         .or_else(|| payload["result"].as_str())
                         .map(|text| text.len() as u64);
                 }
-                let spawned = (payload["tool"] == "spawn_agent" && !unknown)
-                    .then(|| {
-                        Some((
-                            structured["agent_id"].as_u64()?,
-                            structured["role"].as_str()?,
-                        ))
-                    })
-                    .flatten();
+                let task = self.spawn_tasks.remove(&entity.id);
                 events.push(self.upsert(entity, at_ms));
-                if let Some((agent, role)) = spawned {
-                    events.extend(self.agent_role(agent, role, at_ms));
+                let reporting = matches!(
+                    payload["tool"].as_str(),
+                    Some(
+                        "spawn_agent"
+                            | "wait_agent"
+                            | "list_agents"
+                            | "close_agent"
+                            | "interrupt_agent"
+                    )
+                );
+                if reporting && !unknown {
+                    let report = result_value(payload);
+                    match report["agents"].as_array() {
+                        Some(agents) => {
+                            for agent in agents {
+                                events.extend(self.agent_report(agent, None, at_ms));
+                            }
+                        }
+                        None => events.extend(self.agent_report(&report, task, at_ms)),
+                    }
                 }
                 events
             }
@@ -769,6 +854,58 @@ impl AgentEventAdapter {
             at_ms,
             entities,
         }
+    }
+
+    /// Apply one subagent lifecycle report (`{agent_id, role, status: {state,
+    /// error}}`) from a spawn/wait/list/close receipt: role as title, task as
+    /// subject, and the reported assignment state.
+    fn agent_report(
+        &mut self,
+        report: &Value,
+        task: Option<String>,
+        at_ms: u64,
+    ) -> Vec<SurfaceEvent> {
+        let Some(agent) = report["agent_id"].as_u64() else {
+            return Vec::new();
+        };
+        let id = format!("agent:{agent}");
+        let mut events = Vec::new();
+        if let Some(role) = report["role"].as_str() {
+            events.extend(self.agent_role(agent, role, at_ms));
+        }
+        let Some(mut entity) = self.entities.get(&id).cloned() else {
+            return events;
+        };
+        let mut changed = false;
+        let task = task.or_else(|| report["task"].as_str().map(|task| first_line(task, 120)));
+        if let Some(task) = task.filter(|task| entity.subject.as_deref() != Some(task.as_str())) {
+            self.prompts.insert(id.clone(), task.clone());
+            self.prompts.insert(id.clone(), task.clone());
+            self.tasked.insert(id);
+            entity.subject = Some(task);
+            changed = true;
+        }
+        let status = &report["status"];
+        if let Some(state) = status["state"]
+            .as_str()
+            .or_else(|| report["state"].as_str())
+        {
+            let next = agent_lifecycle(state);
+            if next != entity.state {
+                entity.state = next;
+                entity.reason = status["error"]
+                    .as_str()
+                    .or_else(|| report["error"].as_str())
+                    .map(|error| first_line(error, 160));
+                entity.epoch = self.epoch.max(entity.epoch);
+                changed = true;
+            }
+        }
+        if changed {
+            entity.updated_at_ms = at_ms;
+            events.push(self.upsert(entity, at_ms));
+        }
+        events
     }
 
     /// Record a subagent's role as its card title, when a surface learns it.

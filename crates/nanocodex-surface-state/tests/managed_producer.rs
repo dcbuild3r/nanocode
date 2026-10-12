@@ -205,3 +205,65 @@ fn child_history_replays_through_the_adapter() {
     assert_eq!(projection.liveness.restarts, 1);
     journey.check("child-history.cards.json");
 }
+
+/// Real hosted-stack swarm (reviewer harness: protocol workerd stack with a
+/// scripted model, 17 children, six runtime restarts). Children whose runs
+/// ended without an accepted result are reported failed by `wait_agent`; their
+/// cards must say failed, titled by role with their task as subject, and agree
+/// with the service's own snapshot.
+#[test]
+fn swarm_children_show_their_reported_outcome() {
+    let events = history("swarm-history.json");
+    let last = events
+        .last()
+        .and_then(|event| event["created_at"].as_u64())
+        .unwrap();
+    let mut journey = Journey::new();
+    journey.events(&events);
+    let replayed = journey.frame("full swarm history (6 restarts)", last);
+    let workers: Vec<_> = replayed
+        .cards
+        .iter()
+        .filter(|card| card.kind == nanocodex_surface_state::EntityKind::Agent)
+        .collect();
+    assert!(!workers.is_empty());
+    for worker in &workers {
+        assert!(worker.title.starts_with("Worker "), "{worker:#?}");
+        assert!(
+            worker
+                .subject
+                .as_deref()
+                .is_some_and(|task| task.starts_with("CHILD ")),
+            "{worker:#?}"
+        );
+    }
+    let failed = workers
+        .iter()
+        .filter(|card| card.state == Lifecycle::Failed)
+        .count();
+    assert!(
+        failed >= 5,
+        "reported failures must not read as done: {workers:#?}"
+    );
+    assert!(
+        workers
+            .iter()
+            .all(|card| card.state != Lifecycle::Completed)
+    );
+    assert_eq!(replayed.liveness.epoch, 6);
+
+    let snapshot = journey.snapshot("swarm-surface-after-epoch6.json");
+    let settled = journey.frame("service snapshot after epoch 6", snapshot.generated_at);
+    for agent in &snapshot.agents {
+        let card = card(&settled, &format!("agent:{}", agent.agent_id));
+        assert_eq!(card.state, Lifecycle::Failed, "{card:#?}");
+        assert_eq!(card.title, agent.role);
+    }
+    assert!(
+        settled
+            .cards
+            .iter()
+            .all(|card| card.state != Lifecycle::Running)
+    );
+    journey.check("swarm.cards.json");
+}
