@@ -8,6 +8,7 @@ authors.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
+readme = "README.md"
 description = "Shared surface-state model: a pure reducer over runtime lifecycle events and the card projection every Nanocodex surface renders"
 
 # Serde only: the TUI renderer, web mirror (js/nanocodex-surface-state) and

@@ -17,6 +17,9 @@
   product and standalone Connect dialog.
 - [`nanocodex-terminal`](nanocodex-terminal) provides `nanocodex-terminal`: controlled React
   transcript and composer components with an optional canonical stylesheet.
+- [`nanocodex-surface-state`](nanocodex-surface-state) mirrors the Rust
+  `nanocodex-surface-state` reducer and card projection for web surfaces, with
+  a DOM-free HTML card-stream renderer.
 - [`account`](account), [`connect-dialog`](connect-dialog), and
   [`connect-playground`](connect-playground) are product applications.
 - [`managed`](managed), [`egress`](egress), [`connect-api`](connect-api), and
