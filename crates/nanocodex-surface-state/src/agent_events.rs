@@ -243,6 +243,7 @@ impl AgentEventAdapter {
             cursor: self.next_cursor(),
             at_ms,
             entity,
+            stream: None,
         }
     }
 
@@ -430,6 +431,7 @@ impl AgentEventAdapter {
                     cursor: self.next_cursor(),
                     at_ms,
                     reason,
+                    stream: None,
                 }]
             }
             "run.started" => {

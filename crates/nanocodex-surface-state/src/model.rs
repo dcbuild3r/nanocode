@@ -280,12 +280,18 @@ pub enum SurfaceEvent {
         cursor: u64,
         at_ms: u64,
         entity: Entity,
+        /// Producer stream whose cursor space `cursor` belongs to (for
+        /// example one child agent's own stream); absent is the main stream.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stream: Option<String>,
     },
     RuntimeEpoch {
         epoch: u64,
         cursor: u64,
         at_ms: u64,
         reason: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        stream: Option<String>,
     },
     /// Runtime liveness control frame. It carries the producer's cursor
     /// high-water mark for display only and never fences deltas.
@@ -300,6 +306,16 @@ pub enum SurfaceEvent {
 }
 
 impl SurfaceEvent {
+    /// The producer stream a delta's cursor belongs to; `None` is the main
+    /// stream (which snapshots also fence).
+    #[must_use]
+    pub fn stream(&self) -> Option<&str> {
+        match self {
+            Self::Upsert { stream, .. } | Self::RuntimeEpoch { stream, .. } => stream.as_deref(),
+            _ => None,
+        }
+    }
+
     /// The delta cursor that fences replays; control frames have none.
     #[must_use]
     pub const fn cursor(&self) -> Option<u64> {

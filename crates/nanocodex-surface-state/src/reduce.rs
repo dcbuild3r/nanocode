@@ -53,6 +53,9 @@ pub struct SurfaceState {
     /// such as the workspace do not establish an epoch baseline).
     runtime_seen: bool,
     pub(crate) disconnected_at_ms: Option<u64>,
+    /// Applied cursor per secondary producer stream (the main stream uses
+    /// `cursor`). Streams have independent cursor spaces.
+    watermarks: HashMap<String, u64>,
 }
 
 impl SurfaceState {
@@ -132,32 +135,52 @@ impl SurfaceState {
                     Some(self.disconnected_at_ms.unwrap_or(*at_ms))
                 };
             }
-            _ if event.cursor().is_some_and(|cursor| cursor <= self.cursor) => {
+            _ if event
+                .cursor()
+                .is_some_and(|cursor| cursor <= self.watermark(event.stream())) =>
+            {
                 self.replays_ignored += 1;
             }
             SurfaceEvent::Upsert {
                 cursor,
                 at_ms,
                 entity,
+                stream,
             } => {
-                self.upsert(entity, *cursor, *at_ms);
+                self.upsert(entity, *cursor, *at_ms, false);
                 // Hand and workspace observations are environment state, not
                 // runtime progress: they must not refresh "last event".
-                if matches!(entity.kind(), EntityKind::Hand | EntityKind::Brain) {
-                    self.cursor = *cursor;
-                } else {
-                    self.advance(*cursor, *at_ms);
-                }
+                let progress = !matches!(entity.kind(), EntityKind::Hand | EntityKind::Brain);
+                self.fence(stream.as_deref(), *cursor, progress.then_some(*at_ms));
             }
             SurfaceEvent::RuntimeEpoch {
                 epoch,
                 cursor,
                 at_ms,
                 reason,
+                stream,
             } => {
                 self.settle_epoch(*epoch, *cursor, *at_ms, reason);
-                self.advance(*cursor, *at_ms);
+                self.fence(stream.as_deref(), *cursor, Some(*at_ms));
             }
+        }
+    }
+
+    fn watermark(&self, stream: Option<&str>) -> u64 {
+        stream.map_or(self.cursor, |stream| {
+            self.watermarks.get(stream).copied().unwrap_or(0)
+        })
+    }
+
+    fn fence(&mut self, stream: Option<&str>, cursor: u64, progress_at_ms: Option<u64>) {
+        match stream {
+            None => self.cursor = cursor,
+            Some(stream) => {
+                self.watermarks.insert(stream.to_owned(), cursor);
+            }
+        }
+        if let Some(at_ms) = progress_at_ms {
+            self.last_event_at_ms = Some(at_ms);
         }
     }
 
@@ -198,14 +221,17 @@ impl SurfaceState {
             }
         }
         for entity in entities {
-            self.upsert(entity, cursor, at_ms);
+            self.upsert(entity, cursor, at_ms, true);
         }
         self.epoch = self.epoch.max(epoch);
         self.epoch_known = true;
         self.advance(cursor, at_ms);
     }
 
-    fn upsert(&mut self, entity: &Entity, cursor: u64, at_ms: u64) {
+    /// `authoritative` upserts come from a producer snapshot: they may reopen
+    /// an entity this surface settled itself, because the producer says it is
+    /// still open (a yielded cell's call, a detached process).
+    fn upsert(&mut self, entity: &Entity, cursor: u64, at_ms: u64, authoritative: bool) {
         self.runtime_seen |= entity.kind().settles_on_epoch();
         let Some(tracked) = self.entities.get_mut(&entity.id) else {
             self.entities.insert(
@@ -226,7 +252,8 @@ impl SurfaceState {
         let previous = tracked.entity.state;
         let next = entity.state;
         let resumed_in_new_epoch = entity.epoch > tracked.entity.epoch;
-        if previous.is_terminal() && !next.is_terminal() && !resumed_in_new_epoch {
+        let reopened = authoritative && tracked.settled_locally;
+        if previous.is_terminal() && !next.is_terminal() && !resumed_in_new_epoch && !reopened {
             self.regressions_ignored += 1;
             return;
         }
@@ -234,7 +261,7 @@ impl SurfaceState {
             self.regressions_ignored += 1;
             return;
         }
-        if previous.is_terminal() && !next.is_terminal() {
+        if previous.is_terminal() && !next.is_terminal() && resumed_in_new_epoch {
             tracked.attempt += 1;
         }
         let reconciles = tracked.settled_locally && next.is_definitive();
