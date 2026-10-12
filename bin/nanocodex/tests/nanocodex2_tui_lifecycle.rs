@@ -9490,3 +9490,64 @@ async fn terminal_card_stream_reads_the_surface_snapshot_on_first_attach() {
     fixture.terminal.input("\x1b[H");
     wait_line(&fixture.terminal, &["BRAIN Workspace"]).await;
 }
+
+/// A live `runtime_epoch` frame on the (surface=1) WebSocket settles the card
+/// stream's in-flight work and makes the TUI re-read `/surface`, whose open
+/// entities (real producer body) then appear without any reconnect.
+#[tokio::test]
+async fn terminal_card_stream_rereads_the_surface_after_a_live_runtime_epoch() {
+    let mut fixture = Fixture::start().await;
+    fixture.terminal.prompt("CARD_EPOCH_JOURNEY", "\r");
+    let turn = fixture.submission("CARD_EPOCH_JOURNEY").await;
+    fixture.nested(&turn, "run.started", json!({"model": "gpt-card-stream"}));
+    fixture.nested(
+        &turn,
+        "tool.call",
+        json!({"call_id": "cards-epoch-lost", "tool": "exec_command",
+        "arguments": {"cmd": "cargo test -p lost-to-epoch"}}),
+    );
+    fixture.terminal.input("\x1b[18~");
+    wait_line(
+        &fixture.terminal,
+        &["cargo test -p lost-to-epoch", "running"],
+    )
+    .await;
+
+    let mut snapshot: Value = serde_json::from_str(include_str!(
+        "../../../crates/nanocodex-surface-state/fixtures/managed/child-surface-moved-on.json"
+    ))
+    .unwrap();
+    let shift = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+        - snapshot["generated_at"].as_i64().unwrap();
+    for (list, field) in [
+        ("runs", "started_at"),
+        ("agents", "updated_at"),
+        ("tool_calls", "started_at"),
+    ] {
+        for entry in snapshot[list].as_array_mut().unwrap() {
+            entry[field] = json!(entry[field].as_i64().unwrap() + shift);
+        }
+    }
+    snapshot["generated_at"] = json!(snapshot["generated_at"].as_i64().unwrap() + shift);
+    *fixture.surface.lock().unwrap() = Some(snapshot);
+    fixture.emit(
+        &turn,
+        json!({"type": "runtime_epoch", "epoch": 1, "reason": "runtime_restarted",
+        "interrupted": {"tool_calls": [], "runs": [], "turns": [turn]}}),
+    );
+    wait_line(
+        &fixture.terminal,
+        &["cargo test -p lost-to-epoch", "unknown"],
+    )
+    .await;
+    fixture.terminal.wait_text("runtime restarted").await;
+    wait_line(&fixture.terminal, &["AGENT Surface child", "running"]).await;
+    wait_line(&fixture.terminal, &["epoch 1", "1 restart(s)"]).await;
+    capture(
+        &fixture.terminal,
+        "card stream epoch: live runtime_epoch and /surface re-read",
+    );
+}
