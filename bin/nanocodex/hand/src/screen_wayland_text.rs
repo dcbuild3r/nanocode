@@ -543,7 +543,15 @@ mod tests {
             ..f.config(false, false, false)
         };
         // The compositor exited: its socket path remains but nothing listens.
-        drop(f.compositor.take());
+        // Shut the listener down for every holder; a concurrently forked test
+        // helper may briefly share this descriptor.
+        let compositor = f.compositor.take().unwrap();
+        nix::sys::socket::shutdown(
+            std::os::fd::AsRawFd::as_raw_fd(&compositor),
+            nix::sys::socket::Shutdown::Both,
+        )
+        .unwrap();
+        drop(compositor);
         let failure = f.typed(&auto, "secret").await.unwrap_err();
         assert!(
             failure.to_string().contains("captured Wayland session"),

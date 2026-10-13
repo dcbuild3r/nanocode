@@ -161,8 +161,12 @@ async fn install() -> Result<()> {
 
     let service_user = service_user(previous.as_ref(), &request.service_user).await?;
     let workspace = selected_workspace(&request, previous.as_ref());
-    transfer_state_owner(&service_user).await?;
+    let home = service_home(&service_user)?;
+    let transferred = transfer_state_owner(&service_user).await?;
     prepare_state(&service_user, &workspace).await?;
+    // After the transfer: a workspace inside the state directory is reachable
+    // only once the new owner holds it.
+    verify_workspace(&service_user, &workspace, transferred).await?;
     for child in ["cache", "releases"] {
         safe_directory(&root.join(child))?;
     }
@@ -194,7 +198,7 @@ async fn install() -> Result<()> {
     let link_changed = activate(root, &release)?;
     let unit_changed = atomic_write(
         Path::new("/etc/systemd/system").join(SERVICE).as_path(),
-        service_unit(&service_user, &workspace).as_bytes(),
+        service_unit(&service_user, &workspace, &home).as_bytes(),
         0o644,
     )?;
     atomic_write(
@@ -257,8 +261,9 @@ async fn install() -> Result<()> {
     )
     .await?;
 
-    let machine = describe_machine(&request, &service_user, &workspace).await?;
+    let (machine, screen) = describe_machine(&request, &service_user, &workspace, &home).await?;
     wait_ready(&request, &machine).await?;
+    eprintln!("{}", screen_summary(&service_user.name, &screen));
     let mut ready_record = public.clone();
     ready_record["machine_id"] = Value::String(machine.clone());
     atomic_write(
@@ -274,10 +279,34 @@ async fn install() -> Result<()> {
             "mode": "native",
             "revision": revision,
             "service_user": service_user.name,
+            "home": home,
             "workspace": workspace,
+            // Discovery as the service account at setup time; the catalog check
+            // above proves a controllable video desktop, not which one.
+            "screen": screen,
+            // Setup never injects input, so delivery is not claimed.
+            "input": "unverified",
         }))?
     );
     Ok(())
+}
+
+/// One honest line for the person running setup.
+fn screen_summary(user: &str, screen: &Value) -> String {
+    let input = "Input delivery was not tested by setup.";
+    match screen["source"].as_str() {
+        Some("wayland") => format!(
+            "Screen: {user}'s own Wayland session ({}). {input}",
+            screen["display"].as_str().unwrap_or("unknown display")
+        ),
+        Some("private_desktop") => format!(
+            "Screen: the Hand's private virtual desktop. No live Wayland session owned by {user} was found, so a visible desktop is not captured; to capture one, sign in to it as {user} and restart the Hand. {input}"
+        ),
+        _ => format!(
+            "Screen: discovery as {user} failed ({}). {input}",
+            screen["error"].as_str().unwrap_or("unknown error")
+        ),
+    }
 }
 
 fn validate_request(request: &Request) -> Result<()> {
@@ -726,13 +755,13 @@ const OWNED_STATE: [&str; 4] = [".nanocodex", "desktop", "cache", "Nanocodex"];
 /// Changing the service owner of retained state: stop the old owner and hand
 /// the Hand's private state (identity, VM factory state, desktop recipe,
 /// default workspace) to the new account.
-async fn transfer_state_owner(user: &nix::unistd::User) -> Result<()> {
+async fn transfer_state_owner(user: &nix::unistd::User) -> Result<bool> {
     use std::os::unix::fs::MetadataExt;
     let Ok(metadata) = fs::metadata(STATE) else {
-        return Ok(());
+        return Ok(false);
     };
     if metadata.uid() == user.uid.as_raw() {
-        return Ok(());
+        return Ok(false);
     }
     if Path::new("/etc/systemd/system").join(SERVICE).is_file() {
         checked(
@@ -769,7 +798,7 @@ async fn transfer_state_owner(user: &nix::unistd::User) -> Result<()> {
         user.name,
         OWNED_STATE.join(", ")
     );
-    Ok(())
+    Ok(true)
 }
 
 async fn prepare_state(user: &nix::unistd::User, workspace: &str) -> Result<()> {
@@ -805,20 +834,130 @@ async fn prepare_state(user: &nix::unistd::User, workspace: &str) -> Result<()> 
             .await?;
         }
     }
+    Ok(())
+}
+
+/// An explicitly selected workspace keeps its owner and permissions; the
+/// service account must already be able to use it.
+async fn verify_workspace(
+    user: &nix::unistd::User,
+    workspace: &str,
+    transferred: bool,
+) -> Result<()> {
     if workspace != DEFAULT_WORKSPACE {
         // An explicitly selected workspace keeps its owner and permissions.
         if !Path::new(workspace).is_dir() {
             bail!("workspace {workspace} is not an existing directory");
         }
-        checked(
-            Command::new("runuser").args([
+        let usable = Command::new("runuser")
+            .args([
                 "-u", &user.name, "--", "test", "-w", workspace, "-a", "-x", workspace,
-            ]),
-            &format!("verify {} can use workspace {workspace}", user.name),
-        )
-        .await?;
+            ])
+            .status()
+            .await
+            .with_context(|| {
+                format!(
+                    "could not verify {} can use workspace {workspace}",
+                    user.name
+                )
+            })?
+            .success();
+        if !usable {
+            let acl = Command::new("getfacl")
+                .args(["--absolute-names", "--omit-header", "--", workspace])
+                .output()
+                .await
+                .ok()
+                .filter(|output| output.status.success())
+                .map(|output| String::from_utf8_lossy(&output.stdout).into_owned());
+            bail!(
+                "{}",
+                workspace_access_error(&user.name, workspace, acl.as_deref(), transferred)
+            );
+        }
     }
     Ok(())
+}
+
+/// Why the service account cannot use an explicit workspace, and the narrowest
+/// fix. Setup never widens permissions itself.
+fn workspace_access_error(
+    user: &str,
+    workspace: &str,
+    acl: Option<&str>,
+    transferred: bool,
+) -> String {
+    let state = if transferred {
+        format!(
+            "State: the Hand service is stopped and its private state now belongs to {user}; the workspace was not changed."
+        )
+    } else {
+        "State: the Hand service was not changed.".to_owned()
+    };
+    let stopped = format!(
+        "Hand setup stopped: {user} cannot write to and enter workspace {workspace}. {state}"
+    );
+    let next = format!(
+        "Otherwise give {user} access to {workspace} yourself, or pass --workspace with a directory {user} can write, then rerun the same command."
+    );
+    let entries: Vec<(&str, &str)> = acl
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| !line.starts_with("default:"))
+        .filter_map(|line| {
+            let entry = line.split('#').next()?.trim();
+            let (tag, perms) = entry.rsplit_once(':')?;
+            Some((tag, perms))
+        })
+        .collect();
+    let granted = entries
+        .iter()
+        .find(|(tag, _)| *tag == format!("user:{user}"))
+        .map(|(_, perms)| *perms);
+    let mask = entries
+        .iter()
+        .find(|(tag, _)| *tag == "mask:")
+        .map(|(_, perms)| *perms);
+    let has = |perms: &str, bit: char| perms.contains(bit);
+    match (granted, mask) {
+        (Some(granted), Some(mask))
+            if has(granted, 'w') && has(granted, 'x') && !(has(mask, 'w') && has(mask, 'x')) =>
+        {
+            let needed: String = ['r', 'w', 'x']
+                .iter()
+                .map(|bit| {
+                    if has(mask, *bit) || has(granted, *bit) {
+                        *bit
+                    } else {
+                        '-'
+                    }
+                })
+                .collect();
+            let reenabled: Vec<String> = entries
+                .iter()
+                .filter(|(tag, perms)| {
+                    (tag.starts_with("user:") && !tag.ends_with(':') || tag.starts_with("group:"))
+                        && *tag != format!("user:{user}")
+                        && perms
+                            .chars()
+                            .any(|bit| bit != '-' && !has(mask, bit) && has(&needed, bit))
+                })
+                .map(|(tag, perms)| format!("{tag}:{perms}"))
+                .collect();
+            format!(
+                "{stopped} Its ACL already grants user:{user}:{granted}, but the ACL mask is {mask}, which blocks it (a chmod of the directory rewrites the mask). To restore that existing grant: setfacl -m m::{needed} {workspace}. The mask also limits {}. {next}",
+                if reenabled.is_empty() {
+                    "no other entry here".to_owned()
+                } else {
+                    format!(
+                        "these entries, which it re-enables up to {needed}: {}",
+                        reenabled.join(", ")
+                    )
+                }
+            )
+        }
+        _ => format!("{stopped} {next}"),
+    }
 }
 
 fn atomic_write(path: &Path, contents: &[u8], mode: u32) -> Result<bool> {
@@ -871,7 +1010,30 @@ fn activate(root: &Path, release: &Path) -> Result<bool> {
     Ok(true)
 }
 
-fn service_unit(user: &nix::unistd::User, workspace: &str) -> String {
+/// The service account's own home: its toolchains, caches and git/ssh identity.
+/// The dedicated nanocodex account lives in the Hand state directory. Hand state
+/// stays under STATE either way, because that directory is owned by the service.
+fn service_home(user: &nix::unistd::User) -> Result<String> {
+    if user.name == "nanocodex" {
+        return Ok(STATE.to_owned());
+    }
+    let home = user
+        .dir
+        .to_str()
+        .filter(|path| valid_workspace(path))
+        .with_context(|| {
+            format!(
+                "home directory of {} is not a plain absolute path",
+                user.name
+            )
+        })?;
+    if !user.dir.is_dir() {
+        bail!("home directory {home} of {} does not exist", user.name);
+    }
+    Ok(home.to_owned())
+}
+
+fn service_unit(user: &nix::unistd::User, workspace: &str, home: &str) -> String {
     r#"[Unit]
 Description=Nanocodex host Hand
 Wants=network-online.target
@@ -886,7 +1048,7 @@ User=nanocodex
 Group=nanocodex
 WorkingDirectory=WORKSPACE
 EnvironmentFile=/opt/nanocodex/account.env
-Environment=HOME=/srv/nanocodex
+Environment=HOME=SERVICE_HOME
 Environment=NANOCODEX_DESKTOP_DATA=/srv/nanocodex/desktop
 WORKSPACE_ENVIRONMENTEnvironment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart=/opt/nanocodex/current/nanocodex2 hand
@@ -902,6 +1064,7 @@ WantedBy=multi-user.target
 "#
     .replace("User=nanocodex", &format!("User={}", user.uid))
     .replace("Group=nanocodex", &format!("Group={}", user.gid))
+    .replace("HOME=SERVICE_HOME", &format!("HOME={home}"))
     .replace(
         "WorkingDirectory=WORKSPACE",
         &format!("WorkingDirectory={workspace}"),
@@ -948,7 +1111,8 @@ async fn describe_machine(
     request: &Request,
     user: &nix::unistd::User,
     workspace: &str,
-) -> Result<String> {
+    home: &str,
+) -> Result<(String, Value)> {
     let output = Command::new("runuser")
         .args([
             "-u",
@@ -958,7 +1122,12 @@ async fn describe_machine(
             "__device-hand",
             "--describe",
         ])
-        .env("HOME", STATE)
+        // Mirror the service unit, which names no display or backend.
+        .env("HOME", home)
+        .env_remove("XDG_RUNTIME_DIR")
+        .env_remove("WAYLAND_DISPLAY")
+        .env_remove("DISPLAY")
+        .env_remove("NANOCODEX_SCREEN_BACKEND")
         .env("NANOCODEX_HAND_WORKSPACE", workspace)
         .env("NANOCODEX_API_KEY", &request.credential)
         .env("NANOCODEX_MANAGED_URL", &request.origin)
@@ -972,10 +1141,17 @@ async fn describe_machine(
         );
     }
     let identity: Value = serde_json::from_slice(&output.stdout)?;
-    identity["id"]
+    let machine = identity["id"]
         .as_str()
         .map(str::to_owned)
-        .ok_or_else(|| anyhow::anyhow!("Hand returned an invalid identity"))
+        .ok_or_else(|| anyhow::anyhow!("Hand returned an invalid identity"))?;
+    let screen = match &identity["screen"] {
+        Value::Null => {
+            json!({"source": "unavailable", "error": "this Hand does not report screen discovery"})
+        }
+        screen => screen.clone(),
+    };
+    Ok((machine, screen))
 }
 
 async fn wait_ready(request: &Request, machine: &str) -> Result<()> {
@@ -1394,14 +1570,49 @@ mod tests {
     }
 
     #[test]
+    fn masked_acl_grant_names_the_narrow_repair_and_unacled_denial_does_not() {
+        // Exact getfacl --omit-header output after an older installer's chmod 700.
+        let masked = "user::rwx\nuser:alice:rwx\t#effective:---\ngroup::--x\t#effective:---\nmask::---\nother::---\ndefault:user::rwx\ndefault:user:alice:rwx\ndefault:group::--x\ndefault:mask::rwx\ndefault:other::--x\n";
+        let message = workspace_access_error("alice", "/data/projects", Some(masked), false);
+        assert!(
+            message.contains("State: the Hand service was not changed."),
+            "{message}"
+        );
+        assert!(
+            message.contains("grants user:alice:rwx, but the ACL mask is ---"),
+            "{message}"
+        );
+        assert!(
+            message.contains("setfacl -m m::rwx /data/projects."),
+            "{message}"
+        );
+        assert!(
+            message.contains("re-enables up to rwx: group::--x"),
+            "{message}"
+        );
+        for acl in [None, Some("user::rwx\ngroup::---\nother::---\n")] {
+            let message = workspace_access_error("alice", "/data/projects", acl, true);
+            assert!(message.contains("now belongs to alice"), "{message}");
+            assert!(!message.contains("setfacl"), "{message}");
+            assert!(
+                message.contains("give alice access to /data/projects yourself"),
+                "{message}"
+            );
+        }
+    }
+
+    #[test]
     fn service_runs_only_the_activated_native_binary() {
         let user = nix::unistd::User::from_uid(nix::unistd::geteuid())
             .unwrap()
             .unwrap();
-        let unit = service_unit(&user, DEFAULT_WORKSPACE);
+        let unit = service_unit(&user, DEFAULT_WORKSPACE, STATE);
+        assert!(unit.contains("Environment=HOME=/srv/nanocodex\n"));
+        let desktop_owner = service_unit(&user, DEFAULT_WORKSPACE, "/home/fixture");
+        assert!(desktop_owner.contains("Environment=HOME=/home/fixture\n"));
         assert!(unit.contains("WorkingDirectory=/srv/nanocodex/Nanocodex\n"));
         assert!(!unit.contains("NANOCODEX_HAND_WORKSPACE"));
-        let selected = service_unit(&user, "/srv/nanocodex/workspace");
+        let selected = service_unit(&user, "/srv/nanocodex/workspace", STATE);
         assert!(selected.contains("WorkingDirectory=/srv/nanocodex/workspace\n"));
         assert!(selected.contains(
             "Environment=NANOCODEX_HAND_WORKSPACE=/srv/nanocodex/workspace\nEnvironment=PATH="

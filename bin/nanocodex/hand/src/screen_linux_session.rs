@@ -245,6 +245,11 @@ impl WaylandSession {
         Ok(())
     }
 
+    /// The captured display socket name, for truthful readiness reports.
+    pub(crate) fn display(&self) -> &OsStr {
+        &self.display
+    }
+
     pub(crate) fn configure(&self, command: &mut tokio::process::Command) -> Result<()> {
         self.validate()?;
         command
@@ -431,6 +436,14 @@ mod tests {
         net::UnixListener,
     };
 
+    // Close the listener for every holder. A test helper forked concurrently
+    // can briefly inherit this descriptor, so dropping ours alone may leave the
+    // socket accepting connections and make "stale" look alive.
+    fn close(listener: UnixListener) {
+        use std::os::fd::AsRawFd as _;
+        nix::sys::socket::shutdown(listener.as_raw_fd(), nix::sys::socket::Shutdown::Both).unwrap();
+    }
+
     struct Fixture {
         directory: tempfile::TempDir,
         uid: u32,
@@ -498,7 +511,7 @@ mod tests {
     fn empty_stale_invalid_and_foreign_hints_never_become_sessions() {
         let f = Fixture::new();
         let stale = f.socket("wayland-0");
-        drop(stale);
+        close(stale);
         for display in [
             None,
             Some(""),
@@ -663,7 +676,7 @@ mod tests {
         );
         assert_eq!(std::env::var_os("XDG_RUNTIME_DIR"), before_runtime);
         assert_eq!(std::env::var_os("WAYLAND_DISPLAY"), before_display);
-        drop(live);
+        close(live);
         assert!(
             session.configure(&mut child).is_err(),
             "recovery must not trust stale captured socket"
