@@ -151,7 +151,7 @@ fn validate_runtime(runtime: &Path, uid: u32) -> Result<()> {
 }
 
 impl WaylandSession {
-    fn validated(runtime: &Path, display: &OsStr, uid: u32) -> Result<Self> {
+    pub(crate) fn validated(runtime: &Path, display: &OsStr, uid: u32) -> Result<Self> {
         let display_path = Path::new(display);
         // libwayland permits absolute display paths, but only direct children of
         // the validated runtime are accepted here. Never accept ../ or symlinks.
@@ -549,6 +549,36 @@ mod tests {
             Selection::PrivateDesktop
         ));
         assert!(f.select(Some("wayland"), None, Some("wayland-1")).is_err());
+    }
+
+    // Explicit legacy text helpers inherit the service environment; it must
+    // name exactly the captured compositor or text is refused.
+    #[test]
+    fn inherited_text_environment_must_match_the_captured_session() {
+        let f = Fixture::new();
+        let _captured = f.socket("wayland-1");
+        let _other = f.socket("wayland-2");
+        let session =
+            WaylandSession::validated(f.directory.path(), OsStr::new("wayland-1"), f.uid).unwrap();
+        let runtime = Some(f.directory.path().as_os_str());
+        assert!(
+            session
+                .validate_text_environment(runtime, Some(OsStr::new("wayland-1")))
+                .is_ok()
+        );
+        let mismatch = session
+            .validate_text_environment(runtime, Some(OsStr::new("wayland-2")))
+            .unwrap_err();
+        assert!(
+            mismatch.to_string().contains("differs from the captured"),
+            "{mismatch}"
+        );
+        assert!(session.validate_text_environment(runtime, None).is_err());
+        assert!(
+            session
+                .validate_text_environment(None, Some(OsStr::new("wayland-1")))
+                .is_err()
+        );
     }
 
     #[test]
