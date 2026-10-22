@@ -72,6 +72,36 @@ impl Gateway {
     }
 }
 
+/// A host-provided Chat Completions route for open models: OpenRouter with any
+/// `vendor/name` model, or (with a base URL) a loopback endpoint such as a local
+/// model server behind the embedding application, which maps the slug itself.
+struct ChatEndpoint {
+    base_url: Option<String>,
+    model: String,
+    api_key: String,
+}
+
+fn chat_endpoint() -> Result<Option<ChatEndpoint>> {
+    let read = |name: &str| {
+        std::env::var(name)
+            .ok()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+    };
+    let Some(model) = read("NANOCODE_CHAT_MODEL") else {
+        return Ok(None);
+    };
+    let base_url = read("NANOCODE_CHAT_BASE_URL");
+    let api_key = read("NANOCODE_CHAT_API_KEY")
+        .or_else(|| base_url.is_none().then(|| read("OPENROUTER_API_KEY")).flatten())
+        .ok_or("NANOCODE_CHAT_MODEL needs NANOCODE_CHAT_API_KEY (or OPENROUTER_API_KEY for OpenRouter)")?;
+    Ok(Some(ChatEndpoint {
+        base_url,
+        model,
+        api_key,
+    }))
+}
+
 fn env_secret(name: &'static str) -> Option<(&'static str, String)> {
     std::env::var(name)
         .ok()
@@ -191,12 +221,24 @@ impl Host {
         model: &ModelSelection,
         thinking: Thinking,
     ) -> Result<Self> {
-        let openai = match &config.gateway {
-            Some(gateway) => {
+        let openai = match (&config.gateway, chat_endpoint()?) {
+            (Some(gateway), _) => {
                 gateway.check(model)?;
                 OpenAi::builder(gateway.auth.clone()).responses_gateway(gateway.route.clone())
             }
-            None => OpenAi::builder(nanocode::codex::OpenAiAuth::chatgpt()),
+            // Open models (GLM, Kimi, MiMo) go to a host-provided OpenAI-compatible endpoint.
+            (None, Some(chat)) => {
+                let builder = OpenAi::builder(nanocode::codex::OpenAiAuth::api_key(chat.api_key))
+                    .chat_gateway(
+                        nanocode::codex::transport::ChatGateway::openrouter()
+                            .wire_model(chat.model),
+                    );
+                match chat.base_url {
+                    Some(url) => builder.api_base_url(url),
+                    None => builder,
+                }
+            }
+            (None, None) => OpenAi::builder(nanocode::codex::OpenAiAuth::chatgpt()),
         }
         .raw_api_events(false)
         .build()?;
